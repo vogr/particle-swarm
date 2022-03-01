@@ -1,0 +1,3 @@
+# Particle swarm fast implementation
+
+Article: [Particle swarm with radial basis function surrogates for expensive black-box optimization](https://acl.inf.ethz.ch/teaching/fastcode/2022/project/project-ideas/particle-swarm.pdf)
