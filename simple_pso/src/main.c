@@ -65,7 +65,7 @@ double clamp(double v, double lo, double hi)
     }
 }
 
-void init_pso_constant_inertia(
+void pso_constant_inertia_init(
     struct pso_data_constant_inertia * pso,
     blackbox_fun f,
     double inertia,
@@ -133,7 +133,7 @@ void init_pso_constant_inertia(
 }
 
 
-void initialize_pso(struct pso_data_constant_inertia * pso)
+void pso_constant_inertia_first_steps(struct pso_data_constant_inertia * pso)
 {
     // Step 2. Initialize particle velocities
     for(int i = 0 ; i < pso->population_size ; i++)
@@ -176,7 +176,7 @@ void initialize_pso(struct pso_data_constant_inertia * pso)
 }
 
 
-bool pso_loop_constant_inertia(struct pso_data_constant_inertia * pso)
+bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
 {
     // Step 4. Update particle velocities
     for (int i = 0 ; i < pso->population_size ; i++)
@@ -251,7 +251,7 @@ void run_pso(
 )
 {
     struct pso_data_constant_inertia pso = {0};
-    init_pso_constant_inertia(
+    pso_constant_inertia_init(
         &pso,
         f,
         inertia, social, cognition,
@@ -261,7 +261,7 @@ void run_pso(
         initial_positions
     );
 
-    initialize_pso(&pso);
+    pso_constant_inertia_first_steps(&pso);
 
     do {
         printf("t=%d  ŷ=[", pso.time);
@@ -271,7 +271,7 @@ void run_pso(
             if (j < dimensions - 1) printf(", ");
         }
         printf("]  f(ŷ)=%f\n", pso.y_eval[pso.y_best_id]);
-    } while(pso_loop_constant_inertia(&pso));
+    } while(pso_constant_inertia_loop(&pso));
 }
 
 
