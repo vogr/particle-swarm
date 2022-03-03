@@ -7,13 +7,13 @@
 typedef double (*blackbox_fun)(double const * const);
 
 // Returns x_opt in R^d. The caller needs to take care of freeing the vector.
-float* local_optimization(
+double* local_optimization(
     blackbox_fun f, // R^d -> R
     size_t dimensions, // R
-    float xi, // R
-    float* center, // R^d
-    float* a, // R^d
-    float* b // R^d
+    double* center, // R^d
+    double xi, // R
+    double* a, // R^d
+    double* b // R^d
 )
 {
     // hyperparameter
@@ -22,8 +22,8 @@ float* local_optimization(
     /* Performing the intersection:
         [lo; hi] = [x-eta; x+eta] \and [a; b]
     */
-    float* space_lo = malloc(sizeof(float) * dimensions);
-    float* space_hi = malloc(sizeof(float) * dimensions);
+    double* space_lo = malloc(sizeof(double) * dimensions);
+    double* space_hi = malloc(sizeof(double) * dimensions);
 
     for(size_t it=0; it<dimensions; ++it) {
         if(a[it] <= center[it] - xi)
@@ -44,12 +44,12 @@ float* local_optimization(
         We then take the center as the representative of the cell
     */
 
-    float** grid_centers = malloc(sizeof(float*) * divisions);
+    double** grid_centers = malloc(sizeof(double*) * divisions);
     for(size_t div_it=0; div_it<divisions; ++div_it) {
-        grid_centers[div_it] = malloc(sizeof(float) * dimensions);
+        grid_centers[div_it] = malloc(sizeof(double) * dimensions);
 
         for(size_t dim_it=0; dim_it<dimensions; ++dim_it) {
-            float interval_length = (space_hi[dim_it] - space_lo[dim_it]) / divisions;
+            double interval_length = (space_hi[dim_it] - space_lo[dim_it]) / divisions;
             
             grid_centers[div_it][dim_it] = space_lo[dim_it] + interval_length * (div_it + 0.5);
         }
@@ -59,9 +59,9 @@ float* local_optimization(
         Such grid_center will be our x_opt (return value)
     */
     size_t best_center_index = 0;
-    float best_center_value = FLT_MAX;
+    double best_center_value = DBL_MAX;
     for(size_t div_it=0; div_it<divisions; ++div_it) {
-        float v = f(grid_centers[div_it]);
+        double v = f(grid_centers[div_it]);
         if(v < best_center_value) {
             best_center_index = div_it;
             best_center_value = v;
@@ -84,4 +84,40 @@ float* local_optimization(
     free(grid_centers);
 
     return grid_centers[best_center_index]; 
+}
+
+double my_f(double const * const x)
+{
+    return (x[0] - 2) * (x[0] - 2) + (x[1] - 5) * (x[1] - 5);
+}
+
+void print_vector(double* vector, size_t dimensions) {
+    printf("[");
+    for(size_t it=0; it<dimensions; ++it) {
+        printf("%lf ", vector[it]);
+    }
+    printf("]\n");
+}
+
+int main(int argc, char **argv)
+{
+    size_t dimensions = 2;
+    double center[2] = {-3, 2};
+    double xi = 0.1;
+    double a[2] = {-5, 1};
+    double b[2] = {-2, 5};
+
+    double* x_opt = local_optimization(
+        &my_f, 
+        dimensions,
+        center,
+        xi,
+        a,
+        b
+    );
+
+    printf("estimated argmin:\n");
+    print_vector(x_opt, dimensions);
+
+    return 0;
 }
