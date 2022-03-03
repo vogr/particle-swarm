@@ -6,7 +6,18 @@
 
 typedef double (*blackbox_fun)(double const * const);
 
-// Returns x_opt in R^d. The caller needs to take care of freeing the vector.
+/*
+    Estimates the minimum of f in the space [center - xi; center + xi] \and [a; b].
+
+    We use a naive grid-based method: 
+        - each component of the search space is an interval
+        - we can therefore divide each interval into D smaller intervals
+            of equal size
+        - we computer the center of each interval
+        - we then compute the function value at each cell center and retain the best one.
+
+    Returns x_opt in R^d. The caller needs to take care of freeing the vector.
+*/
 double* local_optimization(
     blackbox_fun f, // R^d -> R
     size_t dimensions, // R
