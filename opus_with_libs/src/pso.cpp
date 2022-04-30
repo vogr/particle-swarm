@@ -5,6 +5,7 @@
 #include <cstdbool>
 #include <cmath>
 
+#include "pso_globals.hpp"
 #include "helpers.hpp"
 
 #include <Eigen/Dense>
@@ -50,7 +51,6 @@ struct pso_data_constant_inertia
     double social;
     double cognition;
     int y_best_id;
-    int dimensions;
     int population_size;
     int n_trials;
 
@@ -73,7 +73,7 @@ void fit_surrogate(struct pso_data_constant_inertia * pso)
     size_t n_phi = pso->population_size * (pso->time + 1);
 
     // the size of P is n x d+1
-    size_t n_P = pso->dimensions + 1;
+    size_t n_P = DIMENSION + 1;
 
     // the size of the matrix in the linear system is n+d+1
     size_t n_A = n_phi + n_P;
@@ -104,7 +104,7 @@ void fit_surrogate(struct pso_data_constant_inertia * pso)
 
                     double s = 0;
 
-                    for (int j = 0 ; j < pso->dimensions ; j++)
+                    for (int j = 0 ; j < DIMENSION ; j++)
                     {
                         s = s + (u_p[j] - u_q[j]) * (u_p[j] - u_q[j]);
                     }
@@ -132,7 +132,7 @@ void fit_surrogate(struct pso_data_constant_inertia * pso)
 
             P(p,0) = 1;
             tp(0,p) = 1;
-            for (int j = 0 ; j < pso->dimensions ; j++)
+            for (int j = 0 ; j < DIMENSION ; j++)
             {
                 P(p,1+j) = u[j];
                 tP(1+j,p) = u[j];
@@ -171,7 +171,7 @@ void pso_constant_inertia_init(
     blackbox_fun f,
     double inertia,
     double social, double cognition,
-    int dimensions, int population_size, int time_max, int n_trials,
+    int population_size, int time_max, int n_trials,
     double * bounds_low, double * bounds_high,
     double * vmin, double * vmax,
     double ** initial_positions
@@ -181,7 +181,7 @@ void pso_constant_inertia_init(
     pso->inertia = inertia;
     pso->social = social, pso->cognition = cognition;
     pso->vmin = vmin, pso->vmax = vmax;
-    pso->dimensions = dimensions, pso->population_size = population_size;
+    pso->population_size = population_size;
     pso->time_max = time_max, pso->n_trials = n_trials;
     pso->time = 0;
 
@@ -191,7 +191,7 @@ void pso_constant_inertia_init(
         pso->x[t] = (double**)malloc(pso->population_size * sizeof(double*));
         for (int i = 0 ; i < pso->population_size ; i++)
         {
-            pso->x[t][i] = (double*)malloc(pso->dimensions * sizeof(double));
+            pso->x[t][i] = (double*)malloc(DIMENSION * sizeof(double));
         }
     }
 
@@ -206,33 +206,33 @@ void pso_constant_inertia_init(
     pso->v = (double**)malloc(pso->population_size * sizeof(double *));
     for (int i = 0 ; i < pso->population_size ; i++)
     {
-        pso->v[i] = (double*)malloc(pso->dimensions * sizeof(double));
+        pso->v[i] = (double*)malloc(DIMENSION * sizeof(double));
     }
 
     pso->y = (double**)malloc(pso->population_size * sizeof(double *));
     for (int i = 0 ; i < pso->population_size ; i++)
     {
-        pso->y[i] = (double*)malloc(pso->dimensions * sizeof(double));
+        pso->y[i] = (double*)malloc(DIMENSION * sizeof(double));
     }
 
 
     pso->x_trial = (double**)malloc(pso->n_trials * sizeof(double *));
     for (int l = 0 ; l < pso->n_trials ; l++)
     {
-        pso->x_trial[l] = (double*)malloc(pso->dimensions * sizeof(double));
+        pso->x_trial[l] = (double*)malloc(DIMENSION * sizeof(double));
     }
 
     pso->v_trial = (double**)malloc(pso->n_trials * sizeof(double *));
     for (int l = 0 ; l < pso->n_trials ; l++)
     {
-        pso->v_trial[l] = (double*)malloc(pso->dimensions * sizeof(double));
+        pso->v_trial[l] = (double*)malloc(DIMENSION * sizeof(double));
     }
 
-    pso->bound_low = (double*)malloc(dimensions * sizeof(double));
-    pso->bound_high = (double*)malloc(dimensions * sizeof(double));
+    pso->bound_low = (double*)malloc(DIMENSION * sizeof(double));
+    pso->bound_high = (double*)malloc(DIMENSION * sizeof(double));
 
-    pso->vmin = (double*)malloc(dimensions * sizeof(double));
-    pso->vmax = (double*)malloc(dimensions * sizeof(double));
+    pso->vmin = (double*)malloc(DIMENSION * sizeof(double));
+    pso->vmax = (double*)malloc(DIMENSION * sizeof(double));
 
     pso->y_eval= (double*)malloc(pso->population_size * sizeof(double *));
 
@@ -242,21 +242,21 @@ void pso_constant_inertia_init(
     // setup x
     for (int i = 0 ; i < population_size ; i ++)
     {
-        for (int j = 0 ; j < dimensions ; j++)
+        for (int j = 0 ; j < DIMENSION ; j++)
         {
             pso->x[0][i][j] = initial_positions[i][j];
         }
     }
 
     // setup bounds in space
-    for(int k = 0 ; k < dimensions ; k++)
+    for(int k = 0 ; k < DIMENSION ; k++)
         pso->bound_low[k] = bounds_low[k];
-    for(int k = 0 ; k < dimensions ; k++)
+    for(int k = 0 ; k < DIMENSION ; k++)
         pso->bound_high[k] = bounds_high[k];
     // setup bounds on velocity
-    for(int k = 0 ; k < dimensions ; k++)
+    for(int k = 0 ; k < DIMENSION ; k++)
         pso->vmin[k] = vmin[k];
-    for(int k = 0 ; k < dimensions ; k++)
+    for(int k = 0 ; k < DIMENSION ; k++)
         pso->vmax[k] = vmax[k];
 }
 
@@ -268,7 +268,7 @@ void pso_constant_inertia_first_steps(struct pso_data_constant_inertia * pso)
     // Step 3. Initialize particle velocities
     for(int i = 0 ; i < pso->population_size ; i++)
     {
-        for (int k=0 ; k < pso->dimensions ; k++)
+        for (int k=0 ; k < DIMENSION ; k++)
         {
             double uk = rand_between(pso->bound_low[k], pso->bound_high[k]);
             pso->v[i][k] = 1. / 2 * (uk - pso->x[0][i][k]);
@@ -278,7 +278,7 @@ void pso_constant_inertia_first_steps(struct pso_data_constant_inertia * pso)
     // Step 4. Initialise y, y_eval, and x_eval for each particle 
     for (int i = 0 ; i < pso->population_size ; i++)
     {
-        for (int k = 0 ; k < pso->dimensions ;  k++)
+        for (int k = 0 ; k < DIMENSION ;  k++)
         {
             pso->y[i][k] = pso->x[0][i][k];
         }
@@ -310,7 +310,7 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
     // Step 4. Update particle velocities
     for (int i = 0 ; i < pso->population_size ; i++)
     {
-        for (int j = 0 ; j < pso->dimensions ; j++)
+        for (int j = 0 ; j < DIMENSION ; j++)
         {
             // compute v_i(t+1) from v_i(t)
 
@@ -329,7 +329,7 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
     // Step 5. Update particle positions
     for (int i = 0 ; i < pso->population_size ; i++)
     {
-        for(int j = 0 ; j < pso->dimensions ; j++)
+        for(int j = 0 ; j < DIMENSION ; j++)
         {
             pso->x[t+1][i][j] = clamp(
                 pso->x[t][i][j] + pso->v[i][j],
@@ -349,7 +349,7 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
         if (x_i_eval < pso->y_eval[i])
         {
             // y_i <- x_i
-            for (int j = 0 ; j < pso->dimensions ; j++)
+            for (int j = 0 ; j < DIMENSION ; j++)
             {
                 pso->y[i][j] = pso->x[t+1][i][j];
             }
@@ -376,7 +376,7 @@ void run_pso(
     blackbox_fun f,
     double inertia,
     double social, double cognition,
-    int dimensions, int population_size, int time_max, int n_trials,
+    int population_size, int time_max, int n_trials,
     double * bounds_low, double * bounds_high,
     double * vmin, double * vmax,
     double ** initial_positions
@@ -387,7 +387,7 @@ void run_pso(
         &pso,
         f,
         inertia, social, cognition,
-        dimensions, population_size, time_max, n_trials,
+        population_size, time_max, n_trials,
         bounds_low, bounds_high,
         vmin, vmax,
         initial_positions
@@ -397,10 +397,10 @@ void run_pso(
 
     do {
         printf("t=%d  ŷ=[", pso.time);
-        for (int j = 0 ; j < dimensions ; j++)
+        for (int j = 0 ; j < DIMENSION ; j++)
         {
             printf("%f", pso.y[pso.y_best_id][j]);
-            if (j < dimensions - 1) printf(", ");
+            if (j < DIMENSION - 1) printf(", ");
         }
         printf("]  f(ŷ)=%f\n", pso.y_eval[pso.y_best_id]);
     } while(pso_constant_inertia_loop(&pso));

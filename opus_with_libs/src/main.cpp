@@ -2,10 +2,10 @@
 
 #include <cstdio>
 
-
+#include "pso_globals.hpp"
 #include "pso.hpp"
 
-
+#include "ceres/ceres.h"
 
 /*
     TODO:
@@ -19,6 +19,55 @@
 */
 
 
+class RBFSurrogate {
+public:
+    int n_points;
+    // i = 0..n_points
+    // U[i*dim + 0..dim] = u_i
+    double * U;
+    double * lambda;
+
+    // j = 0..DIMENSION+1
+    double * p_coeffs;
+
+    RBFSurrogate(int n_points, double * U, double * lambda)
+    : n_points{n_points}, U{U}, lambda{lambda}
+    { }
+
+
+    template <typename T>
+    bool operator()(const T* parameters, T* cost) const {
+        T s = 0;
+        for(int i = 0 ; i < n_points ; i++)
+        {
+            T d2 = 0;
+            for (int j = 0 ; j < DIMENSION ; j++)
+            {
+                T x_j = parameters[j];
+                double ui_j = U[i * n_points + j];
+                T diff = x_j - ui_j;
+                d2 += diff * diff;
+            }
+            T d = std::sqrt(d2);
+            s += lambda[i] * d * d *d;
+        }
+
+        s+= p_coeffs[0];
+        for (int j = 0 ; j < DIMENSION ; j++)
+        {
+            T x_j = parameters[j];
+            s += p_coeffs[j+1] * x_j;
+        }
+
+        *cost = s;
+
+        return true;
+    }
+
+  static ceres::FirstOrderFunction* Create(int n_points, double * U, double * lambda) {
+    return new ceres::AutoDiffFirstOrderFunction<RBFSurrogate, DIMENSION>(new RBFSurrogate(n_points, U, lambda));
+  }
+};
 
 double my_f(double const * const x)
 {
@@ -28,7 +77,28 @@ double my_f(double const * const x)
 
 int main(int argc, char **argv)
 {
-    int dimensions = 2;
+    int n_points = 1;
+    double U[] = {
+        10., 20.
+    };
+    double lambda[] = {
+        3.
+    };
+
+    ceres::GradientProblem problem(RBFSurrogate::Create(n_points, U, lambda));
+
+    ceres::GradientProblemSolver::Options options;
+    options.minimizer_progress_to_stdout = true;
+    ceres::GradientProblemSolver::Summary summary;
+
+
+    double x_min[] = {0.,0.};
+    ceres::Solve(options, problem, x_min, &summary);
+
+    std::cout << summary.FullReport() << "\n";
+}
+
+#if 0
     double inertia = 0.7;
     double social = 1., cognition = 1.;
     int population_size = 5;
@@ -46,9 +116,11 @@ int main(int argc, char **argv)
     run_pso(
         &my_f,
         inertia, social, cognition,
-        dimensions, population_size, time_max, n_trials,
+        population_size, time_max, n_trials,
         bounds_low, bounds_high,
         vmin, vmax,
         initial_positions       
     );
+
+#endif
 }
