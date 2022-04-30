@@ -16,9 +16,8 @@
 */
 
 
-double my_f(double const * const x, void const * const additional_args)
+double my_f(double const * const x)
 {
-    (void)additional_args;
     return (x[0] - 2) * (x[0] - 2) + (x[1] - 5) * (x[1] - 5);
 }
 

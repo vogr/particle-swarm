@@ -6,10 +6,7 @@
 #include <math.h>
 #include <float.h>
 
-#include "pso_globals.hpp"
-#include "helpers.hpp"
 
-#include "pso_globals.h"
 #include "local_refinement.h"
 #include "plu_factorization.h"
 
@@ -37,7 +34,7 @@ static double clamp(double v, double lo, double hi)
     }
 }
 
-static double dist2(size_t dim, double * x, double * y)
+static double dist2(size_t dim, double const * x, double const * y)
 {
     double s = 0;
     for (size_t i = 0 ; i < dim ; i++)
@@ -48,7 +45,7 @@ static double dist2(size_t dim, double * x, double * y)
     return s;
 }
 
-static double dist(size_t dim, double * x, double * y)
+static double dist(size_t dim, double const * x, double const * y)
 {
     return sqrt(dist2(dim, x, y));
 }
@@ -180,7 +177,7 @@ void fit_surrogate(struct pso_data_constant_inertia * pso)
             double * u_p = pso->x[t1][i1];
 
             size_t q = 0;
-            for (int t2 = 0 ; t2 = pso->time+1 ; t2++)
+            for (int t2 = 0 ; t2 < pso->time+1 ; t2++)
             {
                 for (int i2 = 0 ; i2 < pso->population_size ; i2++)
                 {
@@ -449,7 +446,7 @@ void pso_constant_inertia_first_steps(struct pso_data_constant_inertia * pso)
     {
         if (pso->y_eval[i] < y_hat_eval)
         {
-            y_hat = &pso->y[i];;
+            y_hat = pso->y[i];
             y_hat_eval = pso->y_eval[i];
         }
     }

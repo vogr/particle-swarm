@@ -9,6 +9,7 @@ CFLAGS+=\
 -flto -fPIE
 
 LDFLAGS+=-Wl,-z,noexecstack,-z,relro,-z,defs,-z,now,-pie
+LDLIBS+=-lm
 
 # optionnal sanitizers
 CFLAGS += -fsanitize=undefined -fsanitize=address

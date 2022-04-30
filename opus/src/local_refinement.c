@@ -2,6 +2,7 @@
 #include "local_refinement.h"
 
 #include <float.h>
+#include <stdlib.h>
 
 void local_optimization(
     local_optimization_function f, // R^d -> R
@@ -76,9 +77,5 @@ void local_optimization(
 
     free(space_lo);
     free(space_hi);
-
-    for(size_t div_it=0; div_it<divisions; ++div_it) {
-        free(grid_centers[div_it]);
-    }
     free(grid_centers);
 }
