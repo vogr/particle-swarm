@@ -2,76 +2,66 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
-#include "plu_factorization.h"
+#include "../../opus/src/helpers.h"
+#include "../../opus/src/plu_factorization.h"
 
-void print_matrix(double *M, int N, char *name)
+static double rand_between(double a, double b)
 {
-  printf("=== %s matrix ===\n", name);
-  int i, j;
-  for (i = 0; i < N; i++)
-  {
-    for (j = 0; j < N; j++)
-      printf("%.4f ", M[N * i + j]);
-    printf("\n");
-  }
-  printf("\n");
+    // see http://c-faq.com/lib/randrange.html
+    return a + (double)rand() / ((double)RAND_MAX / (b - a));
 }
 
+#define N 6
 int main()
 {
+  int ret = 0;
 
-  int N;
+  srand(clock());
 
-  // Test 1
+  double A[N * N];
+  for (int i = 0; i < N ; i++)
+    for(int j = 0 ; j < N ; j++)
+      A[i * N + j] = rand_between(-100,100);
 
-  N = 3;
 
-  double A[] =     // Comments to avoid formatting
-      {2,  -1, -2, //
-       -4, 6,  3,  //
-       -4, -2, 8};
+  A[4 * N + 4] = A[4 * N + 5] = A[5 * N + 4] = A[5 * N + 5] = 0;
 
-  double expected_l[] = //
-      {1,  0,  0,       //
-       -2, 1,  0,       //
-       -2, -1, 1};
+  double b[N];
+  for (int i = 0 ; i < N ; i++)
+    b[i] = i;
 
-  double expected_u[] = //
-      {2, -1, -2,       //
-       0, 4,  -1,       //
-       0, 0,  3};
+
+
+  printf("=== Test 1 ===\n");
+  print_matrixd(A, N, "A");
+  print_vectord(b, N, "b");
+  printf("\n\n\n");
 
   plu_factorization plu;
   alloc_plu_factorization(N, &plu);
-  plu_factorize(N, A, &plu);
-
-  print_matrix(A, N, "A");
-  print_matrix(plu.L, N, "L");
-  print_matrix(plu.U, N, "U");
-
-  printf("=== p vector ===\n");
-  for (int i = 0 ; i < N ; i++)
+  if (plu_factorize(N, A, &plu) < 0)
   {
-    printf("%d ", plu.P[i]);
+    ret = 1;
+    goto fact_fail;
   }
-  printf("\n");
+
+  print_matrixd(plu.L, N, "L");
+  print_matrixd(plu.U, N, "U");
 
 
-  // Solve a system
-  double b[] = {1., 2., 3.};
-  double x[3] = {0};
+  double x[N] = {0};
   plu_solve(N, &plu, b, x);
-
-  printf("=== x vector ===\n[ ");
-  for (int i = 0 ; i < N ; i++)
-  {
-    printf("%f ", x[i]);
-    if(i < N-1) printf(", ");
-  }
-  printf(" ]\n\n\n");
+  
 
 
+
+  print_vectori(plu.P, N, "p");
+  print_vectord(x, N, "x");
+
+
+#if 0
   // Test 2
 
   N = 3;
@@ -117,8 +107,11 @@ int main()
     if(i < N-1) printf(", ");
   }
   printf(" ]\n");
+#endif
 
+
+fact_fail:
   free_plu_factorization(&plu);
 
-  return 0;
+  return ret;
 }

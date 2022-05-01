@@ -14,10 +14,12 @@ LDFLAGS+=-Wl,-z,noexecstack,-z,relro,-z,defs,-z,now,-pie
 CFLAGS += -fsanitize=undefined -fsanitize=address
 LDFLAGS += -fsanitize=undefined -fsanitize=address
 
-pgm: src/main.o src/plu_factorization.o
+OBJFILES := src/main.o ../opus/src/plu_factorization.o ../opus/src/helpers.o 
+
+pgm: $(OBJFILES)
 	$(CC) -o $@ $(LDFLAGS) $^ $(LDLIBS)
 
 .PHONY: clean
 clean:
-	rm src/main.o src/plu_factorization.o
+	rm $(OBJFILES)
 	rm pgm
