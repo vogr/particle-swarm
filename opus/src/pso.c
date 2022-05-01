@@ -250,11 +250,11 @@ void fit_surrogate(struct pso_data_constant_inertia * pso)
 
     // solve A x = b using partial pivotting LU
     plu_factorization plu;
-    alloc_plu_factorization(pso->dimensions, &plu);
-    plu_factorize(pso->dimensions, A, &plu);
+    alloc_plu_factorization(n_A, &plu);
+    plu_factorize(n_A, A, &plu);
 
     double * x = malloc(n_A * sizeof(double));
-    plu_solve(pso->dimensions, &plu, b, x);
+    plu_solve(n_A, &plu, b, x);
 
     pso->lambda = realloc(pso->lambda, n_phi * sizeof(double));
     for (int i = 0 ; i < n_phi ; i++)
