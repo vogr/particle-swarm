@@ -123,6 +123,11 @@ double surrogate_eval(struct pso_data_constant_inertia const * pso, double const
 {
     //TODO: add the past_local_refinements
     
+    //TODO: I think there is something wrong with the surrogate:
+    // I don't have the same values when evaluating in the Jupyter notebook
+    // To investigate!
+    // VO
+
     double res = 0;
     
     int p = 0;
@@ -132,7 +137,7 @@ double surrogate_eval(struct pso_data_constant_inertia const * pso, double const
         {
             double * u = pso->x[t][i];
             double d = dist(pso->dimensions, u, x);
-            res += pso->lambda[p] * d;
+            res += pso->lambda[p] * d * d * d;
 
 
             p++;
