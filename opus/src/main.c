@@ -1,6 +1,8 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 #include "pso.h"
 #include "logging.h"
@@ -18,6 +20,7 @@ int main(int argc, char **argv)
         set_logging_directory(argv[1]);
     }
 
+    srand(clock());
 
     int n_points = 1;
     double U[] = {
@@ -55,5 +58,8 @@ int main(int argc, char **argv)
         vmin, vmax,
         initial_positions       
     );
+
+    //getchar();
+
 
 }

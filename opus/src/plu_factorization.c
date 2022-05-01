@@ -6,7 +6,7 @@
 
 #include "helpers.h"
 
-#define DEBUG_LU 1
+#define DEBUG_LU 0
 
 int alloc_plu_factorization(int N, plu_factorization * plu_ft)
 {

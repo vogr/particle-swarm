@@ -10,7 +10,11 @@
 #include "local_refinement.h"
 #include "plu_factorization.h"
 
-#define DEBUG_SURROGATE 1
+
+#define DEBUG_TRIALS 0
+#define DEBUG_SURROGATE 0
+
+
 
 #define LOG_SURROGATE 1
 
@@ -275,7 +279,6 @@ int fit_surrogate(struct pso_data_constant_inertia * pso)
 
     #if DEBUG_SURROGATE
     print_vectord(x, n_A, "x");
-    getchar();
     #endif
 
     pso->lambda = realloc(pso->lambda, n_phi * sizeof(double));
@@ -521,10 +524,15 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
     
     double * v_trial_best = malloc(pso->dimensions * sizeof(double));
     double * x_trial_best = malloc(pso->dimensions * sizeof(double));
-    double x_trial_best_seval = DBL_MAX;
 
     for(int i = 0 ; i < pso->population_size ; i++)
     {
+
+        #if DEBUG_TRIALS
+        printf("step6:start trials for particle %d\n", i);
+        #endif
+
+        double x_trial_best_seval = DBL_MAX;
         for (int l = 0 ; l < pso->n_trials ; l++)
         {
             
@@ -546,8 +554,19 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
             }
 
             double x_trial_seval = surrogate_eval(pso, x_trial);
+
+            #if DEBUG_TRIALS
+            char trial_name[16] = {0};
+            snprintf(trial_name, sizeof(trial_name), "x%d_trial%d", i, l);
+            print_vectord(x_trial, pso->dimensions, trial_name);
+            printf("score of trial %d = %f", l, x_trial_seval);
+            #endif
+
             if(x_trial_seval < x_trial_best_seval)
             {
+                #if DEBUG_TRIALS
+                printf(" (new best!)");
+                #endif
                 // keep x_trial as x_trial_best by swapping the two buffers: the new x_trial
                 // will get overwritten in the next iteration
                 x_trial_best_seval = x_trial_seval;
@@ -562,6 +581,9 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
                 v_trial = v_trial_best;
                 v_trial_best = t;
             }
+            #if DEBUG_TRIALS
+            printf("\n");
+            #endif
         }
 
         // set next position and update velocity
@@ -571,6 +593,14 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
             pso->x[t+1][i][j] = x_trial_best[j];
             pso->v[i][j] = v_trial_best[j];
         }
+
+        #if DEBUG_TRIALS
+        printf("set x[t+1][i]:\n");
+        char new_x_name[16] = {0};
+        snprintf(new_x_name, sizeof(new_x_name), "x%d_(t=%d)", i, t+1);
+        print_vectord(pso->x[t+1][i], pso->dimensions, new_x_name);
+        #endif
+
     }
 
     free(x_trial);
@@ -616,6 +646,14 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
         fprintf(stderr, "ERROR: Failed to fit surrogate\n");
         exit(1);
     }
+
+    #if LOG_SURROGATE
+    {
+        char fname[256] = {0};
+        snprintf(fname, sizeof(fname), "surrogate_step9_t_%05d.struct", t);
+        log_surrogate(fname, pso->lambda, pso->p, pso->x, t, pso->dimensions, pso->population_size);
+    }
+    #endif
 
     // Step 10
     // Local refinement
