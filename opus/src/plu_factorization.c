@@ -48,8 +48,7 @@ int plu_factorize(int N, double * A, plu_factorization * plu_ft)
 {
     // NOTE 2: assumes plu_ft already contains allocated arrays
     
-    // see https://www.clear.rice.edu/comp422/assignments/assignment2.html
-    // see https://hal-univ-paris13.archives-ouvertes.fr/hal-01809975/document
+    // see https://math.ucr.edu/~muralee/LU-Decomposition.pdf
     // for a pseudocode implementation
     
     double * L = plu_ft->L;
