@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #include "pso.h"
-
+#include "logging.h"
 
 double my_f(double const * const x)
 {
@@ -13,6 +13,12 @@ double my_f(double const * const x)
 
 int main(int argc, char **argv)
 {
+    if (argc > 1)
+    {
+        set_logging_directory(argv[1]);
+    }
+
+
     int n_points = 1;
     double U[] = {
         10., 20.

@@ -6,12 +6,18 @@
 #include <math.h>
 #include <float.h>
 
-
+#include "helpers.h"
 #include "local_refinement.h"
 #include "plu_factorization.h"
 
+#define DEBUG_SURROGATE 1
 
-#define DEBUG_OPUS 1
+#define LOG_SURROGATE 1
+
+#if LOG_SURROGATE
+#include "logging.h"
+#endif
+
 
 static double rand_between(double a, double b)
 {
@@ -147,9 +153,9 @@ double surrogate_eval_void(double const * x, void const * args)
 }
 
 
-void fit_surrogate(struct pso_data_constant_inertia * pso)
+int fit_surrogate(struct pso_data_constant_inertia * pso)
 {
-
+    int ret = 0;
     //TODO: include past_refinement_points in phi !!!
 
     //TODO: note that the matrix and vector barely change between the
@@ -232,6 +238,7 @@ void fit_surrogate(struct pso_data_constant_inertia * pso)
         }
     }
 
+
     // right hand side
     double * b = malloc(n_A * sizeof(double));
 
@@ -248,13 +255,28 @@ void fit_surrogate(struct pso_data_constant_inertia * pso)
         b[i] = 0;
     }
 
+    #if DEBUG_SURROGATE
+    print_matrixd(A, n_A, "A");
+    print_vectord(b, n_A, "b");
+    #endif
+
     // solve A x = b using partial pivotting LU
     plu_factorization plu;
     alloc_plu_factorization(n_A, &plu);
-    plu_factorize(n_A, A, &plu);
+    if (plu_factorize(n_A, A, &plu) < 0)
+    {
+        ret = -1;
+        goto fit_surrogate_plu_factorization_failure;
+    }
 
     double * x = malloc(n_A * sizeof(double));
     plu_solve(n_A, &plu, b, x);
+
+
+    #if DEBUG_SURROGATE
+    print_vectord(x, n_A, "x");
+    getchar();
+    #endif
 
     pso->lambda = realloc(pso->lambda, n_phi * sizeof(double));
     for (int i = 0 ; i < n_phi ; i++)
@@ -269,9 +291,12 @@ void fit_surrogate(struct pso_data_constant_inertia * pso)
     }
 
     free(x);
+fit_surrogate_plu_factorization_failure:
     free_plu_factorization(&plu);
     free(b);
     free(A);
+
+    return ret;
 }
 
 
@@ -474,8 +499,20 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
     // Step 5.
     // Fit surrogate
     // f already evaluated on x[0..t][0..i-1]
-    fit_surrogate(pso);
+     if (fit_surrogate(pso) < 0)
+     {
+         fprintf(stderr, "ERROR: Failed to fit surrogate\n");
+         exit(1);
+     }
 
+
+    #if LOG_SURROGATE
+    {
+        char fname[256] = {0};
+        snprintf(fname, sizeof(fname), "surrogate_step5_t_%05d.struct", t);
+        log_surrogate(fname, pso->lambda, pso->p, pso->x, t, pso->dimensions, pso->population_size);
+    }
+    #endif
 
     // Step 6
     // Determine new particle positions
@@ -574,8 +611,11 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
 
     // Step 9
     // Refit surrogate with time = t+1
-    fit_surrogate(pso);
-
+    if (fit_surrogate(pso) < 0)
+    {
+        fprintf(stderr, "ERROR: Failed to fit surrogate\n");
+        exit(1);
+    }
 
     // Step 10
     // Local refinement

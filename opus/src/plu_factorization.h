@@ -18,6 +18,6 @@ typedef struct plu_factorization
 int alloc_plu_factorization(int N, plu_factorization * plu_ft);
 int free_plu_factorization(plu_factorization * plu_ft);
 
-int plu_factorize(int N, double const * A, plu_factorization * plu_ft);
+int plu_factorize(int N, double * A, plu_factorization * plu_ft);
 
 int plu_solve(int N, plu_factorization const * plu_ft, double const * b, double * x);

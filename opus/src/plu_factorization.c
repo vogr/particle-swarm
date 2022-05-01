@@ -4,23 +4,9 @@
 #include <stdio.h>
 #include <math.h>
 
+#include "helpers.h"
 
-#define DEBUG_LU 0
-
-static void print_matrix(double *M, int N, char *name)
-{
-  printf("=== %s matrix ===\n", name);
-  int i, j;
-  for (i = 0; i < N; i++)
-  {
-    for (j = 0; j < N; j++)
-      printf("%.4f ", M[N * i + j]);
-    printf("\n");
-  }
-  printf("\n");
-}
-
-
+#define DEBUG_LU 1
 
 int alloc_plu_factorization(int N, plu_factorization * plu_ft)
 {
@@ -58,79 +44,71 @@ static void swapd(double * a, int i, int j)
 // Textual transformation assumes matrix size `N` is in scope.
 #define IDX(MAT, ROW, COL) (MAT)[N * (ROW) + (COL)]
 
-int plu_factorize(int N, double const * const A, plu_factorization * plu_ft)
+int plu_factorize(int N, double * A, plu_factorization * plu_ft)
 {
-    // NOTE: does not allocate memory, assumes plu_ft already contains allocated arrays
+    // NOTE 2: assumes plu_ft already contains allocated arrays
     
     // see https://www.clear.rice.edu/comp422/assignments/assignment2.html
+    // see https://hal-univ-paris13.archives-ouvertes.fr/hal-01809975/document
     // for a pseudocode implementation
     
     double * L = plu_ft->L;
     double * U = plu_ft->U;
     int * P = plu_ft->P;
 
-    // Initialize L
+    // Initialize P
     for(int i = 0 ; i < N ; i++)
     {
         P[i] = i;
     }
 
-    // Initialize L
-    for (int i = 0; i < N; i++)
-    {
-        // Diagonal entries are 1.0
-        IDX(L, i, i) = 1.0;
-        for (int j = i + 1; j < N; j++)
-        IDX(L, i, j) = 0.0;
-    }
-
-    // Initialize U
-    for (int i = 0; i < N; i++)
-        for (int j = 0; j < i; j++)
-        IDX(U, i, j) = 0.0;
-
-
-    #if DEBUG_LU
-    printf("before lu\n");
-    print_matrix(L,N,"L");
-    print_matrix(U,N,"U");
-    #endif
-
-    for (int i = 0; i < N; i++)
+    for (int k = 0; k < N; k++)
     {
         // Find largest possible pivot in submatrix
         double p = 0.;
         int pivot_row_idx = -1;
-        for(int k = i ; k < N ; k++)
+        for(int i = k ; i < N ; i++)
         {
-            double v = IDX(A, P[k], i);
+            double v = IDX(A, i, k);
             if (fabs(v) > fabs(p))
             {
                 p = v;
-                pivot_row_idx = k;
+                pivot_row_idx = i;
             }
         }
         
         if (pivot_row_idx < 0)
         {
             // singular matrix
+            fprintf(stderr, "ERROR: LU factorization failed, cannot find non-zero pivot for sub-matrix %d\n", k);
             return -1;
         }
 
-        if (i != pivot_row_idx)
+        if (k != pivot_row_idx)
         {
             // move row with largest possible pivot to
             // the top of the submatrix
-            swapi(P, i, pivot_row_idx);
+            swapi(P, k, pivot_row_idx);
 
-            // also need to swap the values in L
-            for(int k = 0 ; k < i ; k ++)
+            // swap the rows in A
+            for(int j = 0 ; j < N ; j ++)
             {
-                swapd(L, i * N + k, pivot_row_idx * N + k);
+                swapd(A, k * N + j, pivot_row_idx * N + j);
+            }
+        }
+
+        for(int i = k+1 ; i < N ; i++)
+        {
+            IDX(A, i, k) /=  p;
+
+            for (int j = k + 1 ; j < N ; j++)
+            {
+                IDX(A, i, j) -= IDX(A, i, k) * IDX(A, k, j);
             }
         }
 
 
+        /*
         for (int j = i; j < N; j++)
         {
             IDX(U, i, j) = IDX(A, P[i], j);
@@ -145,20 +123,39 @@ int plu_factorize(int N, double const * const A, plu_factorization * plu_ft)
                 IDX(L, j, i) = IDX(L, j, i) - IDX(L, j, k) * IDX(U, k, i);
             IDX(L, j, i) = IDX(L, j, i) / IDX(U, i, i);
         }
+        */
 
 
         #if DEBUG_LU
-        printf("step i=%d\n", i);
-        print_matrix(L,N,"L");
-        print_matrix(U,N,"U");
-        printf("P=[");
-        for(int k = 0 ; k < N ; k++)
-        {
-            printf("%d ", P[k]);
-        }
-        printf(" ]\n\n");
+        printf("\n\n==== step i=%d ====\n", k);
+        char A_name[10] = {0};
+        snprintf(A_name, sizeof(A_name), "A%d", k);
+        print_matrixd(A,N,A_name);
+        print_vectori(P,N,"P");
         #endif
 
+    }
+
+    // Initialize L
+    for (int i = 0; i < N; i++)
+    {
+        // Diagonal entries are 1.0
+        IDX(L, i, i) = 1.0;
+        for (int j = i + 1; j < N; j++)
+        {
+            IDX(L, i, j) = 0.0;
+            IDX(L, j, i) = IDX(A, j, i);
+        }
+    }
+
+    // Initialize U
+    for (int i = 0; i < N; i++)
+    {
+        for (int j = 0; j < i; j++)
+            IDX(U,i,j) = 0;
+        
+        for(int j = i  ; j < N ; j++)
+            IDX(U, i, j) = IDX(A, i, j);
     }
 
     return 0;

@@ -16,7 +16,7 @@ CFLAGS += -fsanitize=undefined -fsanitize=address
 LDFLAGS += -fsanitize=undefined -fsanitize=address
 
 
-CFILES := src/local_refinement.c src/main.c src/plu_factorization.c src/pso.c
+CFILES := src/helpers.c src/local_refinement.c src/logging.c src/main.c src/plu_factorization.c src/pso.c
 OBJFILES := $(CFILES:.c=.o)
 
 pgm: $(OBJFILES)
