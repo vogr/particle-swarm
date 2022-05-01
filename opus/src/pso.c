@@ -389,6 +389,10 @@ void pso_constant_inertia_init(
 
 int is_far_from_previous_evaluations(struct pso_data_constant_inertia const * pso, double * x)
 {
+    // - find way to check "if minimizer of surrogate is far from previous points"
+    //    + see https://en.wikipedia.org/wiki/Nearest_neighbor_search
+    //    + in high dim naive search can be best  
+
     double delta2 = pso->min_minimizer_distance * pso->min_minimizer_distance;
 
     // check previous particle positions
@@ -466,9 +470,6 @@ void pso_constant_inertia_first_steps(struct pso_data_constant_inertia * pso)
 bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
 {
     int const t = pso->time;
-
-
-    //TODO: update steps below from normal to OPUS
 
     // Step 5.
     // Fit surrogate

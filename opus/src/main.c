@@ -4,17 +4,6 @@
 
 #include "pso.h"
 
-/*
-    TODO:
-    In order to implement OPUS, some changes are necessary:
-    - keep record of all the evaluations f(x_i) and the associated x_i (used for re-fit step)
-    - solve linear system: hand-rolled (LU?) or library
-    - find minimum on neighborhood: hand-rolled or library (project Ceres)
-    - find way to check "if minimizer of surrogate is far from previous points"
-        + see https://en.wikipedia.org/wiki/Nearest_neighbor_search
-        + high dim naive search can be best  
-*/
-
 
 double my_f(double const * const x)
 {
