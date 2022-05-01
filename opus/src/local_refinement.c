@@ -49,7 +49,7 @@ void local_optimization(
         for(size_t dim_it=0; dim_it<dimensions; ++dim_it) {
             double interval_length = (space_hi[dim_it] - space_lo[dim_it]) / divisions;
             
-            grid_centers[div_it * divisions + dim_it] = space_lo[dim_it] + interval_length * (div_it + 0.5);
+            grid_centers[div_it * dimensions + dim_it] = space_lo[dim_it] + interval_length * (div_it + 0.5);
         }
     }
 
@@ -59,7 +59,7 @@ void local_optimization(
     size_t best_center_index = 0;
     double best_center_value = DBL_MAX;
     for(size_t div_it=0; div_it<divisions; ++div_it) {
-        double v = f(&grid_centers[div_it * divisions], additionnal_f_args);
+        double v = f(&grid_centers[div_it * dimensions], additionnal_f_args);
         if(v < best_center_value) {
             best_center_index = div_it;
             best_center_value = v;
@@ -70,7 +70,7 @@ void local_optimization(
     // copy best center to output
     for (int i = 0 ; i < dimensions ; i++)
     {
-        x_min[i] = grid_centers[best_center_index * divisions + i];
+        x_min[i] = grid_centers[best_center_index * dimensions + i];
     }
 
     // De-allocate

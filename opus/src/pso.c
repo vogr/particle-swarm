@@ -11,6 +11,8 @@
 #include "plu_factorization.h"
 
 
+#define DEBUG_OPUS 1
+
 static double rand_between(double a, double b)
 {
     // see http://c-faq.com/lib/randrange.html
@@ -234,7 +236,7 @@ void fit_surrogate(struct pso_data_constant_inertia * pso)
     double * b = malloc(n_A * sizeof(double));
 
     p = 0;
-    for (int t = 0 ; t < pso->time_max + 1 ; t++)
+    for (int t = 0 ; t < pso->time + 1 ; t++)
     {
         for (int i = 0 ; i < pso->population_size ; i ++)
         {
@@ -254,7 +256,7 @@ void fit_surrogate(struct pso_data_constant_inertia * pso)
     double * x = malloc(n_A * sizeof(double));
     plu_solve(pso->dimensions, &plu, b, x);
 
-    realloc(pso->lambda, n_phi);
+    pso->lambda = realloc(pso->lambda, n_phi * sizeof(double));
     for (int i = 0 ; i < n_phi ; i++)
     {
         pso->lambda[i] = x[i];
@@ -297,7 +299,6 @@ void pso_constant_inertia_init(
     pso->social = social, pso->cognition = cognition;
     pso->local_refinement_box_size = local_refinement_box_size;
     pso->min_minimizer_distance = min_minimizer_distance;
-    pso->vmin = vmin, pso->vmax = vmax;
     pso->population_size = population_size;
     pso->time_max = time_max, pso->n_trials = n_trials;
 
@@ -309,12 +310,12 @@ void pso_constant_inertia_init(
     for (int t = 0 ; t < pso->time_max ; t++)
     {
         pso->x[t] = (double**)malloc(pso->population_size * sizeof(double*));
-        // vector gets allocated for trial anyway
-        //for (int i = 0 ; i < pso->population_size ; i++)
-        //{
-        //    pso->x[t][i] = (double*)malloc(pso->dimensions * sizeof(double));
-        //}
+        for (int i = 0 ; i < pso->population_size ; i++)
+        {
+            pso->x[t][i] = (double*)malloc(pso->dimensions * sizeof(double));
+        }
     }
+
 
     pso->x_eval = (double**)malloc(pso->time_max * sizeof(double *));
     for (int t = 0 ; t < pso->time_max ; t++)
@@ -351,6 +352,13 @@ void pso_constant_inertia_init(
 
     pso->vmin = (double*)malloc(pso->dimensions * sizeof(double));
     pso->vmax = (double*)malloc(pso->dimensions * sizeof(double));
+
+    for (int j = 0 ; j < dimensions ; j++)
+    {
+        pso->vmin[j] = vmin[j];
+        pso->vmax[j] = vmax[j];
+    }
+
 
 
     // will realloc in fit_surrogate
@@ -519,18 +527,18 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
         }
 
         // set next position and update velocity
-        // note: x[t+1][i] was unset, but v[i] is freed
-        // before being replaced by v_trial
-        pso->x[t+1][i] = x_trial_best;
-        free(pso->v[i]);
-        pso->v[i] = v_trial_best;
 
-        free(x_trial);
-        free(v_trial);
+        for (int j = 0 ; j < pso->dimensions ; j++)
+        {
+            pso->x[t+1][i][j] = x_trial_best[j];
+            pso->v[i][j] = v_trial_best[j];
+        }
     }
 
-
-
+    free(x_trial);
+    free(v_trial);
+    free(x_trial_best);
+    free(v_trial_best);
 
 
 
@@ -606,7 +614,7 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia * pso)
     }
 
 
-    return (pso->time < pso->time_max);
+    return (pso->time < pso->time_max - 1);
 }
 
 
@@ -639,7 +647,19 @@ void run_pso(
 
     pso_constant_inertia_first_steps(&pso);
 
-    do {
+    printf("t=%d  ŷ=[", pso.time);
+    for (int j = 0 ; j < dimensions ; j++)
+    {
+        printf("%f", pso.y_hat[j]);
+        if (j < dimensions - 1) printf(", ");
+    }
+    printf("]  f(ŷ)=%f\n", pso.y_hat_eval);
+
+
+    while(pso.time < pso.time_max - 1)
+    {
+        pso_constant_inertia_loop(&pso);
+
         printf("t=%d  ŷ=[", pso.time);
         for (int j = 0 ; j < dimensions ; j++)
         {
@@ -647,5 +667,5 @@ void run_pso(
             if (j < dimensions - 1) printf(", ");
         }
         printf("]  f(ŷ)=%f\n", pso.y_hat_eval);
-    } while(pso_constant_inertia_loop(&pso));
+    }
 }
