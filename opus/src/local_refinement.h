@@ -2,8 +2,6 @@
 
 #include <sys/types.h>
 
-#include "pso_globals.h"
-
 typedef double (*local_optimization_function)(double const * const, void const * const);
 
 void local_optimization(
