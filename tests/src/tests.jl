@@ -1,7 +1,7 @@
 module tests
 
-using Test
-using LinearAlgebra
+using Test: @test, @testset
+using LinearAlgebra: lu
 
 # To add a new FFI test stub, include it here ----
 
@@ -60,7 +60,7 @@ include("ffi_plu_factorization.jl")
         # not a Lib problem (AFAIK).
         # NOTE this could also be a problem with my hacky
         # pointer conversion functions in TestUtils.jl
-        run_random(1, 100, 2000)
+        run_random(2, 100, 2000)
     end
 
 end

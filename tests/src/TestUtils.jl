@@ -12,5 +12,4 @@ function ptr_to_column_major(p::Ptr{T}, N::Int64)::Matrix{T} where {T}
     collect(transpose(reshape(unsafe_wrap(Array, p, N * N), (N, N))))
 end
 
-
 end # module
