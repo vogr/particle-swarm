@@ -1,26 +1,48 @@
 module tests
 
-# To add a new FFI test stub, include it here ----
-
 using Test
 using LinearAlgebra
+
+# To add a new FFI test stub, include it here ----
 
 include("ffi_plu_factorization.jl")
 
 @testset "LU Factorization Tests" begin
 
-    @testset "LU Static Tests" begin
+    function test_lu(A)
+        try
+            L,U,p = lu(A)
+            Lt,Ut,pt = PLU.PLU_factorize(A)
+            @test (Lt * Ut) ≈ A[pt, :]
+            @test L ≈ Lt
+            @test U ≈ Ut
+        catch e
+            # NOTE An ErrorException can be thrown from
+            # LinearAlgebra.lu when the matrix has
+            # no non-zero pivots. If this is the case,
+            # we can just skip the matrix and ignore the
+            # tests.
+            return
+        end
+    end
+
+    function run_random(iters, step, MAX_N)
+        for i = 1:iters, n = step:step:MAX_N
+            M = rand(n, n)
+            @time test_lu(M)
+            GC.gc() # FIXME without the system will segfault
+        end
+    end
+
+    @testset "Static LU" begin
 
         # Simple -------------
 
-        A = [1. 2 4
-             3 8 4
-             2 6 13]
-        L,U,p = lu(A)
-        F = plu.PLU_factorize(A)
-        @test (F.L * F.U) == A[F.p, :]
-        @test L == F.L
-        @test U == F.U
+        M_1 = [1. 2 4
+               3 8 4
+               2 6 13]
+
+        test_lu(M_1)
 
         # Medium -------------
 
@@ -28,13 +50,17 @@ include("ffi_plu_factorization.jl")
 
     end
 
-    @testset "LU Random Tests" begin
+    @testset "Random Small LU" begin
+        run_random(10, 10, 50)
+    end
 
-        iterations = 50
-
-        # TODO
-        @test true
-
+    @testset "Random Large LU" begin
+        # FIXME running with larger than 500 usually
+        # causes segfault. This is a Julia GC problem
+        # not a Lib problem (AFAIK).
+        # NOTE this could also be a problem with my hacky
+        # pointer conversion functions in TestUtils.jl
+        run_random(1, 100, 2000)
     end
 
 end
