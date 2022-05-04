@@ -1,14 +1,12 @@
-CFLAGS+=\
--O0 -ggdb3 \
--march=native \
+
+# Debug flags
+CFLAGS+=-O0 -ggdb3 \
 -Wall -Wextra -Wpedantic -Wformat=2 -Wswitch-default -Wswitch-enum -Wfloat-equal \
 -pedantic-errors -Werror=format-security \
--Werror=vla \
--Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS \
--fexceptions \
--flto -fPIE
+-Werror=vla
 
-LDFLAGS+=-Wl,-z,noexecstack,-z,relro,-z,defs,-z,now,-pie
+# Release flags
+#CFLAGS += -O2 -flto -march=native
 
 # optionnal sanitizers
 CFLAGS += -fsanitize=undefined -fsanitize=address
