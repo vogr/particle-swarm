@@ -22,14 +22,6 @@ int main(int argc, char **argv)
 
     srand(clock());
 
-    int n_points = 1;
-    double U[] = {
-        10., 20.
-    };
-    double lambda[] = {
-        3.
-    };
-
     double inertia = 0.7;
     double social = 1., cognition = 1.;
     double local_refinement_box_size = 3.;
