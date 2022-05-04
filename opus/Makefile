@@ -16,13 +16,41 @@ LDFLAGS += -fsanitize=undefined -fsanitize=address
 LDLIBS+=-lm
 
 
-CFILES := src/helpers.c src/local_refinement.c src/logging.c src/main.c src/plu_factorization.c src/pso.c
-OBJFILES := $(CFILES:.c=.o)
+CFILES_COMMON := src/helpers.c src/local_refinement.c src/logging.c src/plu_factorization.c src/pso.c
+OBJFILES_COMMON := $(CFILES_COMMON:.c=.o)
 
-pgm: $(OBJFILES)
+
+UNAME_S := $(shell uname -s)
+
+
+ifdef PSO_SHARED
+
+ifeq ($(UNAME_S),Darwin)
+target := pso.dylib
+CFLAGS += -dynamiclib
+LDFLAGS += -dynamiclib
+else
+target := libpso.so
+CFLAGS += -fPIC
+LDFLAGS += -shared
+endif
+OBJFILES := $(OBJFILES_COMMON)
+
+else
+
+target := pso
+OBJFILES := $(OBJFILES_COMMON) src/main.o
+
+endif
+
+
+$(target): $(OBJFILES)
+	@echo $(PSO_SHARED)
+	@echo $(OBJFILES)
 	$(CC) -o $@ $(LDFLAGS) $^ $(LDLIBS)
+
 
 .PHONY: clean
 clean:
-	rm $(OBJFILES)
-	rm pgm
+	rm $(OBJFILES_COMMON) src/main.o ||:
+	rm pso libpso.so pso.dylib ||:
