@@ -45,8 +45,6 @@ endif
 
 
 $(target): $(OBJFILES)
-	@echo $(PSO_SHARED)
-	@echo $(OBJFILES)
 	$(CC) -o $@ $(LDFLAGS) $^ $(LDLIBS)
 
 
