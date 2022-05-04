@@ -8,10 +8,6 @@ CFLAGS+=-O0 -ggdb3 \
 # Release flags
 #CFLAGS += -O2 -flto -march=native
 
-# Optionnal sanitizers
-CFLAGS += -fsanitize=undefined -fsanitize=address
-LDFLAGS += -fsanitize=undefined -fsanitize=address
-
 
 LDLIBS+=-lm
 
@@ -26,7 +22,7 @@ UNAME_S := $(shell uname -s)
 ifdef PSO_SHARED
 
 ifeq ($(UNAME_S),Darwin)
-target := pso.dylib
+target := libpso.dylib
 CFLAGS += -dynamiclib
 LDFLAGS += -dynamiclib
 else
@@ -40,6 +36,10 @@ else
 
 target := pso
 OBJFILES := $(OBJFILES_COMMON) src/main.o
+
+# Optionnal sanitizers
+CFLAGS += -fsanitize=undefined -fsanitize=address
+LDFLAGS += -fsanitize=undefined -fsanitize=address
 
 endif
 
