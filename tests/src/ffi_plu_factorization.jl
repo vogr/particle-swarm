@@ -1,5 +1,7 @@
 module PLU
 
+using LinearAlgebra
+
 # FFI stubs for LRU factorization
 include("TestUtils.jl")
 
@@ -14,9 +16,9 @@ struct PLU_factorization_C
 end
 
 struct PLU_factorization
-    L::Array{Cdouble}
-    U::Array{Cdouble}
-    p::Array{Cint}
+    L::Vector{Cdouble}
+    U::Vector{Cdouble}
+    p::Vector{Cint}
 end
 
 # See https://docs.julialang.org/en/v1/manual/calling-c-and-fortran-code/#Garbage-Collection-Safety
@@ -39,19 +41,19 @@ function Base.convert(::Type{PLU_factorization_C}, x::PLU_factorization)
 end
 
 function alloc_PLU_factorization(N)::PLU_factorization
-    L = Array{Cdouble}(undef, N * N)
-    U = Array{Cdouble}(undef, N * N)
-    p = Array{Cint}(undef, N)
+    L = Vector{Cdouble}(undef, N * N)
+    U = Vector{Cdouble}(undef, N * N)
+    p = Vector{Cint}(undef, N)
     return PLU_factorization(L, U, p)
 end
 
-function PLU_factorize(M::Matrix)
+function PLU_factorize(M::Matrix{Cdouble})
 
     @assert ndims(M) == 2
     @assert size(M, 1) == size(M, 2)
 
     N = size(M, 1) # M should be an NxN matrix
-    Mp::Array{Cdouble} = tu.column_major_to_row(M)
+    Mp::Vector{Cdouble} = tu.column_major_to_row(M)
     plu::PLU_factorization = alloc_PLU_factorization(N)
 
     GC.@preserve plu begin
@@ -71,6 +73,37 @@ function PLU_factorize(M::Matrix)
     end
 
     return (lr, ur, pr)
+end
+
+# function Vector{Float64}(m::Matrix{Float64})
+#     tu.column_major_to_array(m)
+# end
+
+function PLU_solve(M::Matrix{Cdouble}, b::Vector{Cdouble})::Vector{Cdouble}
+    N = size(M, 1)
+    L, U, p = lu(M) # Use Julia's LA functions for isolation
+
+    # Convert Matrices
+    Mp::Vector{Cdouble} = tu.column_major_to_row(M)
+    Lp::Vector{Cdouble} = tu.column_major_to_row(L)
+    Up::Vector{Cdouble} = tu.column_major_to_row(U)
+    x::Vector{Cdouble} = Vector{Cdouble}(undef, N)
+    p = p .- 1 # Julia 1-based indexing at it again
+
+    plu = PLU_factorization(Lp, Up, p)
+
+    GC.@preserve plu begin
+        retcode = ccall(
+            (:plu_solve, :libpso),
+            Cint,
+            (Cint, Ref{PLU_factorization_C}, Ptr{Cdouble}, Ptr{Cdouble}),
+            N, plu, b, x
+        )
+    end
+
+    @assert retcode == 0
+
+    return x
 end
 
 end # module
