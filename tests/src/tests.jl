@@ -4,7 +4,6 @@ using Test: @test, @testset
 using LinearAlgebra: lu
 
 # To add a new FFI test stub, include it here ----
-
 include("ffi_plu_factorization.jl")
 
 @testset "LU Factorization Tests" begin
@@ -22,6 +21,9 @@ include("ffi_plu_factorization.jl")
             # no non-zero pivots. If this is the case,
             # we can just skip the matrix and ignore the
             # tests.
+            bt = catch_backtrace()
+            msg = sprint(showerror, e, bt)
+            println(msg)
             return
         end
     end
@@ -60,7 +62,7 @@ include("ffi_plu_factorization.jl")
         # not a Lib problem (AFAIK).
         # NOTE this could also be a problem with my hacky
         # pointer conversion functions in TestUtils.jl
-        run_random(2, 100, 2000)
+        run_random(2, 100, 20000)
     end
 
 end
