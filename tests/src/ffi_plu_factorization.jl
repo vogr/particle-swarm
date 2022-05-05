@@ -13,13 +13,11 @@ struct PLU_factorization_C
     p::Ptr{Cint}
 end
 
-
 struct PLU_factorization
     L::Array{Cdouble}
     U::Array{Cdouble}
     p::Array{Cint}
 end
-
 
 # See https://docs.julialang.org/en/v1/manual/calling-c-and-fortran-code/#Garbage-Collection-Safety
 # - Julia objects that are not rooted (i.e not alive) can get GC-ed.
@@ -34,17 +32,15 @@ end
 #   GC.@preserve obj begin ... end (and more if the C code keeps a reference to the object!)
 # QUESTION: relationship between convert/unsafe_convert/cconvert?
 
-
 # unsafe_convert because it offers no guarentee that the memory in the arrays
 # stays available.
-function Base.unsafe_convert(::Type{PLU_factorization_C}, x::PLU_factorization)
+function Base.convert(::Type{PLU_factorization_C}, x::PLU_factorization)
     PLU_factorization_C(pointer(x.L), pointer(x.U), pointer(x.p))
 end
 
-
-function alloc_PLU_factorization(N)
-    L = zeros(Cdouble, N * N)
-    U = zeros(Cdouble, N * N)
+function alloc_PLU_factorization(N)::PLU_factorization
+    L = Array{Cdouble}(undef, N * N)
+    U = Array{Cdouble}(undef, N * N)
     p = Array{Cint}(undef, N)
     return PLU_factorization(L, U, p)
 end
@@ -56,21 +52,23 @@ function PLU_factorize(M::Matrix)
 
     N = size(M, 1) # M should be an NxN matrix
     Mp::Array{Cdouble} = tu.column_major_to_row(M)
-    plu = alloc_PLU_factorization(N)
+    plu::PLU_factorization = alloc_PLU_factorization(N)
 
-    retcode = ccall(
-        (:plu_factorize, :libpso),
-        Cint,                                         # return type
-        (Cint, Ptr{Cdouble}, Ref{PLU_factorization_C}), # parameter types
-        N, Mp, plu                                     # actual arguments
-    )
+    GC.@preserve plu begin
+        retcode = ccall(
+            (:plu_factorize, :libpso),
+            Cint,                                           # return type
+            (Cint, Ptr{Cdouble}, Ref{PLU_factorization_C}), # parameter types
+            N, Mp, plu                                      # actual arguments
+        )
 
-    @assert retcode == 0
+        @assert retcode == 0
 
-    lr = tu.array_to_column_major(plu.L, N)
-    ur = tu.array_to_column_major(plu.U, N)
-    # C code is 0-base indexed but Julia is 1-base
-    pr = plu.p .+ 1
+        lr = tu.array_to_column_major(plu.L, N)
+        ur = tu.array_to_column_major(plu.U, N)
+        # C code is 0-base indexed but Julia is 1-base
+        pr = plu.p .+ 1
+    end
 
     return (lr, ur, pr)
 end

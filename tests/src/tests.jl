@@ -32,7 +32,6 @@ include("ffi_plu_factorization.jl")
         for i = 1:iters, n = step:step:MAX_N
             M = rand(n, n)
             @time test_lu(M)
-            GC.gc() # FIXME without the system will segfault
         end
     end
 
@@ -53,16 +52,11 @@ include("ffi_plu_factorization.jl")
     end
 
     @testset "Random Small LU" begin
-        run_random(10, 10, 50)
+        run_random(10, 10, 100)
     end
 
     @testset "Random Large LU" begin
-        # FIXME running with larger than 500 usually
-        # causes segfault. This is a Julia GC problem
-        # not a Lib problem (AFAIK).
-        # NOTE this could also be a problem with my hacky
-        # pointer conversion functions in TestUtils.jl
-        run_random(2, 100, 20000)
+        run_random(2, 100, 2000)
     end
 
 end

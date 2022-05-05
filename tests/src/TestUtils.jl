@@ -12,4 +12,10 @@ function array_to_column_major(A::Array{T}, N::Int64)::Matrix{T} where {T}
     collect(transpose(reshape(A, (N, N))))
 end
 
+function ptr_to_column_major(A::Ptr{T}, N::Int64)::Matrix{T} where {T}
+    collect(transpose(reshape(
+        unsafe_wrap(Array{Cdouble}, A, N * N),
+        (N, N))))
+end
+
 end # module
