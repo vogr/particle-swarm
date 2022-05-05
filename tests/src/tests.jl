@@ -1,14 +1,21 @@
 module tests
 
 using Test: @test, @testset
+using Printf: @printf, @sprintf
 using LinearAlgebra: lu
 
 # To add a new FFI test stub, include it here ----
 include("ffi_plu_factorization.jl")
 
+function starting_test(msg)
+    @printf "[starting]: %s\n" msg
+end
+
 # --------------------------------------
 
 @testset "LU Factorization Tests" begin
+
+    starting_test("LU Factorization")
 
     function test_lu(A)
         try
@@ -30,12 +37,17 @@ include("ffi_plu_factorization.jl")
         end
     end
 
-    function run_random(iters, step, MAX_N)
-        for i = 1:iters, n = step:step:MAX_N
-            M = rand(n, n)
-            @time test_lu(M)
+
+    function run_random(iters, step, MAX_N; msg::String="")
+        starting_test(@sprintf "%d random %s instances" ((MAX_N / step) * iters) msg)
+        @time begin
+            for i = 1:iters, n = step:step:MAX_N
+                M = rand(n, n)
+                test_lu(M)
+            end
         end
     end
+
 
     @testset "Static LU" begin
 
@@ -51,12 +63,13 @@ include("ffi_plu_factorization.jl")
 
     end
 
+
     @testset "Random Small LU" begin
-        run_random(100, 10, 100)
+        run_random(100, 10, 100, msg="small lu factor")
     end
 
     @testset "Random Large LU" begin
-        run_random(2, 100, 2000)
+        run_random(2, 100, 2000, msg="large lu factor")
     end
 
 end
@@ -64,6 +77,8 @@ end
 # --------------------------------------
 
 @testset "LU Solve Tests" begin
+
+    starting_test("LU Solve")
 
     function test_lu_solve(A::Matrix, b::Vector)
         luA = lu(A)
@@ -75,13 +90,17 @@ end
     end
 
 
-    function run_random(iters, step, MAX_N)
-        for i = 1:iters, n = step:step:MAX_N
-            M = rand(n, n)
-            b = rand(n)
-            @time test_lu_solve(M, b)
+    function run_random(iters, step, MAX_N; msg::String="")
+        starting_test(@sprintf "%d random %s instances" ((MAX_N / step) * iters) msg)
+        @time begin
+            for i = 1:iters, n = step:step:MAX_N
+                M = rand(n, n)
+                b = rand(n)
+                test_lu_solve(M, b)
+            end
         end
     end
+
 
     @testset "Static LU Solve" begin
 
@@ -93,12 +112,14 @@ end
 
     end
 
+
     @testset "Random LU Solve Small" begin
-        run_random(100, 10, 100)
+        run_random(100, 10, 100, msg="small lu solve")
     end
 
+
     @testset "Random LU Solve Large" begin
-        run_random(2, 100, 2000)
+        run_random(2, 100, 2000, msg="large lu solve")
     end
 
 end
