@@ -1,5 +1,7 @@
 module PLU
 
+using LinearAlgebra
+
 # FFI stubs for LRU factorization
 include("TestUtils.jl")
 
@@ -13,13 +15,11 @@ struct PLU_factorization_C
     p::Ptr{Cint}
 end
 
-
 struct PLU_factorization
-    L::Array{Cdouble}
-    U::Array{Cdouble}
-    p::Array{Cint}
+    L::Vector{Cdouble}
+    U::Vector{Cdouble}
+    p::Vector{Cint}
 end
-
 
 # See https://docs.julialang.org/en/v1/manual/calling-c-and-fortran-code/#Garbage-Collection-Safety
 # - Julia objects that are not rooted (i.e not alive) can get GC-ed.
@@ -35,34 +35,37 @@ end
 # QUESTION: relationship between convert/unsafe_convert/cconvert?
 
 
-# unsafe_convert because it offers no guarentee that the memory in the arrays
-# stays available.
-function Base.unsafe_convert(::Type{PLU_factorization_C}, x::PLU_factorization)
-    PLU_factorization_C(pointer(x.L), pointer(x.U), pointer(x.p))
+# cconvert returns an object compatible with the C interface. Potentially, unsafe_convert
+# will turn it into a pointer.
+# This is the typical usecase for cconvert as noted [in the doc][1]:
+# > For example, this is used to convert an Array of objects (e.g. strings) to an
+# > array of pointers.
+# [1]: https://docs.julialang.org/en/v1/manual/calling-c-and-fortran-code/#automatic-type-conversion
+function Base.cconvert(::Type{Ref{PLU_factorization_C}}, x::PLU_factorization)
+    Ref(PLU_factorization_C(pointer(x.L), pointer(x.U), pointer(x.p)))
 end
 
-
-function alloc_PLU_factorization(N)
-    L = zeros(Cdouble, N * N)
-    U = zeros(Cdouble, N * N)
-    p = Array{Cint}(undef, N)
+function alloc_PLU_factorization(N)::PLU_factorization
+    L = Vector{Cdouble}(undef, N * N)
+    U = Vector{Cdouble}(undef, N * N)
+    p = Vector{Cint}(undef, N)
     return PLU_factorization(L, U, p)
 end
 
-function PLU_factorize(M::Matrix)
+function PLU_factorize(M::Matrix{Cdouble})
 
     @assert ndims(M) == 2
     @assert size(M, 1) == size(M, 2)
 
     N = size(M, 1) # M should be an NxN matrix
-    Mp::Array{Cdouble} = tu.column_major_to_row(M)
-    plu = alloc_PLU_factorization(N)
+    Mp::Vector{Cdouble} = tu.column_major_to_row(M)
+    plu::PLU_factorization = alloc_PLU_factorization(N)
 
     retcode = ccall(
         (:plu_factorize, :libpso),
-        Cint,                                         # return type
+        Cint,                                           # return type
         (Cint, Ptr{Cdouble}, Ref{PLU_factorization_C}), # parameter types
-        N, Mp, plu                                     # actual arguments
+        N, Mp, plu                                      # actual arguments
     )
 
     @assert retcode == 0
@@ -73,6 +76,35 @@ function PLU_factorize(M::Matrix)
     pr = plu.p .+ 1
 
     return (lr, ur, pr)
+end
+
+# function Vector{Float64}(m::Matrix{Float64})
+#     tu.column_major_to_array(m)
+# end
+
+function PLU_solve(M::Matrix{Cdouble}, b::Vector{Cdouble})::Vector{Cdouble}
+    N = size(M, 1)
+    L, U, p = lu(M) # Use Julia's LA functions for isolation
+
+    # Convert Matrices
+    Mp::Vector{Cdouble} = tu.column_major_to_row(M)
+    Lp::Vector{Cdouble} = tu.column_major_to_row(L)
+    Up::Vector{Cdouble} = tu.column_major_to_row(U)
+    x::Vector{Cdouble} = Vector{Cdouble}(undef, N)
+    p = p .- 1 # Julia 1-based indexing at it again
+
+    plu = PLU_factorization(Lp, Up, p)
+
+    retcode = ccall(
+        (:plu_solve, :libpso),
+        Cint,
+        (Cint, Ref{PLU_factorization_C}, Ptr{Cdouble}, Ptr{Cdouble}),
+        N, plu, b, x
+    )
+
+    @assert retcode == 0
+
+    return x
 end
 
 end # module
