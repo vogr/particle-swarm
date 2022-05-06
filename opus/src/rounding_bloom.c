@@ -8,7 +8,7 @@
 
 #include "helpers.h"
 
-#define DEBUG_BLOOM 1
+#define DEBUG_BLOOM 0
 
 // For FFI calls
 struct rounding_bloom * rounding_bloom_alloc()
@@ -60,7 +60,7 @@ int rounding_bloom_check_add(struct rounding_bloom * bloom, int dims, double * c
 
     uint64_t * neighbor_dual_bin_id = malloc(dims * sizeof(uint64_t));
 
-    #ifdef DEBUG_BLOOM
+    #if DEBUG_BLOOM
     print_vectord(x, dims, "x");
     print_vectoru64(bin_id, dims, "bin_id");
     print_vectoru64(dual_bin_id, dims, "dual_bin_id");
@@ -76,7 +76,7 @@ int rounding_bloom_check_add(struct rounding_bloom * bloom, int dims, double * c
         if (bloom_check(&bloom->bloom, (char*)neighbor_dual_bin_id, dims * sizeof(uint64_t)))
         {
             ret=1;
-            #ifdef DEBUG_BLOOM
+            #if DEBUG_BLOOM
             printf("Found collision with\n");
             print_vectoru64(neighbor_dual_bin_id, dims, "neighbor_dual_bin_id");
             #endif
@@ -86,7 +86,7 @@ int rounding_bloom_check_add(struct rounding_bloom * bloom, int dims, double * c
 
     if (add && ret == 0)
     {
-        #ifdef DEBUG_BLOOM
+        #if DEBUG_BLOOM
         printf("No collision. Adding to bloom filter.\n");
         #endif
 
