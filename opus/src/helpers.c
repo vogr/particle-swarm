@@ -2,6 +2,7 @@
 #include "helpers.h"
 
 #include <stdio.h>
+#include <inttypes.h>
 
 void print_matrixd(double const * M, int N, char const *name)
 {
@@ -35,6 +36,18 @@ void print_vectori(int const * M, int N, char const * name)
   for (i = 0; i < N; i++)
   {
     printf("%d", M[i]);
+    if (i < N - 1) printf(", ");
+  }
+  printf("]\n");
+}
+
+void print_vectoru64(uint64_t const * M, int N, char const * name)
+{
+  printf("%s = [", name);
+  int i;
+  for (i = 0; i < N; i++)
+  {
+    printf("%" PRIu64 " ", M[i]);
     if (i < N - 1) printf(", ");
   }
   printf("]\n");
