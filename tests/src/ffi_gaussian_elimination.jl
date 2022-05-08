@@ -6,6 +6,8 @@ include("TestUtils.jl")
 
 const tu = TestUtils
 
+# Note this cconvert function creates a copy: any modification done
+# to the matrix by the C code will not be visible to Julia.
 function Base.cconvert(t::Type{Ptr{Cdouble}}, x::Matrix{<:Real})
     return Base.cconvert(t, tu.column_major_to_row(x))
 end
