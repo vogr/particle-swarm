@@ -12,7 +12,9 @@ CFLAGS+=-O0 -ggdb3 \
 LDLIBS+=-lm
 
 
-CFILES_COMMON := src/helpers.c src/local_refinement.c src/logging.c src/plu_factorization.c src/pso.c src/bloom.c src/murmurhash.c src/rounding_bloom.c
+CFILES_COMMON := src/helpers.c src/local_refinement.c src/logging.c \
+                 src/plu_factorization.c src/pso.c src/bloom.c src/murmurhash.c \
+				 src/rounding_bloom.c src/gaussian_elimination_solver.c
 OBJFILES_COMMON := $(CFILES_COMMON:.c=.o)
 
 
