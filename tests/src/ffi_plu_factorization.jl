@@ -66,8 +66,8 @@ function PLU_factorize(M::Matrix{Cdouble})
 
         @assert retcode == 0
 
-        lr = tu.array_to_column_major(plu.L, N)
-        ur = tu.array_to_column_major(plu.U, N)
+        lr = tu.array_to_column_major(plu.L, N, N)
+        ur = tu.array_to_column_major(plu.U, N, N)
         # C code is 0-base indexed but Julia is 1-base
         pr = plu.p .+ 1
     end

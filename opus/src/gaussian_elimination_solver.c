@@ -6,7 +6,7 @@
 
 #include "helpers.h"
 
-#define DEBUG_GE_SOLVER 1
+#define DEBUG_GE_SOLVER 0
 
 static void swapd(double *a, int i, int j)
 {
@@ -17,18 +17,18 @@ static void swapd(double *a, int i, int j)
 
 // Textual transformation assumes matrix Ab and matrix size `N`
 // are in scope.
-#define MAT_Ab(ROW, COL) (Ab)[(N+1) * (ROW) + (COL)]
-int gaussian_elimination_solve(int N, double * Ab, double * x)
+#define MAT_Ab(ROW, COL) (Ab)[(N + 1) * (ROW) + (COL)]
+int gaussian_elimination_solve(int N, double *Ab, double *x)
 {
-    // Note: works inplace on Ab, outputs in x
-    // Ab= [ A | b], sie N x (N+1)
+  // Note: works inplace on Ab, outputs in x
+  // Ab= [ A | b], sie N x (N+1)
 
-    // Gaussian elimination with partial pivoting
+  // Gaussian elimination with partial pivoting
 
-  #if DEBUG_GE_SOLVER
+#if DEBUG_GE_SOLVER
   printf("Before elimination:");
-  print_rect_matrixd(Ab, N, N+1, "Ab0");
-  #endif
+  print_rect_matrixd(Ab, N, N + 1, "Ab0");
+#endif
 
   for (int k = 0; k < N - 1; k++)
   {
@@ -48,22 +48,23 @@ int gaussian_elimination_solve(int N, double * Ab, double * x)
     if (pivot_row_idx < 0)
     {
       // singular matrix
-      fprintf(stderr,
-              "ERROR: gaussian elimination failed: cannot find non-zero pivot for "
-              "sub-matrix %d\n",
-              k);
+      fprintf(
+          stderr,
+          "ERROR: gaussian elimination failed: cannot find non-zero pivot for "
+          "sub-matrix %d\n",
+          k);
       return -1;
     }
 
     if (k != pivot_row_idx)
     {
-      // swap the rows in Ab
-      #if DEBUG_GE_SOLVER
+// swap the rows in Ab
+#if DEBUG_GE_SOLVER
       printf("Swap rows %d <-> %d\n", k, pivot_row_idx);
-      #endif
+#endif
       for (int j = 0; j < N + 1; j++)
       {
-        swapd(Ab, k * (N+1) + j, pivot_row_idx * (N+1) + j);
+        swapd(Ab, k * (N + 1) + j, pivot_row_idx * (N + 1) + j);
       }
     }
 
@@ -72,32 +73,30 @@ int gaussian_elimination_solve(int N, double * Ab, double * x)
     // as it is known to give value 0 (and not used in back substitution)
     // Keep for debugging for now
 
-    for (int i = k +1 ; i < N ; i++)
+    for (int i = k + 1; i < N; i++)
     {
       double r = MAT_Ab(i, k) / p;
-      for (int j = k ; j < N+1 ; j++)
+      for (int j = k; j < N + 1; j++)
       {
         MAT_Ab(i, j) -= r * MAT_Ab(k, j);
       }
     }
 
-    #if DEBUG_GE_SOLVER
+#if DEBUG_GE_SOLVER
     printf("Elimination step %d:\n", k);
-    print_rect_matrixd(Ab, N, N+1, "Ab");
-    #endif
-
+    print_rect_matrixd(Ab, N, N + 1, "Ab");
+#endif
   }
 
-  if (fabs(MAT_Ab(N-1, N-1)) < 1e-3)
+  if (fabs(MAT_Ab(N - 1, N - 1)) < 1e-3)
   {
     // singular matrix
-    fprintf(stderr,
-            "ERROR: gaussian elimination failed: last pivot is 0\n");
+    fprintf(stderr, "ERROR: gaussian elimination failed: last pivot is 0\n");
     return -1;
   }
 
   // A is now upper triangular
-  
+
   // Backward substitution
   // U x = y
   for (int i = N - 1; i >= 0; i--)

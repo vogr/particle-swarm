@@ -6,6 +6,7 @@ using LinearAlgebra: lu
 
 # To add a new FFI test stub, include it here ----
 include("ffi_plu_factorization.jl")
+include("ffi_gaussian_elimination.jl")
 
 function starting_test(msg)
     @printf "[starting]: %s\n" msg
@@ -50,17 +51,8 @@ end
 
 
     @testset "Static LU" begin
-
-        # Simple -------------
-
         M_1::Matrix{Cdouble} = [1 2 4; 3 8 4; 2 6 13]
-
         test_lu(M_1)
-
-        # Medium -------------
-
-        # Hard ---------------
-
     end
 
 
@@ -103,13 +95,9 @@ end
 
 
     @testset "Static LU Solve" begin
-
         M_1::Matrix{Cdouble} = [2 1 -2; 1 -1 -1; 1 1 3]
-
         b_1::Vector{Cdouble} = [3; 0; 12]
-
         test_lu_solve(M_1, b_1)
-
     end
 
 
@@ -120,6 +108,51 @@ end
 
     @testset "Random LU Solve Large" begin
         run_random(2, 100, 2000, msg="large lu solve")
+    end
+
+end
+
+# --------------------------------------
+
+@testset "GE Solve Tests" begin
+
+    starting_test("GE Solve")
+
+    function test_ge_solve(A::Matrix, b::Vector)
+        jx = A\b
+        x = PSO_GE.GE_solve(A, b)
+        @test A * jx ≈ b
+        @test A * x ≈ b
+        @test jx ≈ x
+    end
+
+
+    function run_random(iters, step, MAX_N; msg::String="")
+        starting_test(@sprintf "%d random %s instances" ((MAX_N / step) * iters) msg)
+        @time begin
+            for i = 1:iters, n = step:step:MAX_N
+                M = rand(n, n)
+                b = rand(n)
+                test_ge_solve(M, b)
+            end
+        end
+    end
+
+
+    @testset "Static GE Solve" begin
+        M_1::Matrix{Cdouble} = [2 1 -2; 1 -1 -1; 1 1 3]
+        b_1::Vector{Cdouble} = [3; 0; 12]
+        test_ge_solve(M_1, b_1)
+    end
+
+
+    @testset "Random GE Solve Small" begin
+        run_random(100, 10, 100, msg="small ge solve")
+    end
+
+
+    @testset "Random GE Solve Large" begin
+        run_random(2, 100, 2000, msg="large ge solve")
     end
 
 end
