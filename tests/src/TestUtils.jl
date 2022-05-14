@@ -1,6 +1,8 @@
 module TestUtils
 
-export column_major_to_row, array_to_column_major
+using Printf: @printf
+
+export column_major_to_row, array_to_column_major, starting_test
 
 # Changes the major order of the array memory layout.
 # Row -> Column and vice-versa
@@ -14,5 +16,9 @@ column_major_to_row(M::AbstractArray)::AbstractVector =
 
 array_to_column_major(A::AbstractArray, sizes...)::AbstractArray =
     collect(change_major_order(reshape(A, sizes)))
+
+function starting_test(msg)
+    @printf "[starting]: %s\n" msg
+end
 
 end # module
