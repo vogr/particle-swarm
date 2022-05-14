@@ -34,15 +34,10 @@ end
 #   GC.@preserve obj begin ... end (and more if the C code keeps a reference to the object!)
 # QUESTION: relationship between convert/unsafe_convert/cconvert?
 
-
-# cconvert returns an object compatible with the C interface. Potentially, unsafe_convert
-# will turn it into a pointer.
-# This is the typical usecase for cconvert as noted [in the doc][1]:
-# > For example, this is used to convert an Array of objects (e.g. strings) to an
-# > array of pointers.
-# [1]: https://docs.julialang.org/en/v1/manual/calling-c-and-fortran-code/#automatic-type-conversion
-function Base.cconvert(::Type{Ref{PLU_factorization_C}}, x::PLU_factorization)
-    Ref(PLU_factorization_C(pointer(x.L), pointer(x.U), pointer(x.p)))
+# unsafe_convert because it offers no guarentee that the memory in the arrays
+# stays available.
+function Base.convert(::Type{PLU_factorization_C}, x::PLU_factorization)
+    PLU_factorization_C(pointer(x.L), pointer(x.U), pointer(x.p))
 end
 
 function alloc_PLU_factorization(N)::PLU_factorization
@@ -61,19 +56,21 @@ function PLU_factorize(M::Matrix{Cdouble})
     Mp::Vector{Cdouble} = tu.column_major_to_row(M)
     plu::PLU_factorization = alloc_PLU_factorization(N)
 
-    retcode = ccall(
-        (:plu_factorize, :libpso),
-        Cint,                                           # return type
-        (Cint, Ptr{Cdouble}, Ref{PLU_factorization_C}), # parameter types
-        N, Mp, plu                                      # actual arguments
-    )
+    GC.@preserve plu begin
+        retcode = ccall(
+            (:plu_factorize, :libpso),
+            Cint,                                           # return type
+            (Cint, Ptr{Cdouble}, Ref{PLU_factorization_C}), # parameter types
+            N, Mp, plu                                      # actual arguments
+        )
 
-    @assert retcode == 0
+        @assert retcode == 0
 
-    lr = tu.array_to_column_major(plu.L, N)
-    ur = tu.array_to_column_major(plu.U, N)
-    # C code is 0-base indexed but Julia is 1-base
-    pr = plu.p .+ 1
+        lr = tu.array_to_column_major(plu.L, N)
+        ur = tu.array_to_column_major(plu.U, N)
+        # C code is 0-base indexed but Julia is 1-base
+        pr = plu.p .+ 1
+    end
 
     return (lr, ur, pr)
 end
@@ -95,12 +92,14 @@ function PLU_solve(M::Matrix{Cdouble}, b::Vector{Cdouble})::Vector{Cdouble}
 
     plu = PLU_factorization(Lp, Up, p)
 
-    retcode = ccall(
-        (:plu_solve, :libpso),
-        Cint,
-        (Cint, Ref{PLU_factorization_C}, Ptr{Cdouble}, Ptr{Cdouble}),
-        N, plu, b, x
-    )
+    GC.@preserve plu begin
+        retcode = ccall(
+            (:plu_solve, :libpso),
+            Cint,
+            (Cint, Ref{PLU_factorization_C}, Ptr{Cdouble}, Ptr{Cdouble}),
+            N, plu, b, x
+        )
+    end
 
     @assert retcode == 0
 
