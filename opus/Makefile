@@ -3,6 +3,7 @@
 CFLAGS+=-O0 -ggdb3 \
 -Wall -Wextra -Wpedantic -Wformat=2 -Wswitch-default -Wswitch-enum -Wfloat-equal \
 -pedantic-errors -Werror=format-security \
+-mfma \
 -Werror=vla
 
 # Release flags
