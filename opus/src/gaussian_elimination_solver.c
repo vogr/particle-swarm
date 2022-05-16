@@ -11,14 +11,14 @@
 //
 #include <immintrin.h>
 
-#define DEBUG_GE_SOLVER 0
+#define DEBUG_GE_SOLVER 1
 
 // NOTE predefine functions here and put them in increasing level
 // of optimization below. Please list the optimizations performed
 // in the preceding function comment.
-int gaussian_elimination_solve_0(int N, double *Ab, double *x);
-int gaussian_elimination_solve_1(int N, double *Ab, double *x);
-int gaussian_elimination_solve_2(int N, double *Ab, double *x);
+static int gaussian_elimination_solve_0(int N, double *Ab, double *x);
+static int gaussian_elimination_solve_1(int N, double *Ab, double *x);
+static int gaussian_elimination_solve_2(int N, double *Ab, double *x);
 
 static void swapd(double *a, int i, int j)
 {
@@ -39,7 +39,7 @@ int gaussian_elimination_solve(int N, double *Ab, double *x)
 }
 
 // Base implementation
-int gaussian_elimination_solve_0(int N, double *Ab, double *x)
+static int gaussian_elimination_solve_0(int N, double *Ab, double *x)
 {
   // Note: works inplace on Ab, outputs in x
   // Ab= [ A | b], sie N x (N+1)
@@ -137,15 +137,10 @@ int gaussian_elimination_solve_0(int N, double *Ab, double *x)
 /**
  * - Loop unrolling up to depth 8.
  */
-int gaussian_elimination_solve_1(int N, double *Ab, double *x)
+static int gaussian_elimination_solve_1(int N, double *Ab, double *x)
 {
-
   // loop indices
-  int    //
-      k, //
-      i, //
-      j  //
-      ;
+  int k, i, j;
 
   for (k = 0; k < N - 1; k++)
   {
@@ -419,11 +414,17 @@ int gaussian_elimination_solve_1(int N, double *Ab, double *x)
 
 /**
  * - Vectorization of obvious loops
- * "obvious" meaning non-column major iterations.
- * TODO
  */
-int gaussian_elimination_solve_2(int N, double *Ab, double *x)
+static int gaussian_elimination_solve_2(int N, double *Ab, double *x)
 {
+#if DEBUG_GE_SOLVER
+  if (((unsigned long)Ab & 0x1F) || ((unsigned long)x & 0x1F))
+  {
+    printf("Alignments: Ab %p x %p\n", Ab, x);
+    return 0;
+  }
+#endif
+
   // loop indices
   int k, i, j;
 
@@ -464,7 +465,6 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
     // for better locality.
     for (i = k; i < N - 3; i += 4)
     {
-
       // NOTE this one instruction makes everything
       // not worth it.
       vpd = _mm256_setr_pd( //
@@ -545,9 +545,8 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
 
       int ri, pi;
 
-      for (j = 0; j < N + 1 - 7; j += 8)
+      for (j = 0; j < (N + 1) - 7; j += 8)
       {
-
         ri = k * (N + 1) + j;
         pi = pivot_row_idx * (N + 1) + j;
 
@@ -556,6 +555,7 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
         row_1 = _mm256_load_pd(Ab + ri + 4);
         prow_0 = _mm256_load_pd(Ab + pi + 0);
         prow_1 = _mm256_load_pd(Ab + pi + 4);
+
         _mm256_store_pd(Ab + ri + 0, prow_0);
         _mm256_store_pd(Ab + ri + 4, prow_1);
         _mm256_store_pd(Ab + pi + 0, row_0);
@@ -583,58 +583,88 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
         inv_p = 1 / p //
         ;
 
+    __m256d    //
+        rpd_0, //
+        rpd_1, //
+        rpd_2, //
+        rpd_3, //
+
+        ab_i0_j0, //
+        ab_i0_j4, //
+
+        ab_i1_j0, //
+        ab_i1_j4, //
+
+        ab_i2_j0, //
+        ab_i2_j4, //
+
+        ab_i3_j0, //
+        ab_i3_j4, //
+
+        ab_k_j0, //
+        ab_k_j4  //
+        ;
+
     // NOTE unroll i 4 times
     //      unroll j 8 times
     for (i = k + 1; i < N - 3; i += 4)
     {
-
       r_0 = inv_p * MAT_Ab(i + 0, k);
       r_1 = inv_p * MAT_Ab(i + 1, k);
       r_2 = inv_p * MAT_Ab(i + 2, k);
       r_3 = inv_p * MAT_Ab(i + 3, k);
 
+      rpd_0 = _mm256_set1_pd(r_0);
+      rpd_1 = _mm256_set1_pd(r_1);
+      rpd_2 = _mm256_set1_pd(r_2);
+      rpd_3 = _mm256_set1_pd(r_3);
+
       for (j = k; j < N + 1 - 7; j += 8)
       {
-        // ----
-        MAT_Ab(i + 0, j + 0) -= r_0 * MAT_Ab(k, j + 0);
-        MAT_Ab(i + 0, j + 1) -= r_0 * MAT_Ab(k, j + 1);
-        MAT_Ab(i + 0, j + 2) -= r_0 * MAT_Ab(k, j + 2);
-        MAT_Ab(i + 0, j + 3) -= r_0 * MAT_Ab(k, j + 3);
+        // loads
 
-        MAT_Ab(i + 0, j + 4) -= r_0 * MAT_Ab(k, j + 4);
-        MAT_Ab(i + 0, j + 5) -= r_0 * MAT_Ab(k, j + 5);
-        MAT_Ab(i + 0, j + 6) -= r_0 * MAT_Ab(k, j + 6);
-        MAT_Ab(i + 0, j + 7) -= r_0 * MAT_Ab(k, j + 7);
+        ab_i0_j0 = _mm256_load_pd(Ab + MAT_Ab_IX(i + 0, j + 0));
+        ab_i0_j4 = _mm256_load_pd(Ab + MAT_Ab_IX(i + 0, j + 4));
 
-        // ----
-        MAT_Ab(i + 1, j + 0) -= r_1 * MAT_Ab(k, j + 0);
-        MAT_Ab(i + 1, j + 1) -= r_1 * MAT_Ab(k, j + 1);
-        MAT_Ab(i + 1, j + 2) -= r_1 * MAT_Ab(k, j + 2);
-        MAT_Ab(i + 1, j + 3) -= r_1 * MAT_Ab(k, j + 3);
-        MAT_Ab(i + 1, j + 4) -= r_1 * MAT_Ab(k, j + 4);
-        MAT_Ab(i + 1, j + 5) -= r_1 * MAT_Ab(k, j + 5);
-        MAT_Ab(i + 1, j + 6) -= r_1 * MAT_Ab(k, j + 6);
-        MAT_Ab(i + 1, j + 7) -= r_1 * MAT_Ab(k, j + 7);
+        ab_i1_j0 = _mm256_load_pd(Ab + MAT_Ab_IX(i + 1, j + 0));
+        ab_i1_j4 = _mm256_load_pd(Ab + MAT_Ab_IX(i + 1, j + 4));
 
-        // ----
-        MAT_Ab(i + 2, j + 0) -= r_2 * MAT_Ab(k, j + 0);
-        MAT_Ab(i + 2, j + 1) -= r_2 * MAT_Ab(k, j + 1);
-        MAT_Ab(i + 2, j + 2) -= r_2 * MAT_Ab(k, j + 2);
-        MAT_Ab(i + 2, j + 3) -= r_2 * MAT_Ab(k, j + 3);
-        MAT_Ab(i + 2, j + 4) -= r_2 * MAT_Ab(k, j + 4);
-        MAT_Ab(i + 2, j + 5) -= r_2 * MAT_Ab(k, j + 5);
-        MAT_Ab(i + 2, j + 6) -= r_2 * MAT_Ab(k, j + 6);
-        MAT_Ab(i + 2, j + 7) -= r_2 * MAT_Ab(k, j + 7);
+        ab_i2_j0 = _mm256_load_pd(Ab + MAT_Ab_IX(i + 2, j + 0));
+        ab_i2_j4 = _mm256_load_pd(Ab + MAT_Ab_IX(i + 2, j + 4));
 
-        // ----
-        MAT_Ab(i + 3, j + 0) -= r_3 * MAT_Ab(k, j + 0);
-        MAT_Ab(i + 3, j + 1) -= r_3 * MAT_Ab(k, j + 1);
-        MAT_Ab(i + 3, j + 2) -= r_3 * MAT_Ab(k, j + 2);
-        MAT_Ab(i + 3, j + 3) -= r_3 * MAT_Ab(k, j + 3);
-        MAT_Ab(i + 3, j + 4) -= r_3 * MAT_Ab(k, j + 4);
-        MAT_Ab(i + 3, j + 5) -= r_3 * MAT_Ab(k, j + 5);
-        MAT_Ab(i + 3, j + 6) -= r_3 * MAT_Ab(k, j + 6);
-        MAT_Ab(i + 3, j + 7) -= r_3 * MAT_Ab(k, j + 7);
+        ab_i3_j0 = _mm256_load_pd(Ab + MAT_Ab_IX(i + 3, j + 0));
+        ab_i3_j4 = _mm256_load_pd(Ab + MAT_Ab_IX(i + 3, j + 4));
+
+        ab_k_j0 = _mm256_load_pd(Ab + MAT_Ab_IX(k, j + 0));
+        ab_k_j4 = _mm256_load_pd(Ab + MAT_Ab_IX(k, j + 4));
+
+        // computations
+
+        ab_i0_j0 = _mm256_fmsub_pd(rpd_0, ab_k_j0, ab_i0_j0);
+        ab_i0_j4 = _mm256_fmsub_pd(rpd_0, ab_k_j4, ab_i0_j4);
+
+        ab_i1_j0 = _mm256_fmsub_pd(rpd_1, ab_k_j0, ab_i1_j0);
+        ab_i1_j4 = _mm256_fmsub_pd(rpd_1, ab_k_j4, ab_i1_j4);
+
+        ab_i2_j0 = _mm256_fmsub_pd(rpd_2, ab_k_j0, ab_i2_j0);
+        ab_i2_j4 = _mm256_fmsub_pd(rpd_2, ab_k_j4, ab_i2_j4);
+
+        ab_i3_j0 = _mm256_fmsub_pd(rpd_3, ab_k_j0, ab_i3_j0);
+        ab_i3_j4 = _mm256_fmsub_pd(rpd_3, ab_k_j4, ab_i3_j4);
+
+        // stores
+
+        _mm256_store_pd(Ab + MAT_Ab_IX(i + 0, j + 0), ab_i0_j0);
+        _mm256_store_pd(Ab + MAT_Ab_IX(i + 0, j + 4), ab_i0_j4);
+
+        _mm256_store_pd(Ab + MAT_Ab_IX(i + 1, j + 0), ab_i1_j0);
+        _mm256_store_pd(Ab + MAT_Ab_IX(i + 1, j + 4), ab_i1_j4);
+
+        _mm256_store_pd(Ab + MAT_Ab_IX(i + 2, j + 0), ab_i2_j0);
+        _mm256_store_pd(Ab + MAT_Ab_IX(i + 2, j + 4), ab_i2_j4);
+
+        _mm256_store_pd(Ab + MAT_Ab_IX(i + 3, j + 0), ab_i3_j0);
+        _mm256_store_pd(Ab + MAT_Ab_IX(i + 3, j + 4), ab_i3_j4);
 
       } // j unrolled
 
@@ -654,18 +684,22 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
     {
 
       r_0 = inv_p * MAT_Ab(i, k);
+      rpd_0 = _mm256_set1_pd(r_0);
 
       for (j = k; j < N + 1 - 7; j += 8)
       {
-        MAT_Ab(i, j + 0) -= r_0 * MAT_Ab(k, j + 0);
-        MAT_Ab(i, j + 1) -= r_0 * MAT_Ab(k, j + 1);
-        MAT_Ab(i, j + 2) -= r_0 * MAT_Ab(k, j + 2);
-        MAT_Ab(i, j + 3) -= r_0 * MAT_Ab(k, j + 3);
+        ab_i0_j0 = _mm256_load_pd(Ab + MAT_Ab_IX(i + 0, j + 0));
+        ab_i1_j0 = _mm256_load_pd(Ab + MAT_Ab_IX(i + 1, j + 0));
 
-        MAT_Ab(i, j + 4) -= r_0 * MAT_Ab(k, j + 4);
-        MAT_Ab(i, j + 5) -= r_0 * MAT_Ab(k, j + 5);
-        MAT_Ab(i, j + 6) -= r_0 * MAT_Ab(k, j + 6);
-        MAT_Ab(i, j + 7) -= r_0 * MAT_Ab(k, j + 7);
+        ab_k_j0 = _mm256_load_pd(Ab + MAT_Ab_IX(k, j + 0));
+        ab_k_j4 = _mm256_load_pd(Ab + MAT_Ab_IX(k, j + 4));
+
+        ab_i0_j0 = _mm256_fmsub_pd(rpd_0, ab_k_j0, ab_i0_j0);
+        ab_i0_j4 = _mm256_fmsub_pd(rpd_0, ab_k_j4, ab_i0_j4);
+
+        _mm256_store_pd(Ab + MAT_Ab_IX(i + 0, j + 0), ab_i0_j0);
+        _mm256_store_pd(Ab + MAT_Ab_IX(i + 0, j + 4), ab_i0_j4);
+
       } // j unrolled
 
       for (; j < N + 1; j++)
@@ -717,16 +751,6 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
 
       vpd_0 = _mm256_fmadd_pd(lpd_0, xpd_0, vpd_0);
       vpd_1 = _mm256_fmadd_pd(lpd_1, xpd_1, vpd_1);
-
-      /* v_0 += MAT_Ab(i, j + 0) * x[j + 0]; */
-      /* v_1 += MAT_Ab(i, j + 1) * x[j + 1]; */
-      /* v_2 += MAT_Ab(i, j + 2) * x[j + 2]; */
-      /* v_3 += MAT_Ab(i, j + 3) * x[j + 3]; */
-
-      /* v_4 += MAT_Ab(i, j + 4) * x[j + 4]; */
-      /* v_5 += MAT_Ab(i, j + 5) * x[j + 5]; */
-      /* v_6 += MAT_Ab(i, j + 6) * x[j + 6]; */
-      /* v_7 += MAT_Ab(i, j + 7) * x[j + 7]; */
     }
 
     vpd_0 = _mm256_add_pd(vpd_0, vpd_1);

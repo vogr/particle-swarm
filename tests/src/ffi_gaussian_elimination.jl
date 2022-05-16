@@ -14,15 +14,20 @@ function GE_solve(A::Matrix{<:Real}, b::Vector{<:Real})
 
     N = size(A, 1)
     Ab = hcat(A, b)
-    Ab = tu.column_major_to_row(Ab)
-    x = Vector{Cdouble}(undef, N)
+    # Ab = tu.column_major_to_row(Ab)
+    Ab_vec = tu.alloc_aligned_vec(Cdouble, length(Ab))
+    tu.fill_c_vec(Ab, Ab_vec)
+    # x = Vector{Cdouble}(undef, N)
+    x = tu.alloc_aligned_vec(Cdouble, N)
 
-    GC.@preserve Ab begin
+    # NOTE this preserve shouldn't be necessary because
+    # a Ptr{Cdouble} Base.unsafe_convert already exists.
+    GC.@preserve Ab x begin
         retcode = ccall(
             (:gaussian_elimination_solve, :libpso),
             Cint,                                  # return type
             (Csize_t, Ptr{Cdouble}, Ptr{Cdouble}), # parameter types
-            N, Ab, x                               # actual arguments
+            N, Ab_vec, x                               # actual arguments
         )
     end
 
@@ -57,20 +62,20 @@ function solve_tests()
         end
 
 
-        @testset "Static GE Solve" begin
-            M_1::Matrix{Cdouble} = [2 1 -2; 1 -1 -1; 1 1 3]
-            b_1::Vector{Cdouble} = [3; 0; 12]
-            test_ge_solve(M_1, b_1)
-        end
+        # @testset "Static GE Solve" begin
+        #     M_1::Matrix{Cdouble} = [2 1 -2; 1 -1 -1; 1 1 3]
+        #     b_1::Vector{Cdouble} = [3; 0; 12]
+        #     test_ge_solve(M_1, b_1)
+        # end
 
 
         @testset "Random GE Solve Small" begin
-            run_random(100, 10, 100, msg="small ge solve")
+            run_random(100, 32, 256, msg="small ge solve")
         end
 
 
         @testset "Random GE Solve Large" begin
-            run_random(2, 100, 2000, msg="large ge solve")
+            run_random(1, 256, 10000, msg="large ge solve")
         end
 
     end
