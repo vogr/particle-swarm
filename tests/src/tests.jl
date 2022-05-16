@@ -5,8 +5,8 @@ include("ffi_plu_factorization.jl")
 include("ffi_gaussian_elimination.jl")
 
 
-PLU.factorization_tests()
-PLU.solve_tests()
+# PLU.factorization_tests()
+# PLU.solve_tests()
 PSO_GE.solve_tests()
 
 end # module
