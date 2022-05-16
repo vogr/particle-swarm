@@ -30,6 +30,7 @@ static void swapd(double *a, int i, int j)
 // Textual transformation assumes matrix Ab and matrix size `N`
 // are in scope.
 #define MAT_Ab(ROW, COL) (Ab)[(N + 1) * (ROW) + (COL)]
+#define MAT_Ab_IX(ROW, COL) ((N + 1) * (ROW) + (COL))
 
 int gaussian_elimination_solve(int N, double *Ab, double *x)
 {
@@ -423,67 +424,75 @@ int gaussian_elimination_solve_1(int N, double *Ab, double *x)
  */
 int gaussian_elimination_solve_2(int N, double *Ab, double *x)
 {
-
   // loop indices
-  int    //
-      k, //
-      i, //
-      j  //
-      ;
+  int k, i, j;
 
   for (k = 0; k < N - 1; k++)
   {
     // Find largest possible pivot in submatrix of A
 
-    double                        //
-        v_i[4],                   //
-        p = 0.0,                  //
-        p_i[4] = {0., 0., 0., 0.} //
-    ;
+    double       //
+        v_i[4],  //
+        p = 0.0, //
+        p_i[4],  //
+        pr_i[4]  //
+        ;
 
-    int                            //
-        pivot_row_idx = -1,        //
-        pr_i[4] = {-1, -1, -1, -1} //
-    ;
+    int                    //
+        pivot_row_idx = -1 //
+        ;
 
-    // NOTE this is a column major iteration
-    // ! unrolling will probably not help
-    // but vectorization might.
+    __m256d                          //
+        sign = _mm256_set1_pd(-0.f), //
+        vpd,                         //
+        ppd = _mm256_set1_pd(0.),    //
+        fabs_vpd,                    //
+        fabs_ppd,                    //
+        // use packed doubles and cast later
+        ixpd = _mm256_setr_pd(k + 0, k + 1, k + 2, k + 3), //
+        pripd = _mm256_set1_pd(-1.),                       //
+        mask                                               //
+        ;
+
+    const __m256d                //
+        inc = _mm256_set1_pd(4.) //
+        ;
+
+    // NOTE this is a column major iteration!
     //
     // Potentially we can change iteration order
     // for better locality.
     for (i = k; i < N - 3; i += 4)
     {
-      v_i[0] = MAT_Ab(i + 0, k);
-      v_i[1] = MAT_Ab(i + 1, k);
-      v_i[2] = MAT_Ab(i + 2, k);
-      v_i[3] = MAT_Ab(i + 3, k);
 
-      if (fabs(v_i[0]) > fabs(p_i[0]))
-      {
-        p_i[0] = v_i[0];
-        pr_i[0] = i + 0;
-      }
+      // NOTE this one instruction makes everything
+      // not worth it.
+      vpd = _mm256_setr_pd( //
+          MAT_Ab(i + 0, k), //
+          MAT_Ab(i + 1, k), //
+          MAT_Ab(i + 2, k), //
+          MAT_Ab(i + 3, k)  //
+      );
 
-      if (fabs(v_i[1]) > fabs(p_i[1]))
-      {
-        p_i[1] = v_i[1];
-        pr_i[1] = i + 1;
-      }
-
-      if (fabs(v_i[2]) > fabs(p_i[2]))
-      {
-        p_i[2] = v_i[2];
-        pr_i[2] = i + 2;
-      }
-
-      if (fabs(v_i[3]) > fabs(p_i[3]))
-      {
-        p_i[3] = v_i[3];
-        pr_i[3] = i + 3;
-      }
+      // TODO reduce number of fabs by storing the
+      // abs version of ppd
+      // take fabs
+      fabs_vpd = _mm256_andnot_pd(sign, vpd);
+      fabs_ppd = _mm256_andnot_pd(sign, ppd);
+      // fabs(v) > fabs(p)
+      mask = _mm256_cmp_pd(fabs_vpd, fabs_ppd, _CMP_GT_OQ);
+      ppd = _mm256_blendv_pd(ppd, vpd, mask);
+      pripd = _mm256_blendv_pd(pripd, ixpd, mask);
+      ixpd = _mm256_add_pd(ixpd, inc);
 
     } // unroll i
+
+    _mm256_store_pd(p_i, ppd);
+    // NOTE `pri` is an array of doubles
+    // because _mm_set_epi32 is an AVX512
+    // instruction. We can easily store doubles
+    // and then cast to an int later.
+    _mm256_store_pd(pr_i, ixpd);
 
     for (; i < N; i++)
     {
@@ -492,18 +501,19 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
       if (fabs(v_i[0]) > fabs(p_i[0]))
       {
         p_i[0] = v_i[0];
-        pr_i[0] = i;
+        pr_i[0] = (double)i;
       }
     } // leftover i
 
-    // -----
+    // ----- get the max from the 4-vector
 
+    // FIXME USE a cmp table
     for (int ii = 0; ii < 4; ii++)
     {
       if (fabs(p_i[ii]) > fabs(p))
       {
         p = p_i[ii];
-        pivot_row_idx = pr_i[ii];
+        pivot_row_idx = (int)pr_i[ii];
       }
     }
 
@@ -523,17 +533,34 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
     if (k != pivot_row_idx)
     {
 
+      __m256d    //
+          row_0, //
+          row_1  //
+          ;
+
+      __m256d     //
+          prow_0, //
+          prow_1  //
+          ;
+
+      int ri, pi;
+
       for (j = 0; j < N + 1 - 7; j += 8)
       {
-        swapd(Ab, k * (N + 1) + j + 0, pivot_row_idx * (N + 1) + j + 0);
-        swapd(Ab, k * (N + 1) + j + 1, pivot_row_idx * (N + 1) + j + 1);
-        swapd(Ab, k * (N + 1) + j + 2, pivot_row_idx * (N + 1) + j + 2);
-        swapd(Ab, k * (N + 1) + j + 3, pivot_row_idx * (N + 1) + j + 3);
 
-        swapd(Ab, k * (N + 1) + j + 4, pivot_row_idx * (N + 1) + j + 4);
-        swapd(Ab, k * (N + 1) + j + 5, pivot_row_idx * (N + 1) + j + 5);
-        swapd(Ab, k * (N + 1) + j + 6, pivot_row_idx * (N + 1) + j + 6);
-        swapd(Ab, k * (N + 1) + j + 7, pivot_row_idx * (N + 1) + j + 7);
+        ri = k * (N + 1) + j;
+        pi = pivot_row_idx * (N + 1) + j;
+
+        // swapping only requires a load and store
+        row_0 = _mm256_load_pd(Ab + ri + 0);
+        row_1 = _mm256_load_pd(Ab + ri + 4);
+        prow_0 = _mm256_load_pd(Ab + pi + 0);
+        prow_1 = _mm256_load_pd(Ab + pi + 4);
+        _mm256_store_pd(Ab + ri + 0, prow_0);
+        _mm256_store_pd(Ab + ri + 4, prow_1);
+        _mm256_store_pd(Ab + pi + 0, row_0);
+        _mm256_store_pd(Ab + pi + 4, row_1);
+
       } // unrolled j
 
       for (; j < N + 1; j++)
@@ -573,6 +600,7 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
         MAT_Ab(i + 0, j + 1) -= r_0 * MAT_Ab(k, j + 1);
         MAT_Ab(i + 0, j + 2) -= r_0 * MAT_Ab(k, j + 2);
         MAT_Ab(i + 0, j + 3) -= r_0 * MAT_Ab(k, j + 3);
+
         MAT_Ab(i + 0, j + 4) -= r_0 * MAT_Ab(k, j + 4);
         MAT_Ab(i + 0, j + 5) -= r_0 * MAT_Ab(k, j + 5);
         MAT_Ab(i + 0, j + 6) -= r_0 * MAT_Ab(k, j + 6);
@@ -659,43 +687,57 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
 
   // Backward substitution
   // U x = y
+  //
+  // NOTE dangerous reordering of ops
   for (i = N - 1; i >= 0; i--)
   {
-    // value in b
-    // NOTE dangerous reordering of ops
     double                       //
         v = MAT_Ab(i, N),        //
         v_ii = 1 / MAT_Ab(i, i), //
+        v_i[4] = {0};
 
-        v_0 = 0, //
-        v_1 = 0, //
-        v_2 = 0, //
-        v_3 = 0, //
-        v_4 = 0, //
-        v_5 = 0, //
-        v_6 = 0, //
-        v_7 = 0  //
+    __m256d    //
+        lpd_0, //
+        lpd_1, //
+
+        xpd_0, //
+        xpd_1, //
+
+        vpd_0 = _mm256_setzero_pd(), //
+        vpd_1 = _mm256_setzero_pd()  //
         ;
 
     for (j = i + 1; j < N - 7; j += 8)
     {
-      v_0 += MAT_Ab(i, j + 0) * x[j + 0];
-      v_1 += MAT_Ab(i, j + 1) * x[j + 1];
-      v_2 += MAT_Ab(i, j + 2) * x[j + 2];
-      v_3 += MAT_Ab(i, j + 3) * x[j + 3];
+      lpd_0 = _mm256_load_pd(Ab + MAT_Ab_IX(i, j));
+      lpd_1 = _mm256_load_pd(Ab + MAT_Ab_IX(i, j + 4));
 
-      v_4 += MAT_Ab(i, j + 4) * x[j + 4];
-      v_5 += MAT_Ab(i, j + 5) * x[j + 5];
-      v_6 += MAT_Ab(i, j + 6) * x[j + 6];
-      v_7 += MAT_Ab(i, j + 7) * x[j + 7];
+      xpd_0 = _mm256_load_pd(x + j + 0);
+      xpd_1 = _mm256_load_pd(x + j + 4);
+
+      vpd_0 = _mm256_fmadd_pd(lpd_0, xpd_0, vpd_0);
+      vpd_1 = _mm256_fmadd_pd(lpd_1, xpd_1, vpd_1);
+
+      /* v_0 += MAT_Ab(i, j + 0) * x[j + 0]; */
+      /* v_1 += MAT_Ab(i, j + 1) * x[j + 1]; */
+      /* v_2 += MAT_Ab(i, j + 2) * x[j + 2]; */
+      /* v_3 += MAT_Ab(i, j + 3) * x[j + 3]; */
+
+      /* v_4 += MAT_Ab(i, j + 4) * x[j + 4]; */
+      /* v_5 += MAT_Ab(i, j + 5) * x[j + 5]; */
+      /* v_6 += MAT_Ab(i, j + 6) * x[j + 6]; */
+      /* v_7 += MAT_Ab(i, j + 7) * x[j + 7]; */
     }
+
+    vpd_0 = _mm256_add_pd(vpd_0, vpd_1);
+    _mm256_store_pd(v_i, vpd_0);
 
     for (; j < N; j++)
     {
-      v_7 += MAT_Ab(i, j + 0) * x[j + 0];
+      v_i[3] += MAT_Ab(i, j + 0) * x[j + 0];
     }
 
-    x[i] = (v - v_0 - v_1 - v_2 - v_3 - v_4 - v_5 - v_6 - v_7) * v_ii;
+    x[i] = (v - v_i[0] - v_i[1] - v_i[2] - v_i[3]) * v_ii;
   }
 
   return 0;
