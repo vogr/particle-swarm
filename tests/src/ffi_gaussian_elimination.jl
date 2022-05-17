@@ -75,7 +75,7 @@ function solve_tests()
 
 
         @testset "Random GE Solve Large" begin
-            run_random(1, 256, 10000, msg="large ge solve")
+            run_random(1, 256, 5000, msg="large ge solve")
         end
 
     end
