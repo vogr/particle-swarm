@@ -4,6 +4,8 @@
 #include <stdio.h>
 
 #include "helpers.h"
+#include "perf_ge_common.h"
+#include "perf_ge_solve.h"
 
 // TODO @vogier had mentioned using a macro system to
 // compile the code in different ways for performance
@@ -17,9 +19,9 @@
 // NOTE predefine functions here and put them in increasing level
 // of optimization below. Please list the optimizations performed
 // in the preceding function comment.
-static int gaussian_elimination_solve_0(int N, double *Ab, double *x);
-static int gaussian_elimination_solve_1(int N, double *Ab, double *x);
-static int gaussian_elimination_solve_2(int N, double *Ab, double *x);
+int gaussian_elimination_solve_0(int N, double *Ab, double *x);
+int gaussian_elimination_solve_1(int N, double *Ab, double *x);
+int gaussian_elimination_solve_2(int N, double *Ab, double *x);
 
 static void swapd(double *a, int i, int j)
 {
@@ -39,7 +41,7 @@ int gaussian_elimination_solve(int N, double *Ab, double *x)
 }
 
 // Base implementation
-static int gaussian_elimination_solve_0(int N, double *Ab, double *x)
+int gaussian_elimination_solve_0(int N, double *Ab, double *x)
 {
   // Note: works inplace on Ab, outputs in x
   // Ab= [ A | b], sie N x (N+1)
@@ -141,7 +143,7 @@ static int gaussian_elimination_solve_0(int N, double *Ab, double *x)
 /**
  * - Loop unrolling up to depth 8.
  */
-static int gaussian_elimination_solve_1(int N, double *Ab, double *x)
+int gaussian_elimination_solve_1(int N, double *Ab, double *x)
 {
   // loop indices
   int k, i, j;
@@ -427,9 +429,10 @@ static int gaussian_elimination_solve_1(int N, double *Ab, double *x)
  *    Once they are aligned, then use vector instructions.
  *    Catch following cases for standard loop unrolling.
  */
-static int gaussian_elimination_solve_2(int N, double *Ab, double *x)
+int gaussian_elimination_solve_2(int N, double *Ab, double *x)
 {
 #if DEBUG_GE_SOLVER
+  // Arrays must be 32 bit aligned
   if (((unsigned long)Ab & 0x1F) || ((unsigned long)x & 0x1F))
   {
     printf("Alignments: Ab %p x %p\n", Ab, x);
@@ -807,3 +810,16 @@ static int gaussian_elimination_solve_2(int N, double *Ab, double *x)
 
   return 0;
 }
+
+#ifdef TEST_PERF
+
+void register_functions_GE_SOLVE()
+{
+  add_function_GE_SOLVE(&gaussian_elimination_solve_0, "GE Solve Base", 1);
+  add_function_GE_SOLVE(&gaussian_elimination_solve_1, "GE Solve Loop Unroll",
+                        1);
+  add_function_GE_SOLVE(&gaussian_elimination_solve_2, "GE Solve Naive Vector",
+                        1);
+}
+
+#endif

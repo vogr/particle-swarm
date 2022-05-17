@@ -70,15 +70,37 @@ function solve_tests()
 
 
         @testset "Random GE Solve Small" begin
-            run_random(100, 32, 256, msg="small ge solve")
+            run_random(100, 2^5, 2^8, msg="small ge solve")
         end
 
 
         @testset "Random GE Solve Large" begin
-            run_random(1, 256, 5000, msg="large ge solve")
+            run_random(1, 2^8, 2^10, msg="large ge solve")
         end
 
     end
+end
+
+function perf_tests()
+    n = 2^7
+    A = rand(n, n)
+    b = rand(n)
+    Ab = hcat(A, b)
+    Ab_vec = tu.alloc_aligned_vec(Cdouble, length(Ab))
+    tu.fill_c_vec(Ab, Ab_vec)
+    x = tu.alloc_aligned_vec(Cdouble, n)
+
+    # NOTE this preserve shouldn't be necessary because
+    # a Ptr{Cdouble} Base.unsafe_convert already exists.
+    GC.@preserve Ab x begin
+        retcode = ccall(
+            (:perf_test_ge_solve, :libpso),
+            Cint,                                  # return type
+            (Csize_t, Ptr{Cdouble}, Ptr{Cdouble}), # parameter types
+            n, Ab_vec, x                           # actual arguments
+        )
+    end
+    @assert retcode == 0
 end
 
 end #module
