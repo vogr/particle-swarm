@@ -8,7 +8,7 @@
 
 #include "helpers.h"
 #include "local_refinement.h"
-#include "plu_factorization.h"
+#include "gaussian_elimination_solver.h"
 
 #define DEBUG_TRIALS 0
 #define DEBUG_SURROGATE 0
@@ -117,8 +117,7 @@ struct pso_data_constant_inertia
   double *vmax;
 
   // pre-alocated storage for fit_surrogate
-  double *fit_surrogate_A;
-  double *fit_surrogate_b;
+  double *fit_surrogate_Ab;
   double *fit_surrogate_x;
 
   // list of idx of distinct
@@ -233,7 +232,6 @@ double surrogate_eval_void(double const *x, void const *args)
 
 int fit_surrogate(struct pso_data_constant_inertia *pso)
 {
-  int ret = 0;
   // TODO: include past_refinement_points in phi !!!
 
   // TODO: note that the matrix and vector barely change between the
@@ -250,7 +248,12 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
   // the size of the matrix in the linear system is n+d+1
   size_t n_A = n_phi + n_P;
 
-  double *A = pso->fit_surrogate_A;
+  double *Ab = pso->fit_surrogate_Ab;
+
+
+  /********
+   * Prepare left hand side A
+   ********/
 
   // phi_p,q = || u_p - u_q ||
   // currently the {u_p} = {x_i(t=j)} i=0..pop_size, j=0..time+1
@@ -265,7 +268,7 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
       size_t q = pso->x_distinct[k2];
       double *u_q = pso->x + q * pso->dimensions;
 
-      A[k1 * n_A + k2] = dist(pso->dimensions, u_p, u_q);
+      Ab[k1 * (n_A + 1) + k2] = dist(pso->dimensions, u_p, u_q);
     }
   }
 
@@ -279,16 +282,16 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
     double *u = pso->x + p * pso->dimensions;
 
     // P(p,0) = 1;
-    A[k * n_A + n_phi + 0] = 1;
+    Ab[k * (n_A + 1) + n_phi + 0] = 1;
     // tP(0,p) = 1;
-    A[(n_phi + 0) * n_A + k] = 1;
+    Ab[(n_phi + 0) * (n_A + 1) + k] = 1;
 
     for (int j = 0; j < pso->dimensions; j++)
     {
       // P(p,1+j) = u[j];
-      A[k * n_A + n_phi + j + 1] = u[j];
+      Ab[k * (n_A + 1) + n_phi + j + 1] = u[j];
       // tP(1+j,p) = u[j];
-      A[(n_phi + 1 + j) * n_A + k] = u[j];
+      Ab[(n_phi + 1 + j) * (n_A + 1) + k] = u[j];
     }
   }
 
@@ -297,40 +300,37 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
   {
     for (size_t j = n_phi; j < n_A; j++)
     {
-      A[i * n_A + j] = 0;
+      Ab[i * (n_A + 1) + j] = 0;
     }
   }
 
-  // right hand side
-  double *b = pso->fit_surrogate_b;
-
-  for (size_t k = 0; k < pso->x_distinct_s; k++)
+  /********
+   * Prepare right hand side b
+   ********/
+  for (size_t k = 0; k < n_phi; k++)
   {
     size_t p = pso->x_distinct[k];
-    b[k] = pso->x_eval[p];
+    // set b_k
+    Ab[k * (n_A + 1) + n_A] = pso->x_eval[p];
   }
 
-  for (size_t i = n_phi; i < n_A; i++)
+  for (size_t k = n_phi; k < n_A; k++)
   {
-    b[i] = 0;
+    // set b_k
+    Ab[k * (n_A + 1) + n_A] = 0;
   }
 
 #if DEBUG_SURROGATE
-  print_matrixd(A, n_A, "A");
-  print_vectord(b, n_A, "b");
+  print_rect_matrixd(Ab, n_A, n_A + 1, "Ab");
 #endif
 
-  // solve A x = b using partial pivotting LU
-  plu_factorization plu;
-  alloc_plu_factorization(n_A, &plu);
-  if (plu_factorize(n_A, A, &plu) < 0)
-  {
-    ret = -1;
-    goto fit_surrogate_plu_factorization_failure;
-  }
 
   double *x = pso->fit_surrogate_x;
-  plu_solve(n_A, &plu, b, x);
+
+  if (gaussian_elimination_solve(n_A, Ab, x) < 0)
+  {
+    return -1;
+  }
 
 #if DEBUG_SURROGATE
   print_vectord(x, n_A, "x");
@@ -347,10 +347,7 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
     pso->p[i] = x[n_phi + i];
   }
 
-fit_surrogate_plu_factorization_failure:
-  free_plu_factorization(&plu);
-
-  return ret;
+  return 0;
 }
 
 void pso_constant_inertia_init(
@@ -408,9 +405,10 @@ void pso_constant_inertia_init(
   size_t max_n_phi = pso->time_max * pso->population_size;
   size_t n_P = pso->dimensions + 1;
   size_t max_n_A = max_n_phi + n_P;
+  // Ab size: n x n for A and n x 1 for b 
+  size_t Ab_size = max_n_A * max_n_A + max_n_A;
 
-  pso->fit_surrogate_A = malloc(max_n_A * max_n_A * sizeof(double));
-  pso->fit_surrogate_b = malloc(max_n_A * sizeof(double));
+  pso->fit_surrogate_Ab = malloc(Ab_size * sizeof(double));
   pso->fit_surrogate_x = malloc(max_n_A * sizeof(double));
 
   pso->x_distinct =
