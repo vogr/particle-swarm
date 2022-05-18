@@ -1,8 +1,8 @@
-#include "gaussian_elimination_solver.h"
-
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 
+#include "gaussian_elimination_solver.h"
 #include "helpers.h"
 #include "perf_ge_common.h"
 #include "perf_ge_solve.h"
@@ -15,6 +15,8 @@
 
 #define DEBUG_GE_SOLVER 0
 #define BIT_ALGINMENT 32
+#define IS_ALIGN(i) ((i) % 4 == 0)
+#define COND_OR_ALIGN(i, cnd) ((cnd) | IS_ALIGN(i))
 
 // NOTE predefine functions here and put them in increasing level
 // of optimization below. Please list the optimizations performed
@@ -428,6 +430,9 @@ int gaussian_elimination_solve_1(int N, double *Ab, double *x)
  * 2. Catch preceding cases when accesses are not aligned.
  *    Once they are aligned, then use vector instructions.
  *    Catch following cases for standard loop unrolling.
+ *
+ * NOTE on skylake load/loadu and store/storeu have the
+ * same latency and throughput.
  */
 int gaussian_elimination_solve_2(int N, double *Ab, double *x)
 {
@@ -813,6 +818,8 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
 
 #ifdef TEST_PERF
 
+// NOTE I bet we can put these in the templated perf framework and remove the
+// weirdness of compiling seperately and linking.
 void register_functions_GE_SOLVE()
 {
   add_function_GE_SOLVE(&gaussian_elimination_solve_0, "GE Solve Base", 1);

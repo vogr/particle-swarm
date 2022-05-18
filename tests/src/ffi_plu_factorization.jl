@@ -43,9 +43,9 @@ function Base.convert(::Type{PLU_factorization_C}, x::PLU_factorization)
 end
 
 function alloc_PLU_factorization(N)::PLU_factorization
-    L = Vector{Cdouble}(undef, N * N)
-    U = Vector{Cdouble}(undef, N * N)
-    p = Vector{Cint}(undef, N)
+    L = tu.alloc_aligned_vec(Cdouble, N * N)
+    U = tu.alloc_aligned_vec(Cdouble, N * N)
+    p = tu.alloc_aligned_vec(Cint, N)
     return PLU_factorization(L, U, p)
 end
 
@@ -55,7 +55,8 @@ function PLU_factorize(M::Matrix{Cdouble})
     @assert size(M, 1) == size(M, 2)
 
     N = size(M, 1) # M should be an NxN matrix
-    Mp::Vector{Cdouble} = tu.column_major_to_row(M)
+    Mp = tu.alloc_aligned_vec(Cdouble, N * N)
+    tu.fill_c_vec(M, Mp)
     plu::PLU_factorization = alloc_PLU_factorization(N)
 
     GC.@preserve plu begin
@@ -77,18 +78,18 @@ function PLU_factorize(M::Matrix{Cdouble})
     return (lr, ur, pr)
 end
 
-# function Vector{Float64}(m::Matrix{Float64})
-#     tu.column_major_to_array(m)
-# end
-
 function PLU_solve(M::Matrix{Cdouble}, b::Vector{Cdouble})::Vector{Cdouble}
     N = size(M, 1)
     L, U, p = lu(M) # Use Julia's LA functions for isolation
 
-    # Convert Matrices
-    Mp::Vector{Cdouble} = tu.column_major_to_row(M)
-    Lp::Vector{Cdouble} = tu.column_major_to_row(L)
-    Up::Vector{Cdouble} = tu.column_major_to_row(U)
+    Mp::Vector{Cdouble} = tu.alloc_aligned_vec(Cdouble, length(M))
+    Lp::Vector{Cdouble} = tu.alloc_aligned_vec(Cdouble, length(L))
+    Up::Vector{Cdouble} = tu.alloc_aligned_vec(Cdouble, length(U))
+
+    tu.fill_c_vec(M, Mp)
+    tu.fill_c_vec(L, Lp)
+    tu.fill_c_vec(U, Up)
+
     x::Vector{Cdouble} = Vector{Cdouble}(undef, N)
     p = p .- 1 # Julia 1-based indexing at it again
 
@@ -135,30 +136,22 @@ function factorization_tests()
             end
         end
 
-
-        function run_random(iters, step, MAX_N; msg::String="")
-            tu.starting_test(@sprintf "%d random %s instances" ((MAX_N / step) * iters) msg)
-            @time begin
-                for i = 1:iters, n = step:step:MAX_N
-                    M = rand(n, n)
-                    test_lu(M)
-                end
-            end
-        end
-
-
         @testset "Static LU" begin
             M_1::Matrix{Cdouble} = [1 2 4; 3 8 4; 2 6 13]
             test_lu(M_1)
         end
 
+        test_lambda = (n) -> begin
+            M = rand(n, n)
+            test_lu(M)
+        end
 
         @testset "Random Small LU" begin
-            run_random(100, 10, 100, msg="small lu factor")
+            tu.@run_random_N 100  2^5  2^8  "small lu factor" test_lambda
         end
 
         @testset "Random Large LU" begin
-            run_random(2, 100, 2000, msg="large lu factor")
+            tu.@run_random_N 1  2^10  2^12  "large lu factor" test_lambda
         end
 
     end
@@ -178,33 +171,20 @@ function solve_tests()
             @test jx ≈ x
         end
 
-
-        function run_random(iters, step, MAX_N; msg::String="")
-            tu.starting_test(@sprintf "%d random %s instances" ((MAX_N / step) * iters) msg)
-            @time begin
-                for i = 1:iters, n = step:step:MAX_N
-                    M = rand(n, n)
-                    b = rand(n)
-                    test_lu_solve(M, b)
-                end
-            end
-        end
-
-
-        @testset "Static LU Solve" begin
-            M_1::Matrix{Cdouble} = [2 1 -2; 1 -1 -1; 1 1 3]
-            b_1::Vector{Cdouble} = [3; 0; 12]
-            test_lu_solve(M_1, b_1)
+        test_lambda = (n) -> begin
+            M = rand(n, n)
+            b = rand(n)
+            test_lu_solve(M, b)
         end
 
 
         @testset "Random LU Solve Small" begin
-            run_random(100, 10, 100, msg="small lu solve")
+            tu.@run_random_N 100 2^5 2^8 "small lu solve" test_lambda
         end
 
 
         @testset "Random LU Solve Large" begin
-            run_random(2, 100, 2000, msg="large lu solve")
+            tu.@run_random_N 1 2^10 2^12 "large lu solve" test_lambda
         end
 
     end

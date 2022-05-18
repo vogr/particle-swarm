@@ -2,6 +2,7 @@ module PSO_GE
 
 using Test: @test, @testset
 using Printf: @sprintf
+using TryCatch
 
 # FFI stubs for LRU factorization
 include("TestUtils.jl")
@@ -30,7 +31,7 @@ function GE_solve(A::Matrix{<:Real}, b::Vector{<:Real})
             N, Ab_vec, x                               # actual arguments
         )
     end
-
+    @assert retcode == 0
     return x
 end
 
@@ -43,39 +44,33 @@ function solve_tests()
 
         function test_ge_solve(A::Matrix, b::Vector)
             jx = A\b
-            x = GE_solve(A, b)
+            local x
+            # NOTE if the system isnt' solvable
+            # we will get an assertion error from GE_solve
+            @try begin
+                x = GE_solve(A, b)
+            @catch e::AssertionError
+                return
+            end
+
             @test A * jx ≈ b
             @test A * x ≈ b
             @test jx ≈ x
         end
 
-
-        function run_random(iters, step, MAX_N; msg::String="")
-            tu.starting_test(@sprintf "%d random %s instances" ((MAX_N / step) * iters) msg)
-            @time begin
-                for i = 1:iters, n = step:step:MAX_N
-                    M = rand(n, n)
-                    b = rand(n)
-                    test_ge_solve(M, b)
-                end
-            end
+        test_lambda = (n) -> begin
+            M = rand(n, n)
+            b = rand(n)
+            test_ge_solve(M, b)
         end
 
-
-        # @testset "Static GE Solve" begin
-        #     M_1::Matrix{Cdouble} = [2 1 -2; 1 -1 -1; 1 1 3]
-        #     b_1::Vector{Cdouble} = [3; 0; 12]
-        #     test_ge_solve(M_1, b_1)
-        # end
-
-
         @testset "Random GE Solve Small" begin
-            run_random(100, 2^5, 2^8, msg="small ge solve")
+            tu.@run_random_N 100 2^5 2^8 "small ge solve" test_lambda
         end
 
 
         @testset "Random GE Solve Large" begin
-            run_random(1, 2^8, 2^10, msg="large ge solve")
+            tu.@run_random_N 1 2^10 2^12 "large ge solve" test_lambda
         end
 
     end
@@ -89,6 +84,8 @@ function perf_tests()
     Ab_vec = tu.alloc_aligned_vec(Cdouble, length(Ab))
     tu.fill_c_vec(Ab, Ab_vec)
     x = tu.alloc_aligned_vec(Cdouble, n)
+
+    tu.starting_test(@sprintf "GE perf comparison with A[%d, %d]x = b[%d]" n n n)
 
     # NOTE this preserve shouldn't be necessary because
     # a Ptr{Cdouble} Base.unsafe_convert already exists.

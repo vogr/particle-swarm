@@ -1,12 +1,14 @@
 module TestUtils
 
-using Printf: @printf
+using Printf: @printf, @sprintf
+using ProgressBars
 
 export alloc_aligned_vec,
     fill_c_vec,
     column_major_to_row,
     array_to_column_major,
-    starting_test
+    starting_test,
+    @run_random
 
 # Changes the major order of the array memory layout.
 # Row -> Column and vice-versa
@@ -46,6 +48,26 @@ end
 
 function starting_test(msg)
     @printf "[starting]: %s\n" msg
+end
+
+# XXX I know this is a little much. Especially the required thunk
+# that will be invoked with the iterating N. But ...
+# I don't personally like declaring variables that get shared accross
+# compilation environments (I.E an unhygienic use of 'n')
+macro run_random_N(iters, step, MAX_N, msg, thunk)
+    es = eval(step)
+    ei = eval(iters)
+    MN = eval(MAX_N)
+    all = ((MN / es) * ei)
+    iters = Iterators.product((1:ei), (es:es:MN))
+    total_tests = ProgressBar(iters)
+    m = @sprintf "%d random %s instances" all msg
+    return quote
+        starting_test($m)
+        @time for (_, n) in $total_tests
+            $(esc(thunk))(n)
+        end
+    end
 end
 
 end # module

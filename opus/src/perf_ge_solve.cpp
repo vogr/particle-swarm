@@ -102,9 +102,13 @@ static double perf_test(comp_func f, string desc, int flops, int N, double *Ab,
                         double *x)
 {
   double cycles = 0.;
-  long num_runs = 100;
+  long num_runs = 10;
   double multiplier = 1;
   myInt64 start, end;
+
+  // HACK!
+  int W = N * (1 + N) * sizeof(double);
+  double *Ab_base = (double *)aligned_alloc(32, W);
 
   // Warm-up phase: we determine a number of executions that allows
   // the code to be executed for at least CYCLES_REQUIRED cycles.
@@ -131,20 +135,18 @@ static double perf_test(comp_func f, string desc, int flops, int N, double *Ab,
   double total_cycles = 0;
   for (size_t j = 0; j < REP; j++)
   {
-
-    start = start_tsc();
     for (size_t i = 0; i < num_runs; ++i)
     {
+      start = start_tsc();
       f(N, Ab, x);
+      end = stop_tsc(start);
+      cycles = ((double)end);
+      total_cycles += cycles;
+      cyclesList.push_back(cycles); // XXX why have this
+      memcpy(Ab, Ab_base, W);
     }
-    end = stop_tsc(start);
-
-    cycles = ((double)end) / num_runs;
-    total_cycles += cycles;
-
-    cyclesList.push_back(cycles);
   }
-  total_cycles /= REP;
+  total_cycles /= (REP * num_runs);
   cycles = total_cycles;
 
   return cycles;
