@@ -13,7 +13,7 @@
 #define DEBUG_TRIALS 0
 #define DEBUG_SURROGATE 0
 
-#define LOG_SURROGATE 1
+#define LOG_SURROGATE 0
 
 #if LOG_SURROGATE
 #include "logging.h"
@@ -115,6 +115,11 @@ struct pso_data_constant_inertia
   double *bound_high;
   double *vmin;
   double *vmax;
+
+  // pre-alocated storage for fit_surrogate
+  double *fit_surrogate_A;
+  double *fit_surrogate_b;
+  double *fit_surrogate_x;
 
   // list of idx of distinct
   size_t *x_distinct;
@@ -245,7 +250,7 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
   // the size of the matrix in the linear system is n+d+1
   size_t n_A = n_phi + n_P;
 
-  double *A = (double *)malloc(n_A * n_A * sizeof(double));
+  double *A = pso->fit_surrogate_A;
 
   // phi_p,q = || u_p - u_q ||
   // currently the {u_p} = {x_i(t=j)} i=0..pop_size, j=0..time+1
@@ -297,7 +302,7 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
   }
 
   // right hand side
-  double *b = (double *)malloc(n_A * sizeof(double));
+  double *b = pso->fit_surrogate_b;
 
   for (size_t k = 0; k < pso->x_distinct_s; k++)
   {
@@ -324,7 +329,7 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
     goto fit_surrogate_plu_factorization_failure;
   }
 
-  double *x = (double *)malloc(n_A * sizeof(double));
+  double *x = pso->fit_surrogate_x;
   plu_solve(n_A, &plu, b, x);
 
 #if DEBUG_SURROGATE
@@ -342,11 +347,8 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
     pso->p[i] = x[n_phi + i];
   }
 
-  free(x);
 fit_surrogate_plu_factorization_failure:
   free_plu_factorization(&plu);
-  free(b);
-  free(A);
 
   return ret;
 }
@@ -397,6 +399,19 @@ void pso_constant_inertia_init(
     pso->vmin[j] = vmin[j];
     pso->vmax[j] = vmax[j];
   }
+
+  // the size of phi is the total number of _distinct_ points where
+  // f has been evaluated
+  // max: pop_size * time
+  //  TODO: add the refinement points + 1 * time
+  //        add the space filling design +?
+  size_t max_n_phi = pso->time_max * pso->population_size;
+  size_t n_P = pso->dimensions + 1;
+  size_t max_n_A = max_n_phi + n_P;
+
+  pso->fit_surrogate_A = malloc(max_n_A * max_n_A * sizeof(double));
+  pso->fit_surrogate_b = malloc(max_n_A * sizeof(double));
+  pso->fit_surrogate_x = malloc(max_n_A * sizeof(double));
 
   pso->x_distinct =
       malloc(pso->time_max * pso->population_size * sizeof(size_t));
