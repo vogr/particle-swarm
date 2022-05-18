@@ -1,5 +1,7 @@
 module PLU
 
+using Test: @test, @testset
+using Printf: @sprintf
 using LinearAlgebra
 
 # FFI stubs for LRU factorization
@@ -41,9 +43,9 @@ function Base.convert(::Type{PLU_factorization_C}, x::PLU_factorization)
 end
 
 function alloc_PLU_factorization(N)::PLU_factorization
-    L = Vector{Cdouble}(undef, N * N)
-    U = Vector{Cdouble}(undef, N * N)
-    p = Vector{Cint}(undef, N)
+    L = tu.alloc_aligned_vec(Cdouble, N * N)
+    U = tu.alloc_aligned_vec(Cdouble, N * N)
+    p = tu.alloc_aligned_vec(Cint, N)
     return PLU_factorization(L, U, p)
 end
 
@@ -53,7 +55,8 @@ function PLU_factorize(M::Matrix{Cdouble})
     @assert size(M, 1) == size(M, 2)
 
     N = size(M, 1) # M should be an NxN matrix
-    Mp::Vector{Cdouble} = tu.column_major_to_row(M)
+    Mp = tu.alloc_aligned_vec(Cdouble, N * N)
+    tu.fill_c_vec(M, Mp)
     plu::PLU_factorization = alloc_PLU_factorization(N)
 
     GC.@preserve plu begin
@@ -75,18 +78,18 @@ function PLU_factorize(M::Matrix{Cdouble})
     return (lr, ur, pr)
 end
 
-# function Vector{Float64}(m::Matrix{Float64})
-#     tu.column_major_to_array(m)
-# end
-
 function PLU_solve(M::Matrix{Cdouble}, b::Vector{Cdouble})::Vector{Cdouble}
     N = size(M, 1)
     L, U, p = lu(M) # Use Julia's LA functions for isolation
 
-    # Convert Matrices
-    Mp::Vector{Cdouble} = tu.column_major_to_row(M)
-    Lp::Vector{Cdouble} = tu.column_major_to_row(L)
-    Up::Vector{Cdouble} = tu.column_major_to_row(U)
+    Mp::Vector{Cdouble} = tu.alloc_aligned_vec(Cdouble, length(M))
+    Lp::Vector{Cdouble} = tu.alloc_aligned_vec(Cdouble, length(L))
+    Up::Vector{Cdouble} = tu.alloc_aligned_vec(Cdouble, length(U))
+
+    tu.fill_c_vec(M, Mp)
+    tu.fill_c_vec(L, Lp)
+    tu.fill_c_vec(U, Up)
+
     x::Vector{Cdouble} = Vector{Cdouble}(undef, N)
     p = p .- 1 # Julia 1-based indexing at it again
 
@@ -104,6 +107,87 @@ function PLU_solve(M::Matrix{Cdouble}, b::Vector{Cdouble})::Vector{Cdouble}
     @assert retcode == 0
 
     return x
+end
+
+# --------------------------------------
+
+function factorization_tests()
+    @testset "LU Factorization Tests" begin
+
+        tu.starting_test("LU Factorization")
+
+        function test_lu(A)
+            try
+                L,U,p = lu(A)
+                Lt,Ut,pt = PLU.PLU_factorize(A)
+                @test (Lt * Ut) ≈ A[pt, :]
+                @test L ≈ Lt
+                @test U ≈ Ut
+            catch e
+                # NOTE An ErrorException can be thrown from
+                # LinearAlgebra.lu when the matrix has
+                # no non-zero pivots. If this is the case,
+                # we can just skip the matrix and ignore the
+                # tests.
+                bt = catch_backtrace()
+                msg = sprint(showerror, e, bt)
+                println(msg)
+                return
+            end
+        end
+
+        @testset "Static LU" begin
+            M_1::Matrix{Cdouble} = [1 2 4; 3 8 4; 2 6 13]
+            test_lu(M_1)
+        end
+
+        test_lambda = (n) -> begin
+            M = rand(n, n)
+            test_lu(M)
+        end
+
+        @testset "Random Small LU" begin
+            tu.@run_random_N 100  2^5  2^8  "small lu factor" test_lambda
+        end
+
+        @testset "Random Large LU" begin
+            tu.@run_random_N 1  2^10  2^12  "large lu factor" test_lambda
+        end
+
+    end
+end
+
+function solve_tests()
+    @testset "LU Solve Tests" begin
+
+        tu.starting_test("LU Solve")
+
+        function test_lu_solve(A::Matrix, b::Vector)
+            luA = lu(A)
+            jx = luA\b
+            x = PLU.PLU_solve(A, b)
+            @test A * jx ≈ b
+            @test A * x ≈ b
+            @test jx ≈ x
+        end
+
+        test_lambda = (n) -> begin
+            M = rand(n, n)
+            b = rand(n)
+            test_lu_solve(M, b)
+        end
+
+
+        @testset "Random LU Solve Small" begin
+            tu.@run_random_N 100 2^5 2^8 "small lu solve" test_lambda
+        end
+
+
+        @testset "Random LU Solve Large" begin
+            tu.@run_random_N 1 2^10 2^12 "large lu solve" test_lambda
+        end
+
+    end
 end
 
 end # module

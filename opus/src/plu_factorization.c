@@ -10,9 +10,9 @@
 
 int alloc_plu_factorization(int N, plu_factorization *plu_ft)
 {
-  plu_ft->L = malloc(N * N * sizeof(double));
-  plu_ft->U = malloc(N * N * sizeof(double));
-  plu_ft->P = malloc(N * sizeof(int));
+  plu_ft->L = (double *)malloc(N * N * sizeof(double));
+  plu_ft->U = (double *)malloc(N * N * sizeof(double));
+  plu_ft->P = (int *)malloc(N * sizeof(int));
 
   return 0;
 }
@@ -173,7 +173,7 @@ int plu_solve(int N, plu_factorization const *plu_ft, double const *b,
 
   // temporary vector to store result of forward substitution
   // L y = Pb
-  double *y = malloc(N * sizeof(double));
+  double *y = (double *)malloc(N * sizeof(double));
 
   // Forward substitution
   for (int i = 0; i < N; i++)
