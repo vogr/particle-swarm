@@ -343,12 +343,17 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
   return 0;
 }
 
+struct pso_data_constant_inertia *alloc_pso_data_constant_inertia()
+{
+  return malloc(sizeof(struct pso_data_constant_inertia));
+}
+
 void pso_constant_inertia_init(
     struct pso_data_constant_inertia *pso, blackbox_fun f, double inertia,
     double social, double cognition, double local_refinement_box_size,
     double min_minimizer_distance, int dimensions, int population_size,
     int time_max, int n_trials, double *bounds_low, double *bounds_high,
-    double *vmin, double *vmax, double **initial_positions)
+    double *vmin, double *vmax, double *initial_positions)
 {
   pso->f = f;
   pso->inertia = inertia;
@@ -431,7 +436,7 @@ void pso_constant_inertia_init(
     // add it to the point cloud
     for (int j = 0; j < pso->dimensions; j++)
     {
-      PSO_X(pso, 0, i)[j] = initial_positions[i][j];
+      PSO_X(pso, 0, i)[j] = initial_positions[i * pso->dimensions + j];
     }
 
 // Check if x is distinct
@@ -728,7 +733,7 @@ void run_pso(blackbox_fun f, double inertia, double social, double cognition,
              double local_refinement_box_size, double min_minimizer_distance,
              int dimensions, int population_size, int time_max, int n_trials,
              double *bounds_low, double *bounds_high, double *vmin,
-             double *vmax, double **initial_positions)
+             double *vmax, double *initial_positions)
 {
   struct pso_data_constant_inertia pso;
   pso_constant_inertia_init(
