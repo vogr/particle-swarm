@@ -185,11 +185,6 @@ int is_far_from_previous_evaluations(
   return 1;
 }
 
-void is_x_distinct(int dim, size_t point_cloud_s, double const *point_cloud,
-                   double const *x)
-{
-}
-
 double surrogate_eval(struct pso_data_constant_inertia const *pso,
                       double const *x)
 {
