@@ -25,20 +25,17 @@ DEBUG_FLAGS:= \
 -pedantic-errors -Werror=format-security \
 -Werror=vla
 
-# Release flags: optimisations, NDEBUG (disable assertions)
-RELEASE_FLAGS:=-DNDEBUG -O2 -flto -march=native
+
+# Release flags: optimisations, NDEBUG (disable assertions), disable hardening, disable PIE (only for executable)
+RELEASE_FLAGS:=-DNDEBUG -O2 -flto -march=native -fcf-protection=none -fno-stack-clash-protection -fno-stack-protector
+
+# Flags common to debug and release
+# Currently starts empty
+# COMMON_FLAGS := 
 
 # Change these variables if setting the C/C++ standard is necessary
 # CFLAGS += -std=gnu17
 # CXXFLAGS += -std=gnu++17
-
-ifeq ($(DEBUG), 0)
-	CXXFLAGS+= $(RELEASE_FLAGS)
-	CFLAGS+= $(RELEASE_FLAGS)
-else
-	CXXFLAGS+= $(DEBUG_FLAGS)
-	CFLAGS+= $(DEBUG_FLAGS)
-endif
 
 # Libraries to link
 LDLIBS+=-lm
@@ -61,7 +58,6 @@ OBJ_LIB := src/perf_ge_solve.o
 OBJ_EXE := src/main.o
 
 
-
 ######
 # Library vs executable compilation options
 ######
@@ -73,19 +69,18 @@ UNAME_S := $(shell uname -s)
 ifeq ($(PSO_SHARED), 1)
 	# Option 1. Build a shared library
 
-	# For the shared file we also need to include
+	# For the shared file we also need to pass
+	# a preprocessor definition
 	# TEST_PERF=1
-	CFLAGS += -DTEST_PERF
+	CPPFLAGS += -DTEST_PERF
 
 	ifeq ($(UNAME_S),Darwin)
 	target := libpso.dylib
-	CFLAGS   += -dynamiclib
-	CXXFLAGS += -dynamiclib
+	COMMON_FLAGS += -dynamiclib
 	LDFLAGS += -dynamiclib
 	else
 	target := libpso.so
-	CFLAGS   += -fPIC
-	CXXFLAGS += -fPIC
+	COMMON_FLAGS += -fPIC
 	LDFLAGS += -shared
 	endif
 
@@ -93,17 +88,37 @@ ifeq ($(PSO_SHARED), 1)
 
 else # PSO_SHARED
 	# Option 2. Build an executable
-
+	
+	# Disable PIE
+	COMMON_FLAGS+=-fno-PIE
+	LDFLAGS+=-no-pie
+	
+	# Optionnal sanitizers.
+	# Only enable int the executable as loading sanitized libraries
+	# from a non-sanitized executable results in an error
+	DEBUG_FLAGS+=-fsanitize=undefined -fsanitize=address
+	
 	target := pso
 	OBJFILES := $(OBJ_COMMON) $(OBJ_EXE)
 
-	# Sanitizers are enabled for the executable in debug mode
-	ifeq ($(DEBUG), 1)
-	CFLAGS += -fsanitize=undefined -fsanitize=address
-	LDFLAGS += -fsanitize=undefined -fsanitize=address
-	endif
-
 endif
+
+
+######
+# Compilation flags
+######
+
+
+ifeq ($(DEBUG), 0)
+	ALL_FLAGS := $(COMMON_FLAGS) $(RELEASE_FLAGS)
+else
+	ALL_FLAGS := $(COMMON_FLAGS) $(DEBUG_FLAGS)
+endif
+
+CXXFLAGS+= $(ALL_FLAGS)
+CFLAGS+= $(ALL_FLAGS)
+# LTO and sanitizers: the compilation flags are needed at link time
+LDFLAGS+= $(ALL_FLAGS)
 
 
 ######
