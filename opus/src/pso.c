@@ -172,8 +172,10 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
     {
       size_t q = pso->x_distinct[k2];
       double *u_q = pso->x + q * pso->dimensions;
-
-      Ab[k1 * (n_A + 1) + k2] = dist(pso->dimensions, u_p, u_q);
+      double d2 = dist2(pso->dimensions, u_p, u_q);
+      double d = sqrt(d2);
+      double d3 = d2 * d;
+      Ab[k1 * (n_A + 1) + k2] = d3;
     }
   }
 
