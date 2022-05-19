@@ -19,7 +19,6 @@
 #include "logging.h"
 #endif
 
-
 #if USE_ROUNDING_BLOOM_FILTER
 #include "rounding_bloom.h"
 #endif
@@ -61,7 +60,6 @@ static double dist(size_t dim, double const *x, double const *y)
 {
   return sqrt(dist2(dim, x, y));
 }
-
 
 int is_far_from_previous_evaluations(
     struct pso_data_constant_inertia const *pso, double *x, double min_dist)

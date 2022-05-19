@@ -5,8 +5,6 @@
 
 #define USE_ROUNDING_BLOOM_FILTER 1
 
-
-
 typedef double (*blackbox_fun)(double const *const);
 
 // PSO_X : pso::pso, t:int, i:int -> x_i(t):double*
@@ -95,8 +93,6 @@ struct pso_data_constant_inertia
   int time_max;
   int time;
 };
-
-
 
 void run_pso(blackbox_fun f, double inertia, double social, double cognition,
              double local_refinement_box_size, double min_minimizer_distance,
