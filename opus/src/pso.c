@@ -6,9 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "gaussian_elimination_solver.h"
 #include "helpers.h"
 #include "local_refinement.h"
-#include "gaussian_elimination_solver.h"
 
 #define DEBUG_TRIALS 0
 #define DEBUG_SURROGATE 0
@@ -250,7 +250,6 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
 
   double *Ab = pso->fit_surrogate_Ab;
 
-
   /********
    * Prepare left hand side A
    ********/
@@ -323,7 +322,6 @@ int fit_surrogate(struct pso_data_constant_inertia *pso)
 #if DEBUG_SURROGATE
   print_rect_matrixd(Ab, n_A, n_A + 1, "Ab");
 #endif
-
 
   double *x = pso->fit_surrogate_x;
 
@@ -405,7 +403,7 @@ void pso_constant_inertia_init(
   size_t max_n_phi = pso->time_max * pso->population_size;
   size_t n_P = pso->dimensions + 1;
   size_t max_n_A = max_n_phi + n_P;
-  // Ab size: n x n for A and n x 1 for b 
+  // Ab size: n x n for A and n x 1 for b
   size_t Ab_size = max_n_A * max_n_A + max_n_A;
 
   pso->fit_surrogate_Ab = malloc(Ab_size * sizeof(double));
@@ -451,7 +449,8 @@ void pso_constant_inertia_init(
     }
 #else
     // naive implementation with distance computation
-    assert(false);
+    fprintf(stderr, "Not implemented.\n");
+    exit(1);
 #endif
   }
 
@@ -673,7 +672,8 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia *pso)
   }
 #else
   // naive implementation with distance computation
-  assert(false);
+  fprintf(stderr, "Not implemented.\n");
+  exit(1);
 #endif
 
   if (fit_surrogate(pso) < 0)
