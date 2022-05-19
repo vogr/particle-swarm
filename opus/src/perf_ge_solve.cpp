@@ -86,7 +86,8 @@ extern "C" void add_function_GE_SOLVE(comp_func f, char *name, int flop)
 {
   string nm = string(name);
   userFuncs.push_back(f);
-  funcNames.emplace_back(nm);
+  // funcNames.emplace_back(nm);
+  funcNames.push_back(nm);
   funcFlops.push_back(flop);
   numFuncs++;
 }
@@ -109,6 +110,7 @@ static double perf_test(comp_func f, string desc, int flops, int N, double *Ab,
   // HACK!
   int W = N * (1 + N) * sizeof(double);
   double *Ab_base = (double *)aligned_alloc(32, W);
+  memcpy(Ab_base, Ab, W); // Save the original matrix
 
   // Warm-up phase: we determine a number of executions that allows
   // the code to be executed for at least CYCLES_REQUIRED cycles.
@@ -124,6 +126,7 @@ static double perf_test(comp_func f, string desc, int flops, int N, double *Ab,
     end = stop_tsc(start);
 
     cycles = (double)end;
+    memcpy(Ab, Ab_base, W);
     multiplier = (CYCLES_REQUIRED) / (cycles);
 
   } while (multiplier > 2);

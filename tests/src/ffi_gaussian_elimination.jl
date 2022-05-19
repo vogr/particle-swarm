@@ -9,6 +9,18 @@ include("TestUtils.jl")
 
 const tu = TestUtils
 
+function ge_solve(N, Ab, x)
+    GC.@preserve Ab x begin
+        retcode = ccall(
+            (:gaussian_elimination_solve, :libpso),
+            Cint,                                  # return type
+            (Csize_t, Ptr{Cdouble}, Ptr{Cdouble}), # parameter types
+            N, Ab, x                               # actual arguments
+        )
+    end
+    return retcode
+end
+
 function GE_solve(A::Matrix{<:Real}, b::Vector{<:Real})
     @assert ndims(A) == 2
     @assert size(A, 1) == size(A, 2)
@@ -23,15 +35,16 @@ function GE_solve(A::Matrix{<:Real}, b::Vector{<:Real})
 
     # NOTE this preserve shouldn't be necessary because
     # a Ptr{Cdouble} Base.unsafe_convert already exists.
-    GC.@preserve Ab x begin
-        retcode = ccall(
-            (:gaussian_elimination_solve, :libpso),
-            Cint,                                  # return type
-            (Csize_t, Ptr{Cdouble}, Ptr{Cdouble}), # parameter types
-            N, Ab_vec, x                               # actual arguments
-        )
-    end
+    retcode = ge_solve(N, Ab_vec, x)
     @assert retcode == 0
+    # GC.@preserve Ab x begin
+    #     retcode = ccall(
+    #         (:gaussian_elimination_solve, :libpso),
+    #         Cint,                                  # return type
+    #         (Csize_t, Ptr{Cdouble}, Ptr{Cdouble}), # parameter types
+    #         N, Ab_vec, x                               # actual arguments
+    #     )
+    # end
     return x
 end
 
@@ -78,12 +91,22 @@ end
 
 function perf_tests()
     n = 2^7
-    A = rand(n, n)
-    b = rand(n)
-    Ab = hcat(A, b)
-    Ab_vec = tu.alloc_aligned_vec(Cdouble, length(Ab))
-    tu.fill_c_vec(Ab, Ab_vec)
+    ab_n = n * (n + 1)
+    local Ab
+    Ab_vec = tu.alloc_aligned_vec(Cdouble, ab_n)
     x = tu.alloc_aligned_vec(Cdouble, n)
+
+    while true
+        A = rand(n, n)
+        b = rand(n)
+        Ab = hcat(A, b)
+        @assert length(Ab) == ab_n
+        tu.fill_c_vec(Ab, Ab_vec)
+        # Generate random matrices until we find one with a solution
+        ge_solve(n, Ab_vec, x) != 0 || break
+    end
+
+    tu.fill_c_vec(Ab, Ab_vec)
 
     tu.starting_test(@sprintf "GE perf comparison with A[%d, %d]x = b[%d]" n n n)
 
