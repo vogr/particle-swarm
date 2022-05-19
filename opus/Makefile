@@ -53,7 +53,7 @@ OBJ_COMMON := src/helpers.o src/local_refinement.o src/logging.o \
 		 src/rounding_bloom.o src/gaussian_elimination_solver.o
 
 # Object files required for the the library
-OBJ_LIB := src/perf_ge_solve.o # src/pso_ffi.o
+OBJ_LIB := src/perf_ge_solve.o src/pso_ffi.o
 # Object files required for the the executable
 OBJ_EXE := src/main.o
 
