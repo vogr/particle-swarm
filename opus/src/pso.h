@@ -49,6 +49,15 @@ struct pso_data_constant_inertia
   // here a pointer to one of the y_i or in past_refinement_points
   double *y_hat;
 
+  double *x_trial;
+  double *v_trial;
+
+  double *x_trial_best;
+  double *v_trial_best;
+
+  // Used in steps 10 and 11 in local refinement 
+  double *x_local;
+
   // Keep track of local refinement points.
   // max lenght of list = tmax
   // current length  = n_past_refinement_points
