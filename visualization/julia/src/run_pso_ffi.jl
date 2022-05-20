@@ -116,18 +116,18 @@ function pso_current_velocities(pso::Ptr{Pso}, popsize, dimensions)
         (Ptr{Pso},),
         pso
     )
-    vel_array = unsafe_wrap(Array, pos, (dimensions, popsize); own = false)
-    vel_array
+    vel_array = unsafe_wrap(Array, vel, (dimensions, popsize); own = false)
+    copy(vel_array)
 end
 
 
 
 function surrogate_eval(pso::Ptr{Pso}, x::Vector{<:Real})
     ccall(
-        (:get_current_particle_velocities, :libpso),
-        Ptr{Cdouble},
-        (Ptr{Pso},),
-        pso
+        (:surrogate_eval, :libpso),
+        Cdouble,
+        (Ptr{Pso},Ptr{Cdouble}),
+        pso, x
     )
 end
 
