@@ -124,4 +124,5 @@ double dist2(size_t dim, double const *x,
 double surrogate_eval(struct pso_data_constant_inertia const *pso,
                       double const *x); // used in step 6 and in step 10
 
-int fit_surrogate(struct pso_data_constant_inertia *pso); // used in step 5 and in step 9
+int fit_surrogate(
+    struct pso_data_constant_inertia *pso); // used in step 5 and in step 9

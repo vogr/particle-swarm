@@ -33,5 +33,5 @@ void step4_base(struct pso_data_constant_inertia *pso)
 
 void step4_optimized(struct pso_data_constant_inertia *pso)
 {
-  return step4_base(pso);
+  step4_base(pso);
 }
