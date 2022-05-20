@@ -27,7 +27,8 @@ typedef double (*blackbox_fun)(double const *const);
   ((pso)->past_refinement_points + (k) * (pso)->dimensions)
 #define PSO_PAST_REFINEMENT_EVAL(pso, k) (pso)->past_refinement_points_eval[k]
 
-// PSO_STEP3_RAND : pso::pso, i:int (population) k:int (dimension) -> step3_rands_i:double*
+// PSO_STEP3_RAND : pso::pso, i:int (population) k:int (dimension) ->
+// step3_rands_i:double*
 #define PSO_STEP3_RAND(pso, i) ((pso)->step3_rands + (i) * (pso)->dimensions)
 
 // for other inertia choices, see https://ieeexplore.ieee.org/document/6089659
@@ -117,7 +118,8 @@ void run_pso(blackbox_fun f, double inertia, double social, double cognition,
 
 double rand_between(double a, double b); // used in step 3 and in pso_init
 
-double dist2(size_t dim, double const *x, double const *y); // used step 11 and in fit_surrogate
+double dist2(size_t dim, double const *x,
+             double const *y); // used step 11 and in fit_surrogate
 
 double surrogate_eval(struct pso_data_constant_inertia const *pso,
                       double const *x); // used in step 6 and in step 10

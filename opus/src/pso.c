@@ -83,14 +83,17 @@ struct pso_data_constant_inertia *alloc_pso_data_constant_inertia()
   return malloc(sizeof(struct pso_data_constant_inertia));
 }
 
-void random_number_generation(struct pso_data_constant_inertia *pso) {
+void random_number_generation(struct pso_data_constant_inertia *pso)
+{
   // Step 3
-  pso->step3_rands = malloc(pso->population_size * pso->dimensions * sizeof(double));
+  pso->step3_rands =
+      malloc(pso->population_size * pso->dimensions * sizeof(double));
   for (int i = 0; i < pso->population_size; i++)
   {
     for (int k = 0; k < pso->dimensions; k++)
     {
-      PSO_STEP3_RAND(pso, i)[k] = rand_between(pso->bound_low[k], pso->bound_high[k]);
+      PSO_STEP3_RAND(pso, i)
+      [k] = rand_between(pso->bound_low[k], pso->bound_high[k]);
     }
   }
 }
@@ -224,7 +227,7 @@ void pso_constant_inertia_init(
   random_number_generation(pso);
 }
 
-  // TODO: step 1 and 2 "space-filling design"
+// TODO: step 1 and 2 "space-filling design"
 void step1(struct pso_data_constant_inertia *pso) {}
 
 void step2(struct pso_data_constant_inertia *pso) {}
