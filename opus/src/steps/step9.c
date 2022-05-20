@@ -1,7 +1,7 @@
 #include "step9.h"
 
-#include "stdlib.h"
 #include "stdio.h"
+#include "stdlib.h"
 
 #if USE_ROUNDING_BLOOM_FILTER
 #include "../rounding_bloom.h"
@@ -46,7 +46,4 @@ void step9_base(struct pso_data_constant_inertia *pso)
 #endif
 }
 
-void step9_optimized(struct pso_data_constant_inertia *pso) 
-{
-    step9_base(pso);
-}
+void step9_optimized(struct pso_data_constant_inertia *pso) { step9_base(pso); }

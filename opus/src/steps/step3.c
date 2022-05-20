@@ -33,7 +33,6 @@ void step3_opt1(struct pso_data_constant_inertia *pso)
   }
 }
 
-
 /*
   precomputed 1/2
   precomputed random values
@@ -42,9 +41,9 @@ void step3_opt1(struct pso_data_constant_inertia *pso)
 void step3_opt2(struct pso_data_constant_inertia *pso)
 {
   double uk;
-  double* pso_step3_rands_i_ptr;
-  double* pso_x_0_i_ptr;
-  double* pso_v_i_ptr;
+  double *pso_step3_rands_i_ptr;
+  double *pso_x_0_i_ptr;
+  double *pso_v_i_ptr;
   // Step 3. Initialize particle velocities
   for (int i = 0; i < pso->population_size; i++)
   {
@@ -68,9 +67,9 @@ void step3_opt2(struct pso_data_constant_inertia *pso)
 void step3_opt3(struct pso_data_constant_inertia *pso)
 {
   double uk;
-  double* pso_step3_rands_i_ptr;
-  double* pso_x_0_i_ptr;
-  double* pso_v_i_ptr;
+  double *pso_step3_rands_i_ptr;
+  double *pso_x_0_i_ptr;
+  double *pso_v_i_ptr;
   // Step 3. Initialize particle velocities
   for (int i = 0; i < pso->population_size; i++)
   {
@@ -78,23 +77,24 @@ void step3_opt3(struct pso_data_constant_inertia *pso)
     pso_x_0_i_ptr = PSO_X(pso, 0, i);
     pso_v_i_ptr = PSO_V(pso, i);
     int k = 0;
-    for (; k < pso->dimensions - 3; k+=4)
+    for (; k < pso->dimensions - 3; k += 4)
     {
       uk = pso_step3_rands_i_ptr[k];
       pso_v_i_ptr[k] = 0.5 * (uk - pso_x_0_i_ptr[k]);
 
-      uk = pso_step3_rands_i_ptr[k+1];
-      pso_v_i_ptr[k+1] = 0.5 * (uk - pso_x_0_i_ptr[k+1]);
+      uk = pso_step3_rands_i_ptr[k + 1];
+      pso_v_i_ptr[k + 1] = 0.5 * (uk - pso_x_0_i_ptr[k + 1]);
 
-      uk = pso_step3_rands_i_ptr[k+2];
-      pso_v_i_ptr[k+2] = 0.5 * (uk - pso_x_0_i_ptr[k+2]);
+      uk = pso_step3_rands_i_ptr[k + 2];
+      pso_v_i_ptr[k + 2] = 0.5 * (uk - pso_x_0_i_ptr[k + 2]);
 
-      uk = pso_step3_rands_i_ptr[k+3];
-      pso_v_i_ptr[k+3] = 0.5 * (uk - pso_x_0_i_ptr[k+3]);
+      uk = pso_step3_rands_i_ptr[k + 3];
+      pso_v_i_ptr[k + 3] = 0.5 * (uk - pso_x_0_i_ptr[k + 3]);
     }
 
     // leftover
-    for (; k < pso->dimensions; k++) {
+    for (; k < pso->dimensions; k++)
+    {
       uk = pso_step3_rands_i_ptr[k];
       pso_v_i_ptr[k] = 0.5 * (pso_step3_rands_i_ptr[k] - pso_x_0_i_ptr[k]);
     }
@@ -114,13 +114,7 @@ void step3_opt4(struct pso_data_constant_inertia *pso)
   double *pso_x_0_i_ptr;
   double *pso_v_i_ptr;
 
-  __m256d 
-    u_i, 
-    pso_x_0_i, 
-    sub_i,
-    pso_v_i,
-    pso_full_half
-    ;
+  __m256d u_i, pso_x_0_i, sub_i, pso_v_i, pso_full_half;
 
   pso_full_half = _mm256_set1_pd(0.5);
 
@@ -131,7 +125,7 @@ void step3_opt4(struct pso_data_constant_inertia *pso)
     pso_x_0_i_ptr = PSO_X(pso, 0, i);
     pso_v_i_ptr = PSO_V(pso, i);
     int k = 0;
-    for (; k < pso->dimensions - 3; k+=4)
+    for (; k < pso->dimensions - 3; k += 4)
     {
       u_i = _mm256_loadu_pd(pso_step3_rands_i_ptr + k);
       pso_x_0_i = _mm256_loadu_pd(pso_x_0_i_ptr + k);
@@ -143,13 +137,11 @@ void step3_opt4(struct pso_data_constant_inertia *pso)
     }
 
     // leftover
-    for (; k < pso->dimensions; k++) {
+    for (; k < pso->dimensions; k++)
+    {
       pso_v_i_ptr[k] = 0.5 * (pso_step3_rands_i_ptr[k] - pso_x_0_i_ptr[k]);
     }
   }
 }
 
-void step3_optimized(struct pso_data_constant_inertia *pso) 
-{
-    step3_opt4(pso);
-}
+void step3_optimized(struct pso_data_constant_inertia *pso) { step3_opt4(pso); }

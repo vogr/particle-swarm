@@ -2,8 +2,9 @@
 
 #include "math.h"
 
-static int is_far_from_previous_evaluations(
-    struct pso_data_constant_inertia const *pso, double *x, double min_dist)
+static int
+is_far_from_previous_evaluations(struct pso_data_constant_inertia const *pso,
+                                 double *x, double min_dist)
 {
   // - find way to check "if minimizer of surrogate is far from previous points"
   //    + see https://en.wikipedia.org/wiki/Nearest_neighbor_search
@@ -65,7 +66,7 @@ void step11_base(struct pso_data_constant_inertia *pso)
   }
 }
 
-void step11_optimized(struct pso_data_constant_inertia *pso) 
+void step11_optimized(struct pso_data_constant_inertia *pso)
 {
-    step11_base(pso);
+  step11_base(pso);
 }

@@ -28,7 +28,4 @@ void step8_base(struct pso_data_constant_inertia *pso)
   pso->time++;
 }
 
-void step8_optimized(struct pso_data_constant_inertia *pso) 
-{
-    step8_base(pso);
-}
+void step8_optimized(struct pso_data_constant_inertia *pso) { step8_base(pso); }

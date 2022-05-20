@@ -19,7 +19,7 @@ void step10_base(struct pso_data_constant_inertia *pso)
                      pso->bound_high, pso, pso->x_local);
 }
 
-void step10_optimized(struct pso_data_constant_inertia *pso) 
+void step10_optimized(struct pso_data_constant_inertia *pso)
 {
-    step10_base(pso);
+  step10_base(pso);
 }
