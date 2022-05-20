@@ -55,7 +55,7 @@ struct pso_data_constant_inertia
   double *x_trial_best;
   double *v_trial_best;
 
-  // Used in steps 10 and 11 in local refinement 
+  // Used in steps 10 and 11 in local refinement
   double *x_local;
 
   // Keep track of local refinement points.
