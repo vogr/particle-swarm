@@ -8,6 +8,7 @@ export alloc_aligned_vec,
     column_major_to_row,
     array_to_column_major,
     starting_test,
+    sym_n,
     @run_random
 
 # Changes the major order of the array memory layout.
@@ -48,6 +49,11 @@ end
 
 function starting_test(msg)
     @printf "[starting]: %s\n" msg
+end
+
+function sym_n(n)
+    A = rand(n, n)
+    return A+A'
 end
 
 # XXX I know this is a little much. Especially the required thunk

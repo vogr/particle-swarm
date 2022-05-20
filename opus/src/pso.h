@@ -27,6 +27,10 @@ typedef double (*blackbox_fun)(double const *const);
   ((pso)->past_refinement_points + (k) * (pso)->dimensions)
 #define PSO_PAST_REFINEMENT_EVAL(pso, k) (pso)->past_refinement_points_eval[k]
 
+// PSO_STEP3_RAND : pso::pso, i:int (population) k:int (dimension) ->
+// step3_rands_i:double*
+#define PSO_STEP3_RAND(pso, i) ((pso)->step3_rands + (i) * (pso)->dimensions)
+
 // for other inertia choices, see https://ieeexplore.ieee.org/document/6089659
 struct pso_data_constant_inertia
 {
@@ -48,6 +52,15 @@ struct pso_data_constant_inertia
   // ŷ = best position ever recorded over all particles
   // here a pointer to one of the y_i or in past_refinement_points
   double *y_hat;
+
+  double *x_trial;
+  double *v_trial;
+
+  double *x_trial_best;
+  double *v_trial_best;
+
+  // Used in steps 10 and 11 in local refinement
+  double *x_local;
 
   // Keep track of local refinement points.
   // max lenght of list = tmax
@@ -92,6 +105,9 @@ struct pso_data_constant_inertia
 
   int time_max;
   int time;
+
+  // random numbers precomputed
+  double *step3_rands; // population_size * dimensions
 };
 
 void run_pso(blackbox_fun f, double inertia, double social, double cognition,
@@ -99,3 +115,14 @@ void run_pso(blackbox_fun f, double inertia, double social, double cognition,
              int dimensions, int population_size, int time_max, int n_trials,
              double *bounds_low, double *bounds_high, double *vmin,
              double *vmax, double *initial_positions);
+
+double rand_between(double a, double b); // used in step 3 and in pso_init
+
+double dist2(size_t dim, double const *x,
+             double const *y); // used step 11 and in fit_surrogate
+
+double surrogate_eval(struct pso_data_constant_inertia const *pso,
+                      double const *x); // used in step 6 and in step 10
+
+int fit_surrogate(
+    struct pso_data_constant_inertia *pso); // used in step 5 and in step 9

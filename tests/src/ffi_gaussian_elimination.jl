@@ -72,7 +72,7 @@ function solve_tests()
         end
 
         test_lambda = (n) -> begin
-            M = rand(n, n)
+            M = tu.sym_n(n)
             b = rand(n)
             test_ge_solve(M, b)
         end
@@ -97,7 +97,7 @@ function perf_tests()
     x = tu.alloc_aligned_vec(Cdouble, n)
 
     while true
-        A = rand(n, n)
+        A = tu.sym_n(n)
         b = rand(n)
         Ab = hcat(A, b)
         @assert length(Ab) == ab_n

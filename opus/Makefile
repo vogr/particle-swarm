@@ -27,7 +27,7 @@ DEBUG_FLAGS:= \
 
 
 # Release flags: optimisations, NDEBUG (disable assertions), disable hardening, disable PIE (only for executable)
-RELEASE_FLAGS:=-DNDEBUG -O2 -flto -march=native -fcf-protection=none -fno-stack-clash-protection -fno-stack-protector
+RELEASE_FLAGS:=-DNDEBUG -O2 -flto -march=native -fcf-protection=none -fno-stack-protector
 
 # Flags common to debug and release
 # Currently starts empty
@@ -50,7 +50,10 @@ LDLIBS+=-lm
 # source file extension)
 OBJ_COMMON := src/helpers.o src/local_refinement.o src/logging.o \
                  src/plu_factorization.o src/pso.o src/bloom.o src/murmurhash.o \
-		 src/rounding_bloom.o src/gaussian_elimination_solver.o
+		 src/rounding_bloom.o src/gaussian_elimination_solver.o \
+		 src/steps/step3.o src/steps/step4.o src/steps/step5.o \
+		 src/steps/step6.o src/steps/step7.o src/steps/step8.o \
+		 src/steps/step9.o src/steps/step10.o src/steps/step11.o
 
 # Object files required for the the library
 OBJ_LIB := src/perf_ge_solve.o src/pso_ffi.o
