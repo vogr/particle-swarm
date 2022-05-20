@@ -4,7 +4,6 @@
 
 #include "gaussian_elimination_solver.h"
 #include "helpers.h"
-#include "perf_ge_common.h"
 #include "perf_ge_solve.h"
 
 // TODO @vogier had mentioned using a macro system to
