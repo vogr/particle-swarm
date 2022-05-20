@@ -27,7 +27,7 @@ DEBUG_FLAGS:= \
 
 
 # Release flags: optimisations, NDEBUG (disable assertions), disable hardening, disable PIE (only for executable)
-RELEASE_FLAGS:=-DNDEBUG -O2 -flto -march=native -fcf-protection=none -fno-stack-clash-protection -fno-stack-protector
+RELEASE_FLAGS:=-DNDEBUG -O2 -flto -march=native -fcf-protection=none -fno-stack-protector
 
 # Flags common to debug and release
 # Currently starts empty

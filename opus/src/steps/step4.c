@@ -31,7 +31,4 @@ void step4_base(struct pso_data_constant_inertia *pso)
   pso->y_hat_eval = y_hat_eval;
 }
 
-void step4_optimized(struct pso_data_constant_inertia *pso)
-{
-  step4_base(pso);
-}
+void step4_optimized(struct pso_data_constant_inertia *pso) { step4_base(pso); }
