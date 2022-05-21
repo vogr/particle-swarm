@@ -49,6 +49,38 @@ extern "C"
 // into return type and argument type:
 // see https://devblogs.microsoft.com/oldnewthing/20200713-00/?p=103978
 
+// Argument saver/restorer.
+// Need to provide a template specialization for your particular
+// function under test.
+template <typename F> class ArgumentRestorer;
+
+// eg.
+/*
+template <>
+class ArgumentRestorer<my_fun_to_test_ptr_t>
+{
+private:
+  // private storage
+  arg1 arg1_0;
+  arg2 arg2_0;
+public:
+  ArgumentRestorer<my_fun_to_test_ptr_t>(arg1, arg2)
+  {
+    // allocate private storage and save arg1 arg2
+  }
+
+  void restore_arguments(arg1, arg2)
+  {
+    // copy back arg1_0 and arg2_0 into the args
+  }
+
+  ~ArgumentRestorer<my_fun_to_test_ptr_t>(arg1, arg2, arg3)
+  {
+    // free private storage
+  }
+};
+*/
+
 // The PerformanceTester template parametrized by a function
 // pointer. To allow explicit type parametrization, needs an
 // empty primary template.
@@ -61,19 +93,11 @@ class PerformanceTester<Ret_T (*)(Args_T...)>
   // the signature of the functions(s) we want to benchmark
   typedef Ret_T (*fun_T)(Args_T...);
 
-  // save/restore helper functions
-  typedef std::tuple<Args_T...> (*arg_saver)(Args_T...);
-  typedef void (*arg_restorer)(std::tuple<Args_T...> const, Args_T...);
-
 private:
   std::vector<fun_T> userFuncs;
   std::vector<std::string> funcNames;
   std::vector<int> funcFlops;
   int numFuncs = 0;
-
-  // Override arguments saver/restorer in subclass
-  virtual void save_arguments(Args_T...) = 0;
-  virtual void restore_arguments(Args_T...) = 0;
 
 public:
   /*
@@ -106,7 +130,7 @@ public:
 
     // TODO: save initial paramters with arg_saver and arg_restorer
     // if saver == nulll; restorer == null
-    save_arguments(args...);
+    ArgumentRestorer<fun_T> arg_restorer(args...);
 
     // Warm-up phase: we determine a number of executions that allows
     // the code to be executed for at least CYCLES_REQUIRED cycles.
@@ -123,7 +147,7 @@ public:
 
       cycles = (double)end;
 
-      restore_arguments(args...);
+      arg_restorer.restore_arguments(args...);
 
       multiplier = (PERF_TESTER_CYCLES_REQUIRED) / (cycles);
 

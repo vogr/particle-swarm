@@ -8,15 +8,20 @@ extern "C"
 #include "../gaussian_elimination_solver.h"
 #include "PerformanceTester.hpp"
 
-class PerformanceTesterGE : public PerformanceTester<ge_solve_fun_t>
+template <> class ArgumentRestorer<ge_solve_fun_t>
 {
 private:
+  int N0 = 0;
   double *Ab0 = nullptr;
   double *x0 = nullptr;
 
-  virtual void save_arguments(int N, double *Ab, double *x) override
+public:
+  ArgumentRestorer<ge_solve_fun_t>(int N, double *Ab, double *x)
   {
+    N0 = N;
+
     size_t Ab_s = N * (N + 1);
+
     Ab0 = (double *)std::malloc(Ab_s * sizeof(double));
     x0 = (double *)std::malloc(N * sizeof(double));
 
@@ -24,15 +29,21 @@ private:
     std::memcpy(x0, x, N * sizeof(double));
   }
 
-  virtual void restore_arguments(int N, double *Ab, double *x) override
+  void restore_arguments(int N, double *Ab, double *x)
   {
     size_t Ab_s = N * (N + 1);
     std::memcpy(Ab, Ab0, Ab_s * sizeof(double));
     std::memcpy(x, x0, N * sizeof(double));
   }
+
+  ~ArgumentRestorer<ge_solve_fun_t>()
+  {
+    free(x0);
+    free(Ab0);
+  }
 };
 
-static PerformanceTesterGE perf_tester;
+static PerformanceTester<ge_solve_fun_t> perf_tester;
 
 extern "C" void add_function_GE_SOLVE(ge_solve_fun_t f, char *name, int flop)
 {
