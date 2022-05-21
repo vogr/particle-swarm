@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "gaussian_elimination_solver.h"
 #include "helpers.h"
@@ -774,18 +774,18 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
   // NOTE dangerous reordering of ops
 
   // Find 32B aligned vector v_i of size 4 double on the stack
-  // Inspiration from https://stackoverflow.com/a/46879080 (in the context of _alloca())
+  // Inspiration from https://stackoverflow.com/a/46879080 (in the context of
+  // _alloca())
   double mem[7] = {0};
   int align = 32;
-  double * v_i = (double *)(((uintptr_t)mem + (align - 1)) & ~(align - 1));
+  double *v_i = (double *)(((uintptr_t)mem + (align - 1)) & ~(align - 1));
 
   for (i = N - 1; i >= 0; i--)
   {
 
-
-    double                       //
-        v = MAT_Ab(i, N),        //
-        v_ii = 1 / MAT_Ab(i, i)  //
+    double                      //
+        v = MAT_Ab(i, N),       //
+        v_ii = 1 / MAT_Ab(i, i) //
         ;
 
     __m256d    //
