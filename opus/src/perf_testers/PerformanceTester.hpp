@@ -168,6 +168,8 @@ public:
         cycles = ((double)end);
         total_cycles += cycles;
         cyclesList.push_back(cycles); // XXX why have this
+
+        arg_restorer.restore_arguments(args...);
       }
     }
     total_cycles /= (PERF_TESTER_REP * num_runs);
