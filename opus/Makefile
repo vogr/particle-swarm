@@ -60,7 +60,8 @@ OBJ_COMMON := src/helpers.o src/local_refinement.o src/logging.o \
 OBJ_LIB := src/perf_testers/perf_ge_solve.o src/pso_ffi.o
 # Object files required for the the executable
 OBJ_EXE := src/main.o
-
+# If Clang is your CXX then specifying the standard is required
+CXXFLAGS = -std=c++0x
 
 ######
 # Library vs executable compilation options
@@ -71,11 +72,11 @@ UNAME_S := $(shell uname -s)
 
 
 ifeq ($(PSO_SHARED), 1)
-  # Option 1. Build a shared library
+	# Option 1. Build a shared library
 
-  # For the shared file we also need to pass
-  # a preprocessor definition
-  # TEST_PERF=1
+	# For the shared file we also need to pass
+	# a preprocessor definition
+	# TEST_PERF=1
 	CPPFLAGS += -DTEST_PERF
 
 	ifeq ($(UNAME_S),Darwin)
@@ -91,15 +92,15 @@ ifeq ($(PSO_SHARED), 1)
 	OBJFILES := $(OBJ_COMMON) $(OBJ_LIB)
 
 else # PSO_SHARED
-  # Option 2. Build an executable
+	# Option 2. Build an executable
 
-  # Disable PIE
+	# Disable PIE
 	COMMON_FLAGS+=-fno-PIE
 	LDFLAGS+=-no-pie
 
-  # Optionnal sanitizers.
-  # Only enable int the executable as loading sanitized libraries
-  # from a non-sanitized executable results in an error
+	# Optionnal sanitizers.
+	# Only enable int the executable as loading sanitized libraries
+	# from a non-sanitized executable results in an error
 	DEBUG_FLAGS+=-fsanitize=undefined -fsanitize=address
 
 	target := pso

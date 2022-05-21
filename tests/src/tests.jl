@@ -9,6 +9,6 @@ include("ffi_gaussian_elimination.jl")
 # PLU.solve_tests()
 
 PSO_GE.solve_tests()
-PSO_GE.perf_tests()
+# PSO_GE.perf_tests()
 
 end # module

@@ -17,6 +17,8 @@
 #define BIT_ALGINMENT 32
 #define IS_ALIGN(i) ((i) % 4 == 0)
 #define COND_OR_ALIGN(i, cnd) ((cnd) | IS_ALIGN(i))
+#define ERR_THRESHOLD 1.00e-6
+#define APPROX_EQUAL(l, r) (fabs((r) - (l)) <= ERR_THRESHOLD)
 
 // NOTE predefine functions here and put them in increasing level
 // of optimization below. Please list the optimizations performed
@@ -24,7 +26,6 @@
 int gaussian_elimination_solve_0(int N, double *Ab, double *x);
 int gaussian_elimination_solve_1(int N, double *Ab, double *x);
 int gaussian_elimination_solve_2(int N, double *Ab, double *x);
-int gaussian_elimination_solve_3(int N, double *Ab, double *x);
 
 static void swapd(double *a, int i, int j)
 {
@@ -820,33 +821,6 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
     } // leftover j
 
     x[i] = (v - v_i[0] - v_i[1] - v_i[2] - v_i[3]) * v_ii;
-  }
-
-  return 0;
-}
-
-/**
- * Base implementation using refined algorithm
- */
-int gaussian_elimination_solve_3(int N, double *Ab, double *x)
-{
-
-  printf("ERROR: UNIMIPLEMENTED");
-  return -1;
-
-  // A is now upper triangular
-
-  // Backward substitution
-  // U x = y
-  for (int i = N - 1; i >= 0; i--)
-  {
-    // value in b
-    double v = MAT_Ab(i, N);
-    for (int j = i + 1; j < N; j++)
-    {
-      v -= MAT_Ab(i, j) * x[j];
-    }
-    x[i] = v / MAT_Ab(i, i);
   }
 
   return 0;
