@@ -2,7 +2,6 @@
 
 include("run_pso_ffi.jl")
 
-#using GRUtils
 using Plots
 
 DIMENSIONS=2
@@ -24,12 +23,13 @@ end
 
 
 
+T_MAX = 1000
 
 params = RUN_PSO.PsoParams(
     @cfunction(my_f, Cdouble, (Ptr{Cdouble},)),
     1., 0.3, 0.3,
     1., 1.,
-    DIMENSIONS, 5, 100, 5,
+    DIMENSIONS, 5, T_MAX, 5,
     [-10., -10.], [10., 10.],
     [-10., -10.], [10., 10.],
     [-1., 8., 5., -3., 5., 6., 7., 3., -9., -2.]
@@ -51,7 +51,7 @@ RUN_PSO.pso_first_steps(pso)
 
 surrogate = (x,y) -> RUN_PSO.surrogate_eval(pso, [x,y])
 
-for i in 1:30
+for i in 1:T_MAX
 
     RUN_PSO.pso_mainloop(pso)
 
@@ -70,8 +70,7 @@ for i in 1:30
 
     p = plot(p1, p2)
 
-
-    savefig(p, "plots/t$i.svg")
+    savefig(p, "plots/t$(lpad(i, 6, '0')).png")
 
     for k in 1:params.pop_size
         xk = cur_pos[:, k]
