@@ -5,8 +5,8 @@ extern "C"
 
 #include "cstring"
 
+#include "../gaussian_elimination_solver.h"
 #include "PerformanceTester.hpp"
-#include "gaussian_elimination_solver.h"
 
 class PerformanceTesterGE : public PerformanceTester<ge_solve_fun_t>
 {

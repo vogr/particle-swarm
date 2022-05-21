@@ -5,7 +5,7 @@
 
 #include "gaussian_elimination_solver.h"
 #include "helpers.h"
-#include "perf_ge_solve.h"
+#include "perf_testers/perf_ge_solve.h"
 
 // TODO @vogier had mentioned using a macro system to
 // compile the code in different ways for performance
