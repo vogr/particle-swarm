@@ -30,26 +30,24 @@
  */
 
 #include <algorithm>
-#include <list>
-#include <vector>
 #include <iostream>
+#include <list>
 #include <string>
+#include <vector>
 
-extern "C" {
-    #include "tsc_x86.h"
+extern "C"
+{
+#include "tsc_x86.h"
 }
-
 
 //#define PERF_TESTER_NR 32
 #define PERF_TESTER_CYCLES_REQUIRED 1e8
 #define PERF_TESTER_REP 50
 //#define PERF_TESTER_EPS (1e-3)
 
-
 // destructuring function pointer template type
 // into return type and argument type:
 // see https://devblogs.microsoft.com/oldnewthing/20200713-00/?p=103978
-
 
 // The PerformanceTester template parametrized by a function
 // pointer. To allow explicit type parametrization, needs an
@@ -57,121 +55,129 @@ extern "C" {
 template <typename F> class PerformanceTester;
 
 // Partial specialization specialized for function pointers.
-template<typename Ret_T, typename... Args_T>
+template <typename Ret_T, typename... Args_T>
 class PerformanceTester<Ret_T (*)(Args_T...)>
 {
-    // the signature of the functions(s) we want to benchmark
-    typedef Ret_T (*fun_T)(Args_T...);
+  // the signature of the functions(s) we want to benchmark
+  typedef Ret_T (*fun_T)(Args_T...);
 
-    // save/restore helper functions
-    typedef std::tuple<Args_T...> (*arg_saver)(Args_T...);
-    typedef void (*arg_restorer)(std::tuple<Args_T...> const, Args_T...);
+  // save/restore helper functions
+  typedef std::tuple<Args_T...> (*arg_saver)(Args_T...);
+  typedef void (*arg_restorer)(std::tuple<Args_T...> const, Args_T...);
 
 private:
-    std::vector<fun_T> userFuncs;
-    std::vector<std::string> funcNames;
-    std::vector<int> funcFlops;
-    int numFuncs = 0;
+  std::vector<fun_T> userFuncs;
+  std::vector<std::string> funcNames;
+  std::vector<int> funcFlops;
+  int numFuncs = 0;
+
+  // Override arguments saver/restorer in subclass
+  virtual void save_arguments(Args_T...) = 0;
+  virtual void restore_arguments(Args_T...) = 0;
 
 public:
-    /*
-    * Registers a user function to be tested by the driver program. Registers a
-    * string description of the function as well
-    */
-    void add_function(fun_T f, std::string name, int flop)
+  /*
+   * Registers a user function to be tested by the driver program. Registers a
+   * string description of the function as well
+   */
+  void add_function(fun_T f, std::string name, int flop)
+  {
+    userFuncs.push_back(f);
+    // funcNames.emplace_back(nm);
+    funcNames.push_back(name);
+    funcFlops.push_back(flop);
+    numFuncs++;
+  };
+
+  /*
+   * Checks the given function for validity (XXX does it?). If valid, then
+   * computes and reports and returns the number of cycles required per
+   * iteration
+   *
+   * FIXME f is going to modify the contents of the functions. XXX
+   * thus each iteration is actually solving a *different* problem.
+   */
+  double perf_test(fun_T f, std::string desc, int flops, Args_T... args)
+  {
+    double cycles = 0.;
+    long num_runs = 10;
+    double multiplier = 1;
+    myInt64 start, end;
+
+    // TODO: save initial paramters with arg_saver and arg_restorer
+    // if saver == nulll; restorer == null
+    save_arguments(args...);
+
+    // Warm-up phase: we determine a number of executions that allows
+    // the code to be executed for at least CYCLES_REQUIRED cycles.
+    // This helps excluding timing overhead when measuring small runtimes.
+    do
     {
-        userFuncs.push_back(f);
-        // funcNames.emplace_back(nm);
-        funcNames.push_back(name);
-        funcFlops.push_back(flop);
-        numFuncs++;
-    };
+      num_runs = num_runs * multiplier;
+      start = start_tsc();
+      for (size_t i = 0; i < num_runs; i++)
+      {
+        f(args...);
+      }
+      end = stop_tsc(start);
 
+      cycles = (double)end;
 
-    /*
-    * Checks the given function for validity (XXX does it?). If valid, then computes and
-    * reports and returns the number of cycles required per iteration
-    *
-    * FIXME f is going to modify the contents of the functions. XXX
-    * thus each iteration is actually solving a *different* problem.
-    */
-    static double perf_test(fun_T f, std::string desc, int flops, Args_T... args)
+      restore_arguments(args...);
+
+      multiplier = (PERF_TESTER_CYCLES_REQUIRED) / (cycles);
+
+    } while (multiplier > 2);
+
+    std::list<double> cyclesList;
+
+    // Actual performance measurements repeated REP times.
+    // We simply store all results and compute medians during post-processing.
+    double total_cycles = 0;
+    for (size_t j = 0; j < PERF_TESTER_REP; j++)
     {
-        double cycles = 0.;
-        long num_runs = 10;
-        double multiplier = 1;
-        myInt64 start, end;
-
-        // TODO: save initial paramters with arg_saver and arg_restorer
-        // if saver == nulll; restorer == null
-
-        // Warm-up phase: we determine a number of executions that allows
-        // the code to be executed for at least CYCLES_REQUIRED cycles.
-        // This helps excluding timing overhead when measuring small runtimes.
-        do
-        {
-            num_runs = num_runs * multiplier;
-            start = start_tsc();
-            for (size_t i = 0; i < num_runs; i++)
-            {
-                f(args...);
-            }
-            end = stop_tsc(start);
-
-            cycles = (double)end;
-            // TODO: restore with arg_restorer (if not null)
-           multiplier = (PERF_TESTER_CYCLES_REQUIRED) / (cycles);
-
-        } while (multiplier > 2);
-
-        std::list<double> cyclesList;
-
-        // Actual performance measurements repeated REP times.
-        // We simply store all results and compute medians during post-processing.
-        double total_cycles = 0;
-        for (size_t j = 0; j < PERF_TESTER_REP; j++)
-        {
-            for (size_t i = 0; i < num_runs; ++i)
-            {
-            start = start_tsc();
-            f(args...);
-            end = stop_tsc(start);
-            cycles = ((double)end);
-            total_cycles += cycles;
-            cyclesList.push_back(cycles); // XXX why have this
-            }
-        }
-        total_cycles /= (PERF_TESTER_REP * num_runs);
-        cycles = total_cycles;
-
-        return cycles;
+      for (size_t i = 0; i < num_runs; ++i)
+      {
+        start = start_tsc();
+        f(args...);
+        end = stop_tsc(start);
+        cycles = ((double)end);
+        total_cycles += cycles;
+        cyclesList.push_back(cycles); // XXX why have this
+      }
     }
-    
-    
-    int perf_test_all_registered(Args_T... args)
+    total_cycles /= (PERF_TESTER_REP * num_runs);
+    cycles = total_cycles;
+
+    return cycles;
+  }
+
+  int perf_test_all_registered(Args_T... args)
+  {
+    std::cout << "Starting performance tests.";
+    double perf;
+    int i;
+
+    if (numFuncs == 0)
     {
-        std::cout << "Starting performance tests.";
-        double perf;
-        int i;
-
-        if (numFuncs == 0)
-        {
-            std::cout << std::endl;
-            std::cout << "No functions registered - nothing for driver to do" << std::endl;
-            std::cout << "Register functions by calling register_func(f, name)" << std::endl;
-            std::cout << "in register_funcs()" << std::endl;
-            return -1;
-        }
-
-        std::cout << numFuncs << " functions registered." << std::endl;
-
-        for (i = 0; i < numFuncs; i++)
-        {
-            perf = perf_test(userFuncs[i], funcNames[i], 1, args...);
-            std::cout << std::endl << "Running: " << funcNames[i] << std::endl;
-            std::cout << perf << " cycles" << std::endl;
-        }
-
-        return 0;
+      std::cout << std::endl;
+      std::cout << "No functions registered - nothing for driver to do"
+                << std::endl;
+      std::cout << "Register functions by calling register_func(f, name)"
+                << std::endl;
+      std::cout << "in register_funcs()" << std::endl;
+      return -1;
     }
+
+    std::cout << numFuncs << " functions registered." << std::endl;
+
+    for (i = 0; i < numFuncs; i++)
+    {
+      perf = perf_test(userFuncs[i], funcNames[i], 1, args...);
+      std::cout << std::endl << "Running: " << funcNames[i] << std::endl;
+      std::cout << perf << " cycles" << std::endl;
+    }
+
+    return 0;
+  }
 };
