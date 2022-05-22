@@ -29,3 +29,34 @@ julia> include("src/tests.jl") # this will run the enabled tests, Gavin plans on
 
 Occassionally you might see some strange behavior from the testing suite. This usually occurs if you make changes to the shared object and re-run the suite. If this is the case, leave the Julia REPL and reload things. This *reboot* tends to fix things. 
 
+
+
+# Great ideas
+
+## fit surrogate: (VO)
+1. Cache distance calculations for phi
+2. Precompute P ?
+3. Blocking + scalar replacement in copy to Ab ; to lambda ; to p
+4. Vectorize dist calculations
+
+
+## pso_constant_inertia_loop (XS)
+  0. Move steps to individual functions
+  1. blocking, scalar repl, vectorize...
+  2. Move mallocs to preallocation phase
+
+## RNG
+
+1. precomputed random number generation!
+
+
+## Q° for Tomaso:
+
+- can we have the dimension as a compile time contstant?
+  * rationale: the code is going to run for days, 
+
+
+# TODO to follow the paper
+
+- the space filling design
+- use the local refinements in fit_surrogate
