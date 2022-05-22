@@ -2,6 +2,8 @@
 
 #include <immintrin.h>
 
+#include "../helpers.h"
+
 void step3_base(struct pso_data_constant_inertia *pso)
 {
   // Step 3. Initialize particle velocities

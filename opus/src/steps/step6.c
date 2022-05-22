@@ -3,6 +3,8 @@
 #include "float.h"
 #include "stdlib.h"
 
+#include "surrogate_eval.h"
+
 static double clamp(double v, double lo, double hi)
 {
   if (v < lo)
@@ -52,7 +54,7 @@ void step6_base(struct pso_data_constant_inertia *pso)
                                 pso->bound_low[j], pso->bound_high[j]);
       }
 
-      double x_trial_seval = surrogate_eval(pso, pso->x_trial);
+      double x_trial_seval = surrogate_eval_optimized(pso, pso->x_trial);
 
 #if DEBUG_TRIALS
       char trial_name[16] = {0};

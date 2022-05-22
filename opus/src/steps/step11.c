@@ -2,6 +2,8 @@
 
 #include "math.h"
 
+#include "../helpers.h"
+
 static int
 is_far_from_previous_evaluations(struct pso_data_constant_inertia const *pso,
                                  double *x, double min_dist)

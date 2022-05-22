@@ -7,6 +7,8 @@
 #include "../rounding_bloom.h"
 #endif
 
+#include "fit_surrogate.h"
+
 void step9_base(struct pso_data_constant_inertia *pso)
 {
   // Refit surrogate with time = t+1
@@ -30,7 +32,7 @@ void step9_base(struct pso_data_constant_inertia *pso)
   exit(1);
 #endif
 
-  if (fit_surrogate(pso) < 0)
+  if (fit_surrogate_optimized(pso) < 0)
   {
     fprintf(stderr, "ERROR: Failed to fit surrogate\n");
     exit(1);

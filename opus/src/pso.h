@@ -115,14 +115,3 @@ void run_pso(blackbox_fun f, double inertia, double social, double cognition,
              int dimensions, int population_size, int time_max, int n_trials,
              double *bounds_low, double *bounds_high, double *vmin,
              double *vmax, double *initial_positions);
-
-double rand_between(double a, double b); // used in step 3 and in pso_init
-
-double dist2(size_t dim, double const *x,
-             double const *y); // used step 11 and in fit_surrogate
-
-double surrogate_eval(struct pso_data_constant_inertia const *pso,
-                      double const *x); // used in step 6 and in step 10
-
-int fit_surrogate(
-    struct pso_data_constant_inertia *pso); // used in step 5 and in step 9
