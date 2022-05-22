@@ -47,6 +47,14 @@ function fill_c_vec(A::AbstractArray, v::AbstractVector)
     end
 end
 
+function fill_c_vec(V::AbstractVector, v::AbstractVector)
+    @assert length(V) == length(v)
+    N = length(V)
+    for i in 1:N
+        v[i] = V[i]
+    end
+end
+
 function starting_test(msg)
     @printf "[starting]: %s\n" msg
 end
