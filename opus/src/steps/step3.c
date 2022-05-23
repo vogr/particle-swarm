@@ -146,4 +146,4 @@ void step3_opt4(struct pso_data_constant_inertia *pso)
   }
 }
 
-void step3_optimized(struct pso_data_constant_inertia *pso) { step3_opt4(pso); }
+void step3_optimized(struct pso_data_constant_inertia *pso) { step3_base(pso); }

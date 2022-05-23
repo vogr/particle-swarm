@@ -10,3 +10,6 @@
 #include "step7.h"
 #include "step8.h"
 #include "step9.h"
+
+
+#include "fit_surrogate.h"

@@ -1,16 +1,56 @@
 #include "fit_surrogate.h"
 
-#include "stdlib.h"
 #include "math.h"
+#include "stdlib.h"
 
-#include "../helpers.h"
 #include "../gaussian_elimination_solver.h"
+#include "../helpers.h"
+#include "../pso.h"
 
-// Step 4. Initialise y, y_eval, and x_eval for each particle
-int fit_surrogate_base(struct pso_data_constant_inertia *pso)
+
+
+/*
+ * From perf test:
+Running: Fit surrogate Base
+82604.4 cycles
+
+Running: Fit surrogate without pso->
+76388.4 cycles
+
+Running: Fit surrogate distances precomputed
+53598.7 cycles
+  */
+
+
+
+
+#define DEBUG_SURROGATE 0
+
+// TODO: include past_refinement_points in phi !!!
+
+static double *fit_surrogate_Ab;
+static double *fit_surrogate_x;
+static double *fit_surrogate_P;
+
+static size_t fit_surrogate_max_N_phi;
+static double *fit_surrogate_phi_cache;
+
+
+
+int prealloc_fit_surrogate_0(size_t max_n_phi, size_t n_P)
 {
-  // TODO: include past_refinement_points in phi !!!
+  size_t max_n_A = max_n_phi + n_P;
+  // Ab size: n x n for A and n x 1 for b
+  size_t Ab_size = max_n_A * max_n_A + max_n_A;
 
+  fit_surrogate_Ab = malloc(Ab_size * sizeof(double));
+  fit_surrogate_x = malloc(max_n_A * sizeof(double));
+  fit_surrogate_P = malloc(max_n_phi * n_P * sizeof(double));
+  return 0;
+}
+
+int fit_surrogate_0(struct pso_data_constant_inertia *pso)
+{
   // TODO: note that the matrix and vector barely change between the
   //  iterations. Maybe there could be a way to re-use them?
 
@@ -25,7 +65,7 @@ int fit_surrogate_base(struct pso_data_constant_inertia *pso)
   // the size of the matrix in the linear system is n+d+1
   size_t n_A = n_phi + n_P;
 
-  double *Ab = pso->fit_surrogate_Ab;
+  double *Ab = fit_surrogate_Ab;
 
   /********
    * Prepare left hand side A
@@ -102,29 +142,314 @@ int fit_surrogate_base(struct pso_data_constant_inertia *pso)
   print_rect_matrixd(Ab, n_A, n_A + 1, "Ab");
 #endif
 
-  double *x = pso->fit_surrogate_x;
+  double *x = fit_surrogate_x;
 
-  if (gaussian_elimination_solve(n_A, Ab, x) < 0)
+  if (gaussian_elimination_solve(n_A, Ab, pso->lambda_p) < 0)
   {
     return -1;
   }
 
 #if DEBUG_SURROGATE
-  print_vectord(x, n_A, "x");
+  print_vectord(pso->lambda_p, n_A, "x");
+#endif
+}
+
+int prealloc_fit_surrogate_1(size_t max_n_phi, size_t n_P)
+{
+  size_t max_n_A = max_n_phi + n_P;
+  // Ab size: n x n for A and n x 1 for b
+  size_t Ab_size = max_n_A * max_n_A + max_n_A;
+
+  fit_surrogate_Ab = malloc(Ab_size * sizeof(double));
+  fit_surrogate_x = malloc(max_n_A * sizeof(double));
+  fit_surrogate_P = malloc(max_n_phi * n_P * sizeof(double));
+  return 0;
+}
+
+int fit_surrogate_1(struct pso_data_constant_inertia *pso)
+{
+  // TODO: include past_refinement_points in phi !!!
+
+  // TODO: note that the matrix and vector barely change between the
+  //  iterations. Maybe there could be a way to re-use them?
+
+  size_t dimensions = pso->dimensions;
+  size_t popsize = pso->population_size;
+  size_t t = pso->time;
+
+  double *positions = pso->x;
+  double *evaluations = pso->x_eval;
+
+  // the size of phi is the total number of _distinct_ points where
+  // f has been evaluated
+  // currently : n = x_distinct_s
+  size_t n_phi = pso->x_distinct_s; // + pso->n_past_refinement_points
+  size_t *id_distincts = pso->x_distinct;
+
+  // the size of P is n x d+1
+  size_t n_P = dimensions + 1;
+
+  // the size of the matrix in the linear system is n+d+1
+  size_t n_A = n_phi + n_P;
+
+  double *Ab = fit_surrogate_Ab;
+  double *x = fit_surrogate_x;
+
+  /********
+   * Prepare left hand side A
+   ********/
+
+  // phi_p,q = || u_p - u_q ||
+  // currently the {u_p} = {x_i(t=j)} i=0..pop_size, j=0..time+1
+
+  for (size_t k1 = 0; k1 < n_phi; k1++)
+  {
+    size_t p = id_distincts[k1];
+    double *u_p = positions + p * dimensions;
+
+    for (size_t k2 = 0; k2 < n_phi; k2++)
+    {
+      size_t q = id_distincts[k2];
+      double *u_q = positions + q * dimensions;
+      double d2 = dist2(dimensions, u_p, u_q);
+      double d = sqrt(d2);
+      double d3 = d2 * d;
+      Ab[k1 * (n_A + 1) + k2] = d3;
+    }
+  }
+
+  // P and tP are blocks in A
+  // P_{i,j} := A_{i,n_phi + j} = A[i * n_A + n_phi + j]
+  // tP_{i,j} := A_{n_phi + i, j} = A[(n_phi + i) * n_A + j]
+
+  for (size_t k = 0; k < n_phi; k++)
+  {
+    size_t p = id_distincts[k];
+    double *u = positions + p * dimensions;
+
+    // P(p,0) = 1;
+    Ab[k * (n_A + 1) + n_phi + 0] = 1;
+    // tP(0,p) = 1;
+    Ab[(n_phi + 0) * (n_A + 1) + k] = 1;
+
+    for (int j = 0; j < dimensions; j++)
+    {
+      // P(p,1+j) = u[j];
+      Ab[k * (n_A + 1) + n_phi + j + 1] = u[j];
+      // tP(1+j,p) = u[j];
+      Ab[(n_phi + 1 + j) * (n_A + 1) + k] = u[j];
+    }
+  }
+
+  // lower right block is zeros
+  for (size_t i = n_phi; i < n_A; i++)
+  {
+    for (size_t j = n_phi; j < n_A; j++)
+    {
+      Ab[i * (n_A + 1) + j] = 0;
+    }
+  }
+
+  /********
+   * Prepare right hand side b
+   ********/
+  for (size_t k = 0; k < n_phi; k++)
+  {
+    size_t p = id_distincts[k];
+    // set b_k
+    Ab[k * (n_A + 1) + n_A] = evaluations[p];
+  }
+
+  for (size_t k = n_phi; k < n_A; k++)
+  {
+    // set b_k
+    Ab[k * (n_A + 1) + n_A] = 0;
+  }
+
+#if DEBUG_SURROGATE
+  print_rect_matrixd(Ab, n_A, n_A + 1, "Ab");
 #endif
 
-  pso->lambda = (double *)realloc(pso->lambda, n_phi * sizeof(double));
-  for (size_t i = 0; i < n_phi; i++)
+  if (gaussian_elimination_solve(n_A, Ab, pso->lambda_p) < 0)
   {
-    pso->lambda[i] = x[i];
+    return -1;
   }
 
-  for (size_t i = 0; i < n_P; i++)
-  {
-    pso->p[i] = x[n_phi + i];
-  }
+#if DEBUG_SURROGATE
+  print_vectord(pso->lambda_p, n_A, "x");
+#endif
 
   return 0;
 }
 
-int fit_surrogate_optimized(struct pso_data_constant_inertia *pso) { fit_surrogate_base(pso); }
+int prealloc_fit_surrogate_2(size_t max_n_phi, size_t n_P)
+{
+  size_t max_n_A = max_n_phi + n_P;
+  // Ab size: n x n for A and n x 1 for b
+  size_t Ab_size = max_n_A * max_n_A + max_n_A;
+
+  fit_surrogate_max_N_phi = max_n_phi;
+  fit_surrogate_phi_cache = malloc(max_n_phi * max_n_phi * sizeof(double));
+
+  fit_surrogate_Ab = malloc(Ab_size * sizeof(double));
+  fit_surrogate_x = malloc(max_n_A * sizeof(double));
+  fit_surrogate_P = malloc(max_n_phi * n_P * sizeof(double));
+  return 0;
+}
+
+int fit_surrogate_2(struct pso_data_constant_inertia *pso)
+{
+  // TODO: include past_refinement_points in phi !!!
+
+  // TODO: note that the matrix and vector barely change between the
+  //  iterations. Maybe there could be a way to re-use them?
+
+  size_t dimensions = pso->dimensions;
+  size_t popsize = pso->population_size;
+  size_t t = pso->time;
+
+  double *positions = pso->x;
+  double *evaluations = pso->x_eval;
+
+  // the size of phi is the total number of _distinct_ points where
+  // f has been evaluated
+  // currently : n = x_distinct_s
+  size_t n_phi = pso->x_distinct_s; // + pso->n_past_refinement_points
+  size_t *id_distincts = pso->x_distinct;
+
+  // the size of P is n x d+1
+  size_t n_P = dimensions + 1;
+
+  // the size of the matrix in the linear system is n+d+1
+  size_t n_A = n_phi + n_P;
+
+  double *Ab = fit_surrogate_Ab;
+  double *x = fit_surrogate_x;
+
+  size_t max_N_phi = fit_surrogate_max_N_phi;
+  double * phi_cache = fit_surrogate_phi_cache;
+  /********
+   * Prepare left hand side A
+   ********/
+
+  // phi_p,q = || u_p - u_q ||
+  // currently the {u_p} = {x_i(t=j)} i=0..pop_size, j=0..time+1
+
+  // j = 0..time are precomputed,
+  // need to compute for time+1
+
+  size_t id_new_points = pso->new_x_distinct_at_t[t];
+#if DEBUG_SURROGATE
+  fprintf(stderr, "Compute distances of %zu new points\n", n_phi - id_new_points);
+#endif
+
+  for (int k1 = id_new_points; k1 < n_phi; k1++)
+  {
+    size_t p = id_distincts[k1];
+    double *u_p = positions + p * dimensions;
+    for (size_t k2 = 0; k2 < id_new_points; k2++)
+    {
+      size_t q = id_distincts[k2];
+      double *u_q = positions + q * dimensions;
+      double d2 = dist2(dimensions, u_p, u_q);
+      double d = sqrt(d2);
+      double d3 = d2 * d;
+      phi_cache[k1 * max_N_phi + k2] = d3;
+      phi_cache[k2 * max_N_phi + k1] = d3;
+    }
+
+    // d(p_k1, p_k1) = 0
+    phi_cache[k1 * max_N_phi + k1]  = 0;
+
+    // Avoid double computation for id_new_points < k < n_phi
+    // ie avoid pairs k2 < k1
+    for (size_t k2 = k1 +1 ; k2 < n_phi ; k2++)
+    {
+      size_t q = id_distincts[k2];
+      double *u_q = positions + q * dimensions;
+      double d2 = dist2(dimensions, u_p, u_q);
+      double d = sqrt(d2);
+      double d3 = d2 * d;
+      phi_cache[k1 * max_N_phi + k2] = d3;
+      phi_cache[k2 * max_N_phi + k1] = d3;  
+    }
+  }
+
+  // Copy the distances from phi_cache to the phi block in A
+  //TODO: use symmetry when building matrix? or keep seq accesses?
+  for (size_t k1 = 0; k1 < n_phi; k1++)
+  {
+    size_t p = id_distincts[k1];
+    double *u_p = positions + p * dimensions;
+
+    for (size_t k2 = 0; k2 < n_phi; k2++)
+    {
+      Ab[k1 * (n_A + 1) + k2] = phi_cache[k1 * max_N_phi + k2];
+    }
+  }
+
+  // P and tP are blocks in A
+  // P_{i,j} := A_{i,n_phi + j} = A[i * n_A + n_phi + j]
+  // tP_{i,j} := A_{n_phi + i, j} = A[(n_phi + i) * n_A + j]
+
+  for (size_t k = 0; k < n_phi; k++)
+  {
+    size_t p = id_distincts[k];
+    double *u = positions + p * dimensions;
+
+    // P(p,0) = 1;
+    Ab[k * (n_A + 1) + n_phi + 0] = 1;
+    // tP(0,p) = 1;
+    Ab[(n_phi + 0) * (n_A + 1) + k] = 1;
+
+    for (int j = 0; j < dimensions; j++)
+    {
+      // P(p,1+j) = u[j];
+      Ab[k * (n_A + 1) + n_phi + j + 1] = u[j];
+      // tP(1+j,p) = u[j];
+      Ab[(n_phi + 1 + j) * (n_A + 1) + k] = u[j];
+    }
+  }
+
+  // lower right block is zeros
+  for (size_t i = n_phi; i < n_A; i++)
+  {
+    for (size_t j = n_phi; j < n_A; j++)
+    {
+      Ab[i * (n_A + 1) + j] = 0;
+    }
+  }
+
+  /********
+   * Prepare right hand side b
+   ********/
+  for (size_t k = 0; k < n_phi; k++)
+  {
+    size_t p = id_distincts[k];
+    // set b_k
+    Ab[k * (n_A + 1) + n_A] = evaluations[p];
+  }
+
+  for (size_t k = n_phi; k < n_A; k++)
+  {
+    // set b_k
+    Ab[k * (n_A + 1) + n_A] = 0;
+  }
+
+#if DEBUG_SURROGATE
+  print_rect_matrixd(Ab, n_A, n_A + 1, "Ab");
+#endif
+
+  if (gaussian_elimination_solve(n_A, Ab, pso->lambda_p) < 0)
+  {
+    return -1;
+  }
+
+#if DEBUG_SURROGATE
+  print_vectord(pso->lambda_p, n_A, "x");
+#endif
+
+  return 0;
+}
+
+

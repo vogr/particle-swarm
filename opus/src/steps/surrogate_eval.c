@@ -16,19 +16,24 @@ double surrogate_eval_base(struct pso_data_constant_inertia const *pso,
 
   double res = 0;
 
-  for (int k = 0; k < (int)pso->x_distinct_s; k++)
+  double * lambda_p = pso->lambda_p;
+  // lambda_p is the concatenation (lambda_0 ... lambda_i || p_0 ... p_(d+1))
+  double * lambda = lambda_p;
+  double * p_coef = lambda_p + pso->x_distinct_s;
+
+  for (size_t k = 0; k < pso->x_distinct_s; k++)
   {
     size_t p = pso->x_distinct[k];
     double *u = pso->x + p * pso->dimensions;
     double d = dist(pso->dimensions, u, x);
-    res += pso->lambda[k] * d * d * d;
+    res += lambda[k] * d * d * d;
   }
 
   for (int j = 0; j < pso->dimensions; j++)
   {
-    res += pso->p[j + 1] * x[j];
+    res += p_coef[j + 1] * x[j];
   }
-  res += pso->p[0];
+  res += p_coef[0];
 
   return res;
 }

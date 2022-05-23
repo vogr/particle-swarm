@@ -100,22 +100,11 @@ void pso_constant_inertia_init(
     pso->vmax[j] = vmax[j];
   }
 
-  // the size of phi is the total number of _distinct_ points where
-  // f has been evaluated
-  // max: pop_size * time
-  //  TODO: add the refinement points + 1 * time
-  //        add the space filling design +?
-  size_t max_n_phi = pso->time_max * pso->population_size;
-  size_t n_P = pso->dimensions + 1;
-  size_t max_n_A = max_n_phi + n_P;
-  // Ab size: n x n for A and n x 1 for b
-  size_t Ab_size = max_n_A * max_n_A + max_n_A;
-
-  pso->fit_surrogate_Ab = malloc(Ab_size * sizeof(double));
-  pso->fit_surrogate_x = malloc(max_n_A * sizeof(double));
-
   pso->x_distinct =
       malloc(pso->time_max * pso->population_size * sizeof(size_t));
+  pso->new_x_distinct_at_t = malloc(pso->time_max * sizeof(size_t));
+  pso->new_x_distinct_at_t[0] = 0;
+
   pso->x_distinct_s = 0;
 
 #if USE_ROUNDING_BLOOM_FILTER
@@ -131,9 +120,19 @@ void pso_constant_inertia_init(
 // No data structure needed for naive search
 #endif
 
-  // will realloc in fit_surrogate
-  pso->lambda = NULL;
-  pso->p = malloc((pso->dimensions + 1) * sizeof(double));
+  // the size of phi is the total number of _distinct_ points where
+  // f has been evaluated
+  // max: pop_size * time
+  //  TODO: add the refinement points + 1 * time
+  //        add the space filling design +?
+  size_t max_n_phi = pso->time_max * pso->population_size;
+  size_t n_P = pso->dimensions + 1;
+  prealloc_fit_surrogate(max_n_phi, n_P);
+
+  // alloc maximum possible size: max_n_phi for lambda and d+1 for P
+  size_t lambda_p_s = max_n_phi + (pso->dimensions + 1);
+  pso->lambda_p = malloc(lambda_p_s * sizeof(double));
+
 
   // setup x
   for (int i = 0; i < population_size; i++)

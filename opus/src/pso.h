@@ -73,20 +73,22 @@ struct pso_data_constant_inertia
   double *vmin;
   double *vmax;
 
-  // pre-alocated storage for fit_surrogate
-  double *fit_surrogate_Ab;
-  double *fit_surrogate_x;
-
   // list of idx of distinct
   size_t *x_distinct;
+  size_t *new_x_distinct_at_t;
   size_t x_distinct_s;
 #ifdef USE_ROUNDING_BLOOM_FILTER
   struct rounding_bloom *bloom;
 #endif
 
   // parameters of the surrogate
-  double *lambda;
-  double *p;
+  // store the concatenation lambda_0 ... lambda_i || p_0 ... p(d+1)
+  // (as this is the format of the output vector of fit_surrogate)
+  double *lambda_p;
+
+
+  // random numbers precomputed
+  double *step3_rands; // population_size * dimensions
 
   double inertia;
   double social;
@@ -105,9 +107,6 @@ struct pso_data_constant_inertia
 
   int time_max;
   int time;
-
-  // random numbers precomputed
-  double *step3_rands; // population_size * dimensions
 };
 
 void run_pso(blackbox_fun f, double inertia, double social, double cognition,
@@ -115,3 +114,12 @@ void run_pso(blackbox_fun f, double inertia, double social, double cognition,
              int dimensions, int population_size, int time_max, int n_trials,
              double *bounds_low, double *bounds_high, double *vmin,
              double *vmax, double *initial_positions);
+
+void pso_constant_inertia_init(
+    struct pso_data_constant_inertia *pso, blackbox_fun f, double inertia,
+    double social, double cognition, double local_refinement_box_size,
+    double min_minimizer_distance, int dimensions, int population_size,
+    int time_max, int n_trials, double *bounds_low, double *bounds_high,
+    double *vmin, double *vmax, double *initial_positions);
+void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso);
+bool pso_constant_inertia_loop(struct pso_data_constant_inertia *pso);

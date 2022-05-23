@@ -14,6 +14,12 @@ void step9_base(struct pso_data_constant_inertia *pso)
   // Refit surrogate with time = t+1
 
   // first update the set of distinct points
+  size_t t = pso->time;
+
+  // save position of new batch of points in x_distinct
+  // TODO: pass as an argument, no need to save it!
+  pso->new_x_distinct_at_t[t] = pso->x_distinct_s;
+
 #if USE_ROUNDING_BLOOM_FILTER
   for (int i = 0; i < pso->population_size; i++)
   {
@@ -32,20 +38,12 @@ void step9_base(struct pso_data_constant_inertia *pso)
   exit(1);
 #endif
 
-  if (fit_surrogate_optimized(pso) < 0)
+  if (fit_surrogate(pso) < 0)
   {
     fprintf(stderr, "ERROR: Failed to fit surrogate\n");
     exit(1);
   }
 
-#if LOG_SURROGATE
-  {
-    char fname[256] = {0};
-    snprintf(fname, sizeof(fname), "surrogate_step9_t_%05d.struct", t);
-    log_surrogate(fname, pso->lambda, pso->p, pso->x, t, pso->dimensions,
-                  pso->population_size);
-  }
-#endif
 }
 
 void step9_optimized(struct pso_data_constant_inertia *pso) { step9_base(pso); }
