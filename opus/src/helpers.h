@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-
 void print_matrixd(double const *M, int N, char const *name);
 void print_rect_matrixd(double const *A, int n, int m, char const *name);
 

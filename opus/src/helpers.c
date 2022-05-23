@@ -6,7 +6,7 @@
 
 #include "math.h"
 
-void print_rect_matrixd(double const * A, int n, int m, char const *name)
+void print_rect_matrixd(double const *A, int n, int m, char const *name)
 {
   printf("%s = [\n", name);
   int i, j;
@@ -21,44 +21,46 @@ void print_rect_matrixd(double const * A, int n, int m, char const *name)
   printf("]\n");
 }
 
-void print_matrixd(double const * A, int N, char const *name)
+void print_matrixd(double const *A, int N, char const *name)
 {
   print_rect_matrixd(A, N, N, name);
 }
 
-
-void print_vectord(double const * M, int N, char const * name)
+void print_vectord(double const *M, int N, char const *name)
 {
   printf("%s = [", name);
   int i;
   for (i = 0; i < N; i++)
   {
     printf("%.4f", M[i]);
-    if (i < N - 1) printf(", ");
+    if (i < N - 1)
+      printf(", ");
   }
   printf("]\n");
 }
 
-void print_vectori(int const * M, int N, char const * name)
+void print_vectori(int const *M, int N, char const *name)
 {
   printf("%s = [", name);
   int i;
   for (i = 0; i < N; i++)
   {
     printf("%d", M[i]);
-    if (i < N - 1) printf(", ");
+    if (i < N - 1)
+      printf(", ");
   }
   printf("]\n");
 }
 
-void print_vectoru64(uint64_t const * M, int N, char const * name)
+void print_vectoru64(uint64_t const *M, int N, char const *name)
 {
   printf("%s = [", name);
   int i;
   for (i = 0; i < N; i++)
   {
     printf("%" PRIu64 " ", M[i]);
-    if (i < N - 1) printf(", ");
+    if (i < N - 1)
+      printf(", ");
   }
   printf("]\n");
 }
