@@ -78,7 +78,7 @@ function solve_tests()
 end
 
 function perf_tests()
-    n = 2^7
+    n = 2^8
     ab_n = n * (n + 1)
     local Ab
     Ab_vec = tu.alloc_aligned_vec(Cdouble, ab_n)

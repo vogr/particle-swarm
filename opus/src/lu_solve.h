@@ -12,7 +12,7 @@
  * @param N: The length of one side.
  * @return: 0 on success. <0 for matrix singularity.
  */
-int lu_solve(int N, double *A, int *ipiv, double *b, double *x);
+int lu_solve(int N, double *A, int *ipiv, double *b);
 
 #ifdef TEST_PERF
 

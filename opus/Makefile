@@ -77,7 +77,7 @@ ifeq ($(PSO_SHARED), 1)
 	# For the shared file we also need to pass
 	# a preprocessor definition
 	# TEST_PERF=1
-	CPPFLAGS += -DTEST_PERF
+	COMMON_FLAGS += -DTEST_PERF
 
 	ifeq ($(UNAME_S),Darwin)
 	target := libpso.dylib

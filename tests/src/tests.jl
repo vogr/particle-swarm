@@ -4,10 +4,10 @@ module tests
 include("ffi_lu_solve.jl")
 include("ffi_gaussian_elimination.jl")
 
-
-LU.solve_tests()
-
 # PSO_GE.solve_tests()
-# PSO_GE.perf_tests()
+PSO_GE.perf_tests()
+
+# LU.solve_tests()
+LU.perf_tests()
 
 end # module
