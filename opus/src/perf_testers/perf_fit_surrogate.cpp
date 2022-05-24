@@ -46,4 +46,7 @@ extern "C" void register_functions_FIT_SURROGATE()
                              1);
   add_function_FIT_SURROGATE(&fit_surrogate_2, "Fit surrogate distances precomputed",
                             1);
+  add_function_FIT_SURROGATE(&fit_surrogate_3, "Fit surrogate memcpy phi",
+                            1);
+
 }
