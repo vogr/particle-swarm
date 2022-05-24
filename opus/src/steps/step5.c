@@ -39,9 +39,6 @@ void step5_base(struct pso_data_constant_inertia *pso)
     #endif
   }
 
-
-  // XXX: currently refit surrogate but it is the same as in step9
-  // bc we don't use the local minimizers !
   if (fit_surrogate(pso) < 0)
   {
     fprintf(stderr, "ERROR: Failed to fit surrogate\n");

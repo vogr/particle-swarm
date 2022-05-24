@@ -68,8 +68,8 @@ struct pso_data_constant_inertia
 
   // list of all previously seen points with evaluation
   double *x_distinct;
-  // idx in x_distinct where new batch of points starts
-  size_t *new_x_distinct_at_t;
+  // starting position of last batch
+  size_t x_distinct_idx_of_last_batch;
   // total size of x_distinct_s
   size_t x_distinct_s;
 

@@ -17,12 +17,6 @@ void step9_base(struct pso_data_constant_inertia *pso)
   // first update the set of distinct points
   size_t t = pso->time;
 
-  // save position of new batch of points in x_distinct
-  // TODO: pass as an argument, no need to save it!
-  pso->new_x_distinct_at_t[t] = pso->x_distinct_s;
-
-
-  size_t cur_x_distinct_batch_start = pso->new_x_distinct_at_t[pso->time];
 #if USE_ROUNDING_BLOOM_FILTER
   for (int i = 0; i < pso->population_size; i++)
   {

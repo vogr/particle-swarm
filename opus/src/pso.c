@@ -100,9 +100,7 @@ void pso_constant_inertia_init(
   size_t x_distinct_max_nb = pso->time_max * pso->population_size;
   pso->x_distinct =
       malloc(x_distinct_max_nb * pso->dimensions * sizeof(double));
-  pso->new_x_distinct_at_t = malloc(pso->time_max * sizeof(size_t));
-  
-  pso->new_x_distinct_at_t[0] = 0;
+  pso->x_distinct_idx_of_last_batch = 0;
   pso->x_distinct_s = 0;
 
   pso->x_distinct_eval = malloc(x_distinct_max_nb * sizeof(double));

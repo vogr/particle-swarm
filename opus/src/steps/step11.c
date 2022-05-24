@@ -39,7 +39,7 @@ void step11_base(struct pso_data_constant_inertia *pso)
   {
     double x_local_eval = pso->f(x_local);
 
-    double * x_local_in_xdistinct = pso->x_distinct + pso->x_distinct_s;
+    double * x_local_in_xdistinct = pso->x_distinct + (pso->x_distinct_s * pso->dimensions);
 
     // Add new refinement point (and evaluation) to list of distinct evaluation positions
     memcpy(x_local_in_xdistinct, x_local, pso->dimensions * sizeof(double));
