@@ -39,5 +39,5 @@ int main(int argc, char **argv)
           min_minimizer_distance, dimensions, population_size, time_max,
           n_trials, bounds_low, bounds_high, vmin, vmax, initial_positions);
 
-  // getchar();
+  stop_logging();
 }

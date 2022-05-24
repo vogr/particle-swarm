@@ -42,11 +42,9 @@ void step6_base(struct pso_data_constant_inertia *pso)
 
         double w1 = (double)rand() / RAND_MAX;
         double w2 = (double)rand() / RAND_MAX;
-        double v =
-            pso->inertia * PSO_V(pso, i)[j] +
-            pso->cognition * w1 *
-                (PSO_Y(pso, i)[j] - PSO_X(pso, i)[j]) +
-            pso->social * w2 * (pso->y_hat[j] - PSO_X(pso, i)[j]);
+        double v = pso->inertia * PSO_V(pso, i)[j] +
+                   pso->cognition * w1 * (PSO_Y(pso, i)[j] - PSO_X(pso, i)[j]) +
+                   pso->social * w2 * (pso->y_hat[j] - PSO_X(pso, i)[j]);
 
         pso->v_trial[j] = clamp(v, pso->vmin[j], pso->vmax[j]);
 
@@ -54,7 +52,7 @@ void step6_base(struct pso_data_constant_inertia *pso)
                                 pso->bound_low[j], pso->bound_high[j]);
       }
 
-      double x_trial_seval = surrogate_eval_optimized(pso, pso->x_trial);
+      double x_trial_seval = surrogate_eval(pso, pso->x_trial);
 
 #if DEBUG_TRIALS
       char trial_name[16] = {0};

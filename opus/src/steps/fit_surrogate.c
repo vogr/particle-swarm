@@ -4,27 +4,18 @@
 #include "stdlib.h"
 #include "string.h"
 
-
 #include "../gaussian_elimination_solver.h"
 #include "../helpers.h"
 #include "../pso.h"
 
+#define QUOTE(x) #x
+#define STR(x) QUOTE(x)
 
+int fit_surrogate(struct pso_data_constant_inertia *pso)
+    __attribute__((alias("fit_surrogate_" STR(FIT_SURROGATE_VERSION))));
 
-/*
- * From perf test:
-Running: Fit surrogate Base
-82604.4 cycles
-
-Running: Fit surrogate without pso->
-76388.4 cycles
-
-Running: Fit surrogate distances precomputed
-53598.7 cycles
-  */
-
-
-
+int prealloc_fit_surrogate(size_t max_n_phi, size_t n_P) __attribute__((
+    alias("prealloc_fit_surrogate_" STR(FIT_SURROGATE_VERSION))));
 
 #define DEBUG_SURROGATE 0
 
@@ -36,8 +27,6 @@ static double *fit_surrogate_P;
 
 static size_t fit_surrogate_max_N_phi;
 static double *fit_surrogate_phi_cache;
-
-
 
 int prealloc_fit_surrogate_0(size_t max_n_phi, size_t n_P)
 {
@@ -317,7 +306,7 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
   double *x = fit_surrogate_x;
 
   size_t max_N_phi = fit_surrogate_max_N_phi;
-  double * phi_cache = fit_surrogate_phi_cache;
+  double *phi_cache = fit_surrogate_phi_cache;
   /********
    * Prepare left hand side A
    ********/
@@ -330,7 +319,8 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
 
   size_t id_new_points = pso->x_distinct_idx_of_last_batch;
 #if DEBUG_SURROGATE
-  fprintf(stderr, "Compute distances of %zu new points\n", n_phi - id_new_points);
+  fprintf(stderr, "Compute distances of %zu new points\n",
+          n_phi - id_new_points);
 #endif
 
   for (int k1 = id_new_points; k1 < n_phi; k1++)
@@ -347,25 +337,25 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
     }
 
     // d(p_k1, p_k1) = 0
-    phi_cache[k1 * max_N_phi + k1]  = 0;
+    phi_cache[k1 * max_N_phi + k1] = 0;
 
     // Avoid double computation for id_new_points < k < n_phi
     // ie avoid pairs k2 < k1
-    for (size_t k2 = k1 +1 ; k2 < n_phi ; k2++)
+    for (size_t k2 = k1 + 1; k2 < n_phi; k2++)
     {
       double *u_q = x_distincts + k2 * dimensions;
       double d2 = dist2(dimensions, u_p, u_q);
       double d = sqrt(d2);
       double d3 = d2 * d;
       phi_cache[k1 * max_N_phi + k2] = d3;
-      phi_cache[k2 * max_N_phi + k1] = d3;  
+      phi_cache[k2 * max_N_phi + k1] = d3;
     }
   }
   // start new batch
   pso->x_distinct_idx_of_last_batch = n_phi;
 
   // Copy the distances from phi_cache to the phi block in A
-  //TODO: use symmetry when building matrix? or keep seq accesses?
+  // TODO: use symmetry when building matrix? or keep seq accesses?
   for (size_t k1 = 0; k1 < n_phi; k1++)
   {
     double *u = x_distincts + k1 * dimensions;
@@ -438,9 +428,6 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
   return 0;
 }
 
-
-
-
 int prealloc_fit_surrogate_3(size_t max_n_phi, size_t n_P)
 {
   size_t max_n_A = max_n_phi + n_P;
@@ -484,7 +471,7 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
   double *x = fit_surrogate_x;
 
   size_t max_N_phi = fit_surrogate_max_N_phi;
-  double * phi_cache = fit_surrogate_phi_cache;
+  double *phi_cache = fit_surrogate_phi_cache;
   /********
    * Prepare left hand side A
    ********/
@@ -497,7 +484,8 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
 
   size_t id_new_points = pso->x_distinct_idx_of_last_batch;
 #if DEBUG_SURROGATE
-  fprintf(stderr, "Compute distances of %zu new points\n", n_phi - id_new_points);
+  fprintf(stderr, "Compute distances of %zu new points\n",
+          n_phi - id_new_points);
 #endif
 
   for (int k1 = id_new_points; k1 < n_phi; k1++)
@@ -514,18 +502,18 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
     }
 
     // d(p_k1, p_k1) = 0
-    phi_cache[k1 * max_N_phi + k1]  = 0;
+    phi_cache[k1 * max_N_phi + k1] = 0;
 
     // Avoid double computation for id_new_points < k < n_phi
     // ie avoid pairs k2 < k1
-    for (size_t k2 = k1 +1 ; k2 < n_phi ; k2++)
+    for (size_t k2 = k1 + 1; k2 < n_phi; k2++)
     {
       double *u_q = x_distincts + k2 * dimensions;
       double d2 = dist2(dimensions, u_p, u_q);
       double d = sqrt(d2);
       double d3 = d2 * d;
       phi_cache[k1 * max_N_phi + k2] = d3;
-      phi_cache[k2 * max_N_phi + k1] = d3;  
+      phi_cache[k2 * max_N_phi + k1] = d3;
     }
   }
   // start new batch
@@ -534,8 +522,8 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
   // Copy the distances from phi_cache to the phi block in A
   for (size_t k1 = 0; k1 < n_phi; k1++)
   {
-    double * phi_row = phi_cache + k1 * max_N_phi;
-    double * Ab_row = Ab + k1 * (n_A + 1);
+    double *phi_row = phi_cache + k1 * max_N_phi;
+    double *Ab_row = Ab + k1 * (n_A + 1);
     memcpy(Ab_row, phi_row, n_phi * sizeof(double));
   }
 
@@ -601,8 +589,6 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
   return 0;
 }
 
-
-
 int prealloc_fit_surrogate_4(size_t max_n_phi, size_t n_P)
 {
   size_t max_n_A = max_n_phi + n_P;
@@ -646,7 +632,7 @@ int fit_surrogate_4(struct pso_data_constant_inertia *pso)
   double *x = fit_surrogate_x;
 
   size_t max_N_phi = fit_surrogate_max_N_phi;
-  double * phi_cache = fit_surrogate_phi_cache;
+  double *phi_cache = fit_surrogate_phi_cache;
   /********
    * Prepare left hand side A
    ********/
@@ -686,18 +672,18 @@ int fit_surrogate_4(struct pso_data_constant_inertia *pso)
     }
 
     // d(p_k1, p_k1) = 0
-    phi_cache[k1 * max_N_phi + k1]  = 0;
+    phi_cache[k1 * max_N_phi + k1] = 0;
 
     // Avoid double computation for id_new_points < k < n_phi
     // ie avoid pairs k2 < k1
-    for (size_t k2 = k1 +1 ; k2 < n_phi ; k2++)
+    for (size_t k2 = k1 + 1; k2 < n_phi; k2++)
     {
       double *u_q = x_distincts + k2 * dimensions;
       double d2 = dist2(dimensions, u_p, u_q);
       double d = sqrt(d2);
       double d3 = d2 * d;
       phi_cache[k1 * max_N_phi + k2] = d3;
-      phi_cache[k2 * max_N_phi + k1] = d3;  
+      phi_cache[k2 * max_N_phi + k1] = d3;
     }
   }
 
@@ -707,8 +693,8 @@ int fit_surrogate_4(struct pso_data_constant_inertia *pso)
   // Copy the distances from phi_cache to the phi block in A
   for (size_t k1 = 0; k1 < n_phi; k1++)
   {
-    double * phi_row = phi_cache + k1 * max_N_phi;
-    double * Ab_row = Ab + k1 * (n_A + 1);
+    double *phi_row = phi_cache + k1 * max_N_phi;
+    double *Ab_row = Ab + k1 * (n_A + 1);
     memcpy(Ab_row, phi_row, n_phi * sizeof(double));
   }
 

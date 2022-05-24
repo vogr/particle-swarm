@@ -2,8 +2,15 @@
 
 #include "../helpers.h"
 
-double surrogate_eval_base(struct pso_data_constant_inertia const *pso,
+#define QUOTE(x) #x
+#define STR(x) QUOTE(x)
+
+double surrogate_eval(struct pso_data_constant_inertia const *pso,
                       double const *x)
+    __attribute__((alias("surrogate_eval_" STR(SURROGATE_EVAL_VERSION))));
+
+double surrogate_eval_0(struct pso_data_constant_inertia const *pso,
+                        double const *x)
 {
   // TODO: add the past_local_refinements
   // Note: will also require adding them to the bloom filter / distinctiveness
@@ -16,11 +23,10 @@ double surrogate_eval_base(struct pso_data_constant_inertia const *pso,
 
   double res = 0;
 
-  double * lambda_p = pso->lambda_p;
+  double *lambda_p = pso->lambda_p;
   // lambda_p is the concatenation (lambda_0 ... lambda_i || p_0 ... p_(d+1))
-  double * lambda = lambda_p;
-  double * p_coef = lambda_p + pso->x_distinct_s;
-
+  double *lambda = lambda_p;
+  double *p_coef = lambda_p + pso->x_distinct_s;
 
   // iterate directly on x_distinct
   for (size_t k = 0; k < pso->x_distinct_s; k++)
@@ -37,10 +43,4 @@ double surrogate_eval_base(struct pso_data_constant_inertia const *pso,
   res += p_coef[0];
 
   return res;
-}
-
-double surrogate_eval_optimized(struct pso_data_constant_inertia const *pso,
-                      double const *x)
-{
-    return surrogate_eval_base(pso, x);
 }

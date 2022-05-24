@@ -16,11 +16,7 @@
 #define DEBUG_TRIALS 0
 #define DEBUG_SURROGATE 0
 
-#define LOG_SURROGATE 0
-
-#if LOG_SURROGATE
 #include "logging.h"
-#endif
 
 #if USE_ROUNDING_BLOOM_FILTER
 #include "rounding_bloom.h"
@@ -64,8 +60,8 @@ void pso_constant_inertia_init(
 
   pso->time = 0;
 
-  pso->x = (double *)malloc(pso->population_size *
-                            pso->dimensions * sizeof(double));
+  pso->x =
+      (double *)malloc(pso->population_size * pso->dimensions * sizeof(double));
   pso->x_eval = malloc(pso->population_size * sizeof(double));
 
   pso->v = malloc(pso->population_size * pso->dimensions * sizeof(double));
@@ -130,7 +126,6 @@ void pso_constant_inertia_init(
   // alloc maximum possible size: max_n_phi for lambda and d+1 for P
   size_t lambda_p_s = max_n_phi + (pso->dimensions + 1);
   pso->lambda_p = malloc(lambda_p_s * sizeof(double));
-
 
   // setup x
   for (int i = 0; i < population_size; i++)
