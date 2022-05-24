@@ -7,11 +7,17 @@
 
 typedef double (*blackbox_fun)(double const *const);
 
-// PSO_X : pso::pso, t:int, i:int -> x_i(t):double*
-// PSO_FX : pso:pso, t:int, i:int -> f(x_i(t)):double
-#define PSO_X(pso, t, i)                                                       \
-  ((pso)->x + ((t) * (pso)->population_size + (i)) * (pso)->dimensions)
-#define PSO_FX(pso, t, i) (pso)->x_eval[(t) * (pso)->population_size + (i)]
+// PSO_X : pso::pso, i:int -> x_i :double*
+#define PSO_X(pso, i)                                                       \
+  ((pso)->x + (i) * (pso)->dimensions)
+#define PSO_FX(pso, i) \
+  ((pso)->x_eval[i])
+
+
+#define PSO_XD(pso, i) \
+  ((pso)->x_distinct + (i) * (pso)->dimensions)
+
+#define PSO_FXD(pso, i) (pso)->x_distinct_eval[i]
 
 // PSO_V : pso::pso, i:int -> v_i:double*
 #define PSO_V(pso, i) ((pso)->v + (i) * (pso)->dimensions)
@@ -36,10 +42,10 @@ struct pso_data_constant_inertia
 {
   blackbox_fun f;
   // positions x_i, saved for all times
-  // i.e. PSO_X(pso, t, i) is the position vector x_i(t)
+  // i.e. PSO_X(pso, i) is the current position vector x_i
   double *x;
-  // PSO_FX(pso, t, i) = f(x_i(t))
-  double *x_eval;
+  // f(x) for current positions
+  double * x_eval;
 
   // PSO_V(pso,i) = v_i
   double *v;
@@ -73,10 +79,16 @@ struct pso_data_constant_inertia
   double *vmin;
   double *vmax;
 
-  // list of idx of distinct
-  size_t *x_distinct;
+  // list of all previously seen points with evaluation
+  double *x_distinct;
+  // idx in x_distinct where new batch of points starts
   size_t *new_x_distinct_at_t;
+  // total size of x_distinct_s
   size_t x_distinct_s;
+
+  // fonction evaluation at x_distinct[k]
+  double * x_distinct_eval;
+
 #ifdef USE_ROUNDING_BLOOM_FILTER
   struct rounding_bloom *bloom;
 #endif

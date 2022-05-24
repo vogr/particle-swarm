@@ -1,7 +1,8 @@
 #include "step9.h"
 
-#include "stdio.h"
-#include "stdlib.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if USE_ROUNDING_BLOOM_FILTER
 #include "../rounding_bloom.h"
@@ -20,15 +21,19 @@ void step9_base(struct pso_data_constant_inertia *pso)
   // TODO: pass as an argument, no need to save it!
   pso->new_x_distinct_at_t[t] = pso->x_distinct_s;
 
+
+  size_t cur_x_distinct_batch_start = pso->new_x_distinct_at_t[pso->time];
 #if USE_ROUNDING_BLOOM_FILTER
   for (int i = 0; i < pso->population_size; i++)
   {
     // add and check proximity to previous points
     if (!rounding_bloom_check_add(pso->bloom, pso->dimensions,
-                                  PSO_X(pso, pso->time, i), 1))
+                                  PSO_X(pso, i), 1))
     {
-      pso->x_distinct[pso->x_distinct_s] =
-          (pso->time) * pso->population_size + i;
+      // copy point to x_distinct
+      memcpy(PSO_XD(pso, pso->x_distinct_s), PSO_X(pso, i), pso->dimensions * sizeof(double));
+      pso->x_distinct_eval[pso->x_distinct_s] = pso->x_eval[i];
+            
       pso->x_distinct_s++;
     }
   }

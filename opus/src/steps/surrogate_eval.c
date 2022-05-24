@@ -21,10 +21,11 @@ double surrogate_eval_base(struct pso_data_constant_inertia const *pso,
   double * lambda = lambda_p;
   double * p_coef = lambda_p + pso->x_distinct_s;
 
+
+  // iterate directly on x_distinct
   for (size_t k = 0; k < pso->x_distinct_s; k++)
   {
-    size_t p = pso->x_distinct[k];
-    double *u = pso->x + p * pso->dimensions;
+    double *u = pso->x_distinct + k * pso->dimensions;
     double d = dist(pso->dimensions, u, x);
     res += lambda[k] * d * d * d;
   }

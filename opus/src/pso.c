@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "gaussian_elimination_solver.h"
 #include "helpers.h"
@@ -64,10 +65,9 @@ void pso_constant_inertia_init(
   pso->n_past_refinement_points = 0;
   pso->time = 0;
 
-  pso->x = (double *)malloc(pso->time_max * pso->population_size *
+  pso->x = (double *)malloc(pso->population_size *
                             pso->dimensions * sizeof(double));
-
-  pso->x_eval = malloc(pso->time_max * pso->population_size * sizeof(double));
+  pso->x_eval = malloc(pso->population_size * sizeof(double));
 
   pso->v = malloc(pso->population_size * pso->dimensions * sizeof(double));
 
@@ -100,12 +100,15 @@ void pso_constant_inertia_init(
     pso->vmax[j] = vmax[j];
   }
 
+  size_t x_distinct_max_nb = pso->time_max * pso->population_size;
   pso->x_distinct =
-      malloc(pso->time_max * pso->population_size * sizeof(size_t));
+      malloc(x_distinct_max_nb * pso->dimensions * sizeof(double));
   pso->new_x_distinct_at_t = malloc(pso->time_max * sizeof(size_t));
+  
   pso->new_x_distinct_at_t[0] = 0;
-
   pso->x_distinct_s = 0;
+
+  pso->x_distinct_eval = malloc(x_distinct_max_nb * sizeof(double));
 
 #if USE_ROUNDING_BLOOM_FILTER
   pso->bloom = malloc(sizeof(struct rounding_bloom));
@@ -140,15 +143,18 @@ void pso_constant_inertia_init(
     // add it to the point cloud
     for (int j = 0; j < pso->dimensions; j++)
     {
-      PSO_X(pso, 0, i)[j] = initial_positions[i * pso->dimensions + j];
+      PSO_X(pso, i)[j] = initial_positions[i * pso->dimensions + j];
     }
 
 // Check if x is distinct
 #if USE_ROUNDING_BLOOM_FILTER
     // add and check proximity to previous points
-    if (!rounding_bloom_check_add(pso->bloom, dimensions, PSO_X(pso, 0, i), 1))
+    if (!rounding_bloom_check_add(pso->bloom, dimensions, PSO_X(pso, i), 1))
     {
-      pso->x_distinct[pso->x_distinct_s] = i;
+      // copy point to x_distinct
+      memcpy(PSO_XD(pso, pso->x_distinct_s), PSO_X(pso, i), pso->dimensions * sizeof(double));
+      pso->x_distinct_eval[pso->x_distinct_s] = pso->x_eval[i];
+
       pso->x_distinct_s++;
     }
 #else

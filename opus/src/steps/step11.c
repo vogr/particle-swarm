@@ -19,7 +19,7 @@ is_far_from_previous_evaluations(struct pso_data_constant_inertia const *pso,
   {
     for (int i = 0; i < pso->population_size; i++)
     {
-      double d2 = dist2(pso->dimensions, x, PSO_X(pso, t, i));
+      double d2 = dist2(pso->dimensions, x, PSO_X(pso, i));
       if (d2 < delta2)
       {
         return 0;

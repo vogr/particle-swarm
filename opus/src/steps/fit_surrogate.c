@@ -78,13 +78,11 @@ int fit_surrogate_0(struct pso_data_constant_inertia *pso)
 
   for (size_t k1 = 0; k1 < pso->x_distinct_s; k1++)
   {
-    size_t p = pso->x_distinct[k1];
-    double *u_p = pso->x + p * pso->dimensions;
+    double *u_p = pso->x_distinct + k1 * pso->dimensions;
 
     for (size_t k2 = 0; k2 < pso->x_distinct_s; k2++)
     {
-      size_t q = pso->x_distinct[k2];
-      double *u_q = pso->x + q * pso->dimensions;
+      double *u_q = pso->x_distinct + k2 * pso->dimensions;
       double d2 = dist2(pso->dimensions, u_p, u_q);
       double d = sqrt(d2);
       double d3 = d2 * d;
@@ -98,8 +96,7 @@ int fit_surrogate_0(struct pso_data_constant_inertia *pso)
 
   for (size_t k = 0; k < pso->x_distinct_s; k++)
   {
-    size_t p = pso->x_distinct[k];
-    double *u = pso->x + p * pso->dimensions;
+    double *u = pso->x_distinct + k * pso->dimensions;
 
     // P(p,0) = 1;
     Ab[k * (n_A + 1) + n_phi + 0] = 1;
@@ -129,9 +126,8 @@ int fit_surrogate_0(struct pso_data_constant_inertia *pso)
    ********/
   for (size_t k = 0; k < n_phi; k++)
   {
-    size_t p = pso->x_distinct[k];
     // set b_k
-    Ab[k * (n_A + 1) + n_A] = pso->x_eval[p];
+    Ab[k * (n_A + 1) + n_A] = pso->x_distinct_eval[k];
   }
 
   for (size_t k = n_phi; k < n_A; k++)
@@ -179,14 +175,12 @@ int fit_surrogate_1(struct pso_data_constant_inertia *pso)
   size_t popsize = pso->population_size;
   size_t t = pso->time;
 
-  double *positions = pso->x;
-  double *evaluations = pso->x_eval;
-
   // the size of phi is the total number of _distinct_ points where
   // f has been evaluated
   // currently : n = x_distinct_s
   size_t n_phi = pso->x_distinct_s; // + pso->n_past_refinement_points
-  size_t *id_distincts = pso->x_distinct;
+  double *x_distincts = pso->x_distinct;
+  double *fxd = pso->x_distinct_eval;
 
   // the size of P is n x d+1
   size_t n_P = dimensions + 1;
@@ -206,13 +200,11 @@ int fit_surrogate_1(struct pso_data_constant_inertia *pso)
 
   for (size_t k1 = 0; k1 < n_phi; k1++)
   {
-    size_t p = id_distincts[k1];
-    double *u_p = positions + p * dimensions;
+    double *u_p = x_distincts + k1 * dimensions;
 
     for (size_t k2 = 0; k2 < n_phi; k2++)
     {
-      size_t q = id_distincts[k2];
-      double *u_q = positions + q * dimensions;
+      double *u_q = x_distincts + k2 * dimensions;
       double d2 = dist2(dimensions, u_p, u_q);
       double d = sqrt(d2);
       double d3 = d2 * d;
@@ -226,8 +218,7 @@ int fit_surrogate_1(struct pso_data_constant_inertia *pso)
 
   for (size_t k = 0; k < n_phi; k++)
   {
-    size_t p = id_distincts[k];
-    double *u = positions + p * dimensions;
+    double *u = x_distincts + k * dimensions;
 
     // P(p,0) = 1;
     Ab[k * (n_A + 1) + n_phi + 0] = 1;
@@ -257,9 +248,8 @@ int fit_surrogate_1(struct pso_data_constant_inertia *pso)
    ********/
   for (size_t k = 0; k < n_phi; k++)
   {
-    size_t p = id_distincts[k];
     // set b_k
-    Ab[k * (n_A + 1) + n_A] = evaluations[p];
+    Ab[k * (n_A + 1) + n_A] = fxd[k];
   }
 
   for (size_t k = n_phi; k < n_A; k++)
@@ -310,14 +300,12 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
   size_t popsize = pso->population_size;
   size_t t = pso->time;
 
-  double *positions = pso->x;
-  double *evaluations = pso->x_eval;
-
   // the size of phi is the total number of _distinct_ points where
   // f has been evaluated
   // currently : n = x_distinct_s
   size_t n_phi = pso->x_distinct_s; // + pso->n_past_refinement_points
-  size_t *id_distincts = pso->x_distinct;
+  double *x_distincts = pso->x_distinct;
+  double *fxd = pso->x_distinct_eval;
 
   // the size of P is n x d+1
   size_t n_P = dimensions + 1;
@@ -347,12 +335,10 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
 
   for (int k1 = id_new_points; k1 < n_phi; k1++)
   {
-    size_t p = id_distincts[k1];
-    double *u_p = positions + p * dimensions;
+    double *u_p = x_distincts + k1 * dimensions;
     for (size_t k2 = 0; k2 < id_new_points; k2++)
     {
-      size_t q = id_distincts[k2];
-      double *u_q = positions + q * dimensions;
+      double *u_q = x_distincts + k2 * dimensions;
       double d2 = dist2(dimensions, u_p, u_q);
       double d = sqrt(d2);
       double d3 = d2 * d;
@@ -367,8 +353,7 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
     // ie avoid pairs k2 < k1
     for (size_t k2 = k1 +1 ; k2 < n_phi ; k2++)
     {
-      size_t q = id_distincts[k2];
-      double *u_q = positions + q * dimensions;
+      double *u_q = x_distincts + k2 * dimensions;
       double d2 = dist2(dimensions, u_p, u_q);
       double d = sqrt(d2);
       double d3 = d2 * d;
@@ -381,8 +366,7 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
   //TODO: use symmetry when building matrix? or keep seq accesses?
   for (size_t k1 = 0; k1 < n_phi; k1++)
   {
-    size_t p = id_distincts[k1];
-    double *u_p = positions + p * dimensions;
+    double *u = x_distincts + k1 * dimensions;
 
     for (size_t k2 = 0; k2 < n_phi; k2++)
     {
@@ -396,8 +380,7 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
 
   for (size_t k = 0; k < n_phi; k++)
   {
-    size_t p = id_distincts[k];
-    double *u = positions + p * dimensions;
+    double *u = x_distincts + k * dimensions;
 
     // P(p,0) = 1;
     Ab[k * (n_A + 1) + n_phi + 0] = 1;
@@ -427,9 +410,8 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
    ********/
   for (size_t k = 0; k < n_phi; k++)
   {
-    size_t p = id_distincts[k];
     // set b_k
-    Ab[k * (n_A + 1) + n_A] = evaluations[p];
+    Ab[k * (n_A + 1) + n_A] = fxd[k];
   }
 
   for (size_t k = n_phi; k < n_A; k++)
@@ -483,14 +465,12 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
   size_t popsize = pso->population_size;
   size_t t = pso->time;
 
-  double *positions = pso->x;
-  double *evaluations = pso->x_eval;
-
   // the size of phi is the total number of _distinct_ points where
   // f has been evaluated
   // currently : n = x_distinct_s
   size_t n_phi = pso->x_distinct_s; // + pso->n_past_refinement_points
-  size_t *id_distincts = pso->x_distinct;
+  double *x_distincts = pso->x_distinct;
+  double *fxd = pso->x_distinct_eval;
 
   // the size of P is n x d+1
   size_t n_P = dimensions + 1;
@@ -520,12 +500,10 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
 
   for (int k1 = id_new_points; k1 < n_phi; k1++)
   {
-    size_t p = id_distincts[k1];
-    double *u_p = positions + p * dimensions;
+    double *u_p = x_distincts + k1 * dimensions;
     for (size_t k2 = 0; k2 < id_new_points; k2++)
     {
-      size_t q = id_distincts[k2];
-      double *u_q = positions + q * dimensions;
+      double *u_q = x_distincts + k2 * dimensions;
       double d2 = dist2(dimensions, u_p, u_q);
       double d = sqrt(d2);
       double d3 = d2 * d;
@@ -540,8 +518,7 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
     // ie avoid pairs k2 < k1
     for (size_t k2 = k1 +1 ; k2 < n_phi ; k2++)
     {
-      size_t q = id_distincts[k2];
-      double *u_q = positions + q * dimensions;
+      double *u_q = x_distincts + k2 * dimensions;
       double d2 = dist2(dimensions, u_p, u_q);
       double d = sqrt(d2);
       double d3 = d2 * d;
@@ -564,8 +541,7 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
 
   for (size_t k = 0; k < n_phi; k++)
   {
-    size_t p = id_distincts[k];
-    double *u = positions + p * dimensions;
+    double *u = x_distincts + k * dimensions;
 
     // P(p,0) = 1;
     Ab[k * (n_A + 1) + n_phi + 0] = 1;
@@ -595,9 +571,8 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
    ********/
   for (size_t k = 0; k < n_phi; k++)
   {
-    size_t p = id_distincts[k];
     // set b_k
-    Ab[k * (n_A + 1) + n_A] = evaluations[p];
+    Ab[k * (n_A + 1) + n_A] = fxd[k];
   }
 
   for (size_t k = n_phi; k < n_A; k++)
