@@ -59,7 +59,7 @@ int fit_surrogate_0(struct pso_data_constant_inertia *pso)
   // the size of phi is the total number of _distinct_ points where
   // f has been evaluated
   // currently : n = x_distinct_s
-  size_t n_phi = pso->x_distinct_s; // + pso->n_past_refinement_points
+  size_t n_phi = pso->x_distinct_s;
 
   // the size of P is n x d+1
   size_t n_P = pso->dimensions + 1;
@@ -178,7 +178,7 @@ int fit_surrogate_1(struct pso_data_constant_inertia *pso)
   // the size of phi is the total number of _distinct_ points where
   // f has been evaluated
   // currently : n = x_distinct_s
-  size_t n_phi = pso->x_distinct_s; // + pso->n_past_refinement_points
+  size_t n_phi = pso->x_distinct_s;
   double *x_distincts = pso->x_distinct;
   double *fxd = pso->x_distinct_eval;
 
@@ -303,7 +303,7 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
   // the size of phi is the total number of _distinct_ points where
   // f has been evaluated
   // currently : n = x_distinct_s
-  size_t n_phi = pso->x_distinct_s; // + pso->n_past_refinement_points
+  size_t n_phi = pso->x_distinct_s;
   double *x_distincts = pso->x_distinct;
   double *fxd = pso->x_distinct_eval;
 
@@ -468,7 +468,7 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
   // the size of phi is the total number of _distinct_ points where
   // f has been evaluated
   // currently : n = x_distinct_s
-  size_t n_phi = pso->x_distinct_s; // + pso->n_past_refinement_points
+  size_t n_phi = pso->x_distinct_s;
   double *x_distincts = pso->x_distinct;
   double *fxd = pso->x_distinct_eval;
 

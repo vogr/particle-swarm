@@ -62,7 +62,6 @@ void pso_constant_inertia_init(
   pso->population_size = population_size;
   pso->time_max = time_max, pso->n_trials = n_trials;
 
-  pso->n_past_refinement_points = 0;
   pso->time = 0;
 
   pso->x = (double *)malloc(pso->population_size *
@@ -75,10 +74,8 @@ void pso_constant_inertia_init(
 
   pso->y_eval = malloc(pso->population_size * sizeof(double *));
 
-  pso->past_refinement_points =
-      malloc(pso->time_max * pso->dimensions * sizeof(double));
-  pso->past_refinement_points_eval =
-      malloc(pso->population_size * sizeof(double));
+  // yhat will be a pointer in another array
+  pso->y_hat = NULL;
 
   pso->v_trial = malloc(pso->dimensions * sizeof(double));
   pso->x_trial = malloc(pso->dimensions * sizeof(double));

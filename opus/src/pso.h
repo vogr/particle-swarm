@@ -27,12 +27,6 @@ typedef double (*blackbox_fun)(double const *const);
 #define PSO_Y(pso, i) ((pso)->y + (i) * (pso)->dimensions)
 #define PSO_FY(pso, i) (pso)->y_eval[(t) * (pso)->population_size + (i)]
 
-// PSO_PAST_REFINEMENT : pso::pso, k:int -> epsilon_k:double*
-// PSO_PAST_REFINEMENT_EVAL : pso:pso, k:int -> f(epsilon_k):double
-#define PSO_PAST_REFINEMENT(pso, k)                                            \
-  ((pso)->past_refinement_points + (k) * (pso)->dimensions)
-#define PSO_PAST_REFINEMENT_EVAL(pso, k) (pso)->past_refinement_points_eval[k]
-
 // PSO_STEP3_RAND : pso::pso, i:int (population) k:int (dimension) ->
 // step3_rands_i:double*
 #define PSO_STEP3_RAND(pso, i) ((pso)->step3_rands + (i) * (pso)->dimensions)
@@ -56,7 +50,6 @@ struct pso_data_constant_inertia
   double *y_eval;
 
   // ŷ = best position ever recorded over all particles
-  // here a pointer to one of the y_i or in past_refinement_points
   double *y_hat;
 
   double *x_trial;
@@ -67,12 +60,6 @@ struct pso_data_constant_inertia
 
   // Used in steps 10 and 11 in local refinement
   double *x_local;
-
-  // Keep track of local refinement points.
-  // max lenght of list = tmax
-  // current length  = n_past_refinement_points
-  double *past_refinement_points;
-  double *past_refinement_points_eval;
 
   double *bound_low;
   double *bound_high;
