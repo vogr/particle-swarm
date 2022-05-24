@@ -26,9 +26,14 @@ array_to_column_major(A::AbstractArray, sizes...)::AbstractArray =
 
 function alloc_aligned_vec(::Type{T}, dims...) where T
     # @assert isbits(T)
-    sz = sizeof(T) * prod(dims)
+    local n
     align = 32
-    @assert prod(dims) % align == 0
+    n = prod(dims)
+    if n % align != 0
+        n = ((n ÷ align) + 1) * align
+    end
+    sz = sizeof(T) * n
+    @assert n % align == 0
     pt = ccall(:aligned_alloc, Ptr{Cvoid}, (Base.Csize_t, Base.Csize_t), align, sz)
     # pt = Libc.calloc(prod(dims), sizeof(T))
     @assert pt != C_NULL

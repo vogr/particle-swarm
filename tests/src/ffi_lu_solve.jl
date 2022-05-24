@@ -60,7 +60,8 @@ function solve_tests()
 
 
         @testset "Random LU Solve Small" begin
-            tu.@run_random_N 100 2^5 2^7 "small lu solve" test_lambda
+            # tu.@run_random_N 100 2^5 2^8 "small lu solve" test_lambda
+            tu.@run_random_N 2 50 600 "small lu solve" test_lambda
         end
 
 
@@ -72,7 +73,7 @@ function solve_tests()
 end
 
 function perf_tests()
-    n = 2^8
+    n = 2^10
 
     local A
     local b
