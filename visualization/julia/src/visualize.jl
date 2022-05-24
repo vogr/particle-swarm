@@ -8,7 +8,7 @@ DIMENSIONS=2
 
 
 function my_f(x::Real, y::Real)
-    return cos(x) * sin(y) + 0.01 * abs(x * y)
+    return cos(x) * sin(y) + 1e-3 * (x - 1) * (x - 1) + 1e-3 * y * y
 end
 
 function my_f(x::Array{<:Real})
@@ -27,7 +27,7 @@ T_MAX = 1000
 
 params = RUN_PSO.PsoParams(
     @cfunction(my_f, Cdouble, (Ptr{Cdouble},)),
-    1., 0.3, 0.3,
+    1., 0.1, 0.2,
     1., 1.,
     DIMENSIONS, 5, T_MAX, 5,
     [-10., -10.], [10., 10.],
