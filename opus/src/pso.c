@@ -145,23 +145,6 @@ void pso_constant_inertia_init(
     {
       PSO_X(pso, i)[j] = initial_positions[i * pso->dimensions + j];
     }
-
-// Check if x is distinct
-#if USE_ROUNDING_BLOOM_FILTER
-    // add and check proximity to previous points
-    if (!rounding_bloom_check_add(pso->bloom, dimensions, PSO_X(pso, i), 1))
-    {
-      // copy point to x_distinct
-      memcpy(PSO_XD(pso, pso->x_distinct_s), PSO_X(pso, i), pso->dimensions * sizeof(double));
-      pso->x_distinct_eval[pso->x_distinct_s] = pso->x_eval[i];
-
-      pso->x_distinct_s++;
-    }
-#else
-    // naive implementation with distance computation
-    fprintf(stderr, "Not implemented.\n");
-    exit(1);
-#endif
   }
 
   // setup bounds in space
