@@ -25,7 +25,6 @@ array_to_column_major(A::AbstractArray, sizes...)::AbstractArray =
     collect(change_major_order(reshape(A, sizes)))
 
 function alloc_aligned_vec(::Type{T}, dims...) where T
-    # @assert isbits(T)
     local n
     align = 32
     n = prod(dims)
@@ -38,7 +37,6 @@ function alloc_aligned_vec(::Type{T}, dims...) where T
     # pt = Libc.calloc(prod(dims), sizeof(T))
     @assert pt != C_NULL
     return unsafe_wrap(Array, convert(Ptr{T}, pt), dims; own = true)
-
 end
 
 function fill_c_vec(A::AbstractArray, v::AbstractVector)

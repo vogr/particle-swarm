@@ -921,13 +921,13 @@ static void sgemm_2(int M, int N, int K, double alpha, double *A, int LDA,
 
   // Skylake has 32 FP registers
   // NOTE choose MU + NU + MU * NU <= #_registers
-  int MU = 4;
-  int NU = 4;
-  int KU = 1;
+  const int MU = 4;
+  const int NU = 4;
+  const int KU = 1;
 
-  assert(M % NB == 0);
-  assert(N % NB == 0);
-  assert(K % NB == 0);
+  /* assert(M % NB == 0); */
+  /* assert(N % NB == 0); */
+  /* assert(K % NB == 0); */
 
   int i, j, k,      //
       ii, jj, kk,   //
@@ -940,9 +940,13 @@ static void sgemm_2(int M, int N, int K, double alpha, double *A, int LDA,
   if (DBL_LMT < LDA || DBL_LMT < LDB || DBL_LMT < LDC)
   {
 
-    for (j = 0; j < N - NB + 1; j += NB)
-      for (i = 0; i < M - NB + 1; i += NB)
-        for (k = 0; k < K - NB + 1; k += NB)
+    for (j = 0; j <= N - NB; j += NB)
+    {
+
+      for (i = 0; i <= M - NB; i += NB)
+      {
+
+        for (k = 0; k <= K - NB; k += NB)
         {
 
           // Load matrix into contiguous memory
@@ -983,15 +987,38 @@ static void sgemm_2(int M, int N, int K, double alpha, double *A, int LDA,
               MIX(C, LDC, i + ii, j + jj) = MIX(CL, NB, ii, jj);
             }
         }
+        // Overflow k
+        for (; k < K; ++k)
+          MIX(C, LDC, i, j) =
+              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+      }
+
+      // Overflow i
+      for (; i < M; ++i)
+        for (k = 0; k < K; ++k)
+          MIX(C, LDC, i, j) =
+              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+    }
+
+    // Overflow j
+    for (; j < N; ++j)
+      for (i = 0; i < M; ++i)
+        for (k = 0; k < K; ++k)
+          MIX(C, LDC, i, j) =
+              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
 
   } // If outside page bounds
 
   else
   {
+    for (j = 0; j <= N - NB; j += NB)
+    {
 
-    for (j = 0; j < N; j += NB)
-      for (i = 0; i < M; i += NB)
-        for (k = 0; k < K; k += NB)
+      for (i = 0; i <= M - NB; i += NB)
+      {
+
+        for (k = 0; k <= K - NB; k += NB)
+        {
 
           // Mini MMM (cache blocking)
           for (jj = j; jj < j + NB; jj += NU)
@@ -999,6 +1026,8 @@ static void sgemm_2(int M, int N, int K, double alpha, double *A, int LDA,
               for (kk = k; kk < k + NB; kk += KU)
 
                 // Micro MMM (register blocking)
+                // NOTE in a final version this should be completely
+                // unrolled and done manually.
                 for (kkk = kk; kkk < kk + KU; ++kkk)
                   for (iii = ii; iii < ii + MU; ++iii)
                     for (jjj = jj; jjj < jj + NU; ++jjj)
@@ -1006,15 +1035,32 @@ static void sgemm_2(int M, int N, int K, double alpha, double *A, int LDA,
                       MIX(C, LDC, iii, jjj) =
                           MIX(C, LDC, iii, jjj) -
                           MIX(B, LDB, kkk, jjj) * MIX(A, LDA, iii, kkk);
+        }
+
+        // Overflow k
+        for (; k < K; ++k)
+          MIX(C, LDC, i, j) =
+              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+      }
+
+      // Overflow i
+      for (; i < M; ++i)
+        // TODO optimize k loop
+        for (k = 0; k < K; ++k)
+          MIX(C, LDC, i, j) =
+              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+    }
+
+    // Overflow j
+    for (; j < N; ++j)
+      // TODO optimize i loop
+      for (i = 0; i < M; ++i)
+        // TODO optimize k loop
+        for (k = 0; k < K; ++k)
+          MIX(C, LDC, i, j) =
+              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
 
   } // Else within page bounds
-
-  // Cleanup cases. This should also be optimized.
-  for (; j < N; ++j)
-    for (; i < N; ++i)
-      for (; k < N; ++k)
-        MIX(C, LDC, i, j) =
-            MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
 }
 
 int sgetf2_2(int M, int N, double *A, int LDA, int *ipiv)
@@ -1131,6 +1177,7 @@ int lu_solve_2(int N, double *A, int *ipiv, double *b)
 
   if (NB <= 1 || NB >= MIN_MN)
   {
+    assert(0 == 1);
     // Use unblocked code
     retcode = sgetf2_2(M, N, A, LDA, ipiv);
     if (retcode != 0)
@@ -1138,7 +1185,6 @@ int lu_solve_2(int N, double *A, int *ipiv, double *b)
   }
   else
   {
-
     for (ib = 0; ib < MIN_MN; ib += NB)
     {
       IB = MIN(MIN_MN - ib, NB);
@@ -1210,7 +1256,7 @@ void register_functions_LU_SOLVE()
 {
   add_function_LU_SOLVE(&lu_solve_0, "LU Solve Base", 1);
   add_function_LU_SOLVE(&lu_solve_1, "LU Solve Recursive", 1);
-  add_function_LU_SOLVE(&lu_solve_2, "LU Solve Unrolled", 1);
+  add_function_LU_SOLVE(&lu_solve_2, "LU Solve Basic C Opts", 1);
 }
 
 #endif

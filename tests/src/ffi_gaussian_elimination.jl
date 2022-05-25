@@ -77,30 +77,26 @@ function solve_tests()
     end
 end
 
-function perf_tests()
-    n = 512 # 2^8
+function setup(n, A, b)
     ab_n = n * (n + 1)
-    local Ab
+    Ab = hcat(A, b)
     Ab_vec = tu.alloc_aligned_vec(Cdouble, ab_n)
     x = tu.alloc_aligned_vec(Cdouble, n)
-
-    while true
-        A = tu.sym_n(n)
-        b = rand(n)
-        Ab = hcat(A, b)
-        @assert length(Ab) == ab_n
-        tu.fill_c_vec(Ab, Ab_vec)
-        # Generate random matrices until we find one with a solution
-        ge_solve(n, Ab_vec, x) != 0 || break
-    end
-
     tu.fill_c_vec(Ab, Ab_vec)
+    return (Ab_vec, x)
+end
 
+function valid(n, A, b)
+    (Ab_vec, x) = setup(n, A, b)
+    return 0 == ge_solve(n, Ab_vec, x)
+end
+
+function perf_tests(n, A, b)
+    (Ab_vec, x) = setup(n, A, b)
     tu.starting_test(@sprintf "GE perf comparison with A[%d, %d]x = b[%d]" n n n)
-
     # NOTE this preserve shouldn't be necessary because
     # a Ptr{Cdouble} Base.unsafe_convert already exists.
-    GC.@preserve Ab x begin
+    GC.@preserve Ab_vec x begin
         retcode = ccall(
             (:perf_test_ge_solve, :libpso),
             Cint,                                  # return type
