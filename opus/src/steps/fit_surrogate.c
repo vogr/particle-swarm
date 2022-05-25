@@ -6,7 +6,10 @@
 #include "../gaussian_elimination_solver.h"
 #include "../helpers.h"
 
-static void fit_surrogate_prepare_phi_base(struct pso_data_constant_inertia *pso, size_t n_A, double* Ab) {
+static void
+fit_surrogate_prepare_phi_base(struct pso_data_constant_inertia *pso,
+                               size_t n_A, double *Ab)
+{
   /********
    * Prepare left hand side A
    ********/
@@ -32,9 +35,12 @@ static void fit_surrogate_prepare_phi_base(struct pso_data_constant_inertia *pso
 }
 
 /*
-  + inlining 
+  + inlining
 */
-static void fit_surrogate_prepare_phi_opt1(struct pso_data_constant_inertia *pso, size_t n_A, double* Ab) {
+static void
+fit_surrogate_prepare_phi_opt1(struct pso_data_constant_inertia *pso,
+                               size_t n_A, double *Ab)
+{
   /********
    * Prepare left hand side A
    ********/
@@ -66,10 +72,13 @@ static void fit_surrogate_prepare_phi_opt1(struct pso_data_constant_inertia *pso
 }
 
 /*
-  inlining 
+  inlining
   + order inversion
 */
-static void fit_surrogate_prepare_phi_opt1(struct pso_data_constant_inertia *pso, size_t n_A, double* Ab) {
+static void
+fit_surrogate_prepare_phi_opt1(struct pso_data_constant_inertia *pso,
+                               size_t n_A, double *Ab)
+{
   /********
    * Prepare left hand side A
    ********/
@@ -100,7 +109,9 @@ static void fit_surrogate_prepare_phi_opt1(struct pso_data_constant_inertia *pso
   }
 }
 
- static void fit_surrogate_prepare_p_base(struct pso_data_constant_inertia *pso, size_t n_A, size_t n_phi, double* Ab) {
+static void fit_surrogate_prepare_p_base(struct pso_data_constant_inertia *pso,
+                                         size_t n_A, size_t n_phi, double *Ab)
+{
   // P and tP are blocks in A
   // P_{i,j} := A_{i,n_phi + j} = A[i * n_A + n_phi + j]
   // tP_{i,j} := A_{n_phi + i, j} = A[(n_phi + i) * n_A + j]
@@ -123,9 +134,10 @@ static void fit_surrogate_prepare_phi_opt1(struct pso_data_constant_inertia *pso
       Ab[(n_phi + 1 + j) * (n_A + 1) + k] = u[j];
     }
   }
- }
+}
 
-fit_surrogate_prepare_zero_base(size_t n_A, size_t n_phi, double* Ab) {
+fit_surrogate_prepare_zero_base(size_t n_A, size_t n_phi, double *Ab)
+{
   // lower right block is zeros
   for (size_t i = n_phi; i < n_A; i++)
   {
@@ -136,7 +148,9 @@ fit_surrogate_prepare_zero_base(size_t n_A, size_t n_phi, double* Ab) {
   }
 }
 
-fit_surrogate_prepare_b_base(struct pso_data_constant_inertia *pso, size_t n_A, size_t n_phi, double* Ab) {
+fit_surrogate_prepare_b_base(struct pso_data_constant_inertia *pso, size_t n_A,
+                             size_t n_phi, double *Ab)
+{
   /********
    * Prepare right hand side b
    ********/
@@ -154,7 +168,9 @@ fit_surrogate_prepare_b_base(struct pso_data_constant_inertia *pso, size_t n_A, 
   }
 }
 
-fit_surrogate_final_assignments_base(struct pso_data_constant_inertia *pso, size_t n_P, size_t n_phi, double* x) {
+fit_surrogate_final_assignments_base(struct pso_data_constant_inertia *pso,
+                                     size_t n_P, size_t n_phi, double *x)
+{
   pso->lambda = (double *)realloc(pso->lambda, n_phi * sizeof(double));
   for (size_t i = 0; i < n_phi; i++)
   {
@@ -188,7 +204,6 @@ int fit_surrogate_base(struct pso_data_constant_inertia *pso)
 
   double *Ab = pso->fit_surrogate_Ab;
 
-
   fit_surrogate_prepare_phi_base(pso, n_A, Ab);
 
   fit_surrogate_prepare_p_base(pso, n_A, n_phi, Ab);
@@ -196,7 +211,6 @@ int fit_surrogate_base(struct pso_data_constant_inertia *pso)
   fit_surrogate_prepare_zero_base(n_A, n_phi, Ab);
 
   fit_surrogate_prepare_b_base(pso, n_A, n_phi, Ab);
-
 
 #if DEBUG_SURROGATE
   print_rect_matrixd(Ab, n_A, n_A + 1, "Ab");
@@ -239,7 +253,6 @@ int fit_surrogate_opt1(struct pso_data_constant_inertia *pso)
 
   double *Ab = pso->fit_surrogate_Ab;
 
-
   fit_surrogate_prepare_phi_opt1(pso, n_A, Ab);
 
   fit_surrogate_prepare_p_base(pso, n_A, n_phi, Ab);
@@ -247,7 +260,6 @@ int fit_surrogate_opt1(struct pso_data_constant_inertia *pso)
   fit_surrogate_prepare_zero_base(n_A, n_phi, Ab);
 
   fit_surrogate_prepare_b_base(pso, n_A, n_phi, Ab);
-
 
 #if DEBUG_SURROGATE
   print_rect_matrixd(Ab, n_A, n_A + 1, "Ab");
@@ -268,7 +280,6 @@ int fit_surrogate_opt1(struct pso_data_constant_inertia *pso)
 
   return 0;
 }
-
 
 int fit_surrogate_optimized(struct pso_data_constant_inertia *pso)
 {
