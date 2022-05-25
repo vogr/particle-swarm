@@ -19,7 +19,10 @@ int main(int argc, char **argv)
     set_logging_directory(argv[1]);
   }
 
-  srand(clock());
+  uint64_t seed = time(NULL);
+  srand(seed);
+
+  printf("Starting PSO with seed %" PRIu64 "\n", seed);
 
   double inertia = 0.7;
   double social = 1., cognition = 1.;
