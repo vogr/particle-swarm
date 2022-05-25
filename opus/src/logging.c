@@ -57,4 +57,7 @@ uint64_t timing_step(char const *step, int version, uint64_t time,
   return start_tsc();
 }
 
-void stop_logging(void) { fclose(timing_fp); }
+void stop_logging(void)
+{
+  if (timing_fp) fclose(timing_fp);
+}
