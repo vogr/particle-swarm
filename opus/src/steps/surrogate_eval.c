@@ -3,7 +3,7 @@
 #include "../helpers.h"
 
 double surrogate_eval_base(struct pso_data_constant_inertia const *pso,
-                      double const *x)
+                           double const *x)
 {
   // TODO: add the past_local_refinements
   // Note: will also require adding them to the bloom filter / distinctiveness
@@ -34,7 +34,7 @@ double surrogate_eval_base(struct pso_data_constant_inertia const *pso,
 }
 
 double surrogate_eval_optimized(struct pso_data_constant_inertia const *pso,
-                      double const *x)
+                                double const *x)
 {
-    return surrogate_eval_base(pso, x);
+  return surrogate_eval_base(pso, x);
 }
