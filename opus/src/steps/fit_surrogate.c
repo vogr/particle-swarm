@@ -11,11 +11,13 @@
 #define QUOTE(x) #x
 #define STR(x) QUOTE(x)
 
-int fit_surrogate(struct pso_data_constant_inertia *pso)
-    __attribute__((alias("fit_surrogate_" STR(FIT_SURROGATE_VERSION))));
+int fit_surrogate(struct pso_data_constant_inertia *pso) {
+  fit_surrogate_4(pso);
+}
 
-int prealloc_fit_surrogate(size_t max_n_phi, size_t n_P) __attribute__((
-    alias("prealloc_fit_surrogate_" STR(FIT_SURROGATE_VERSION))));
+int prealloc_fit_surrogate(size_t max_n_phi, size_t n_P) {
+  prealloc_fit_surrogate_4(max_n_phi, n_P);
+}
 
 #define DEBUG_SURROGATE 0
 

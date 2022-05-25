@@ -17,7 +17,8 @@ public:
   {
   }
 
-  void restore_arguments(struct pso_data_constant_inertia *pso) {
+  void restore_arguments(struct pso_data_constant_inertia *pso)
+  {
     pso->x_distinct_idx_of_last_batch = pso->x_distinct_s - 1;
   }
 
@@ -26,8 +27,8 @@ public:
 
 static PerformanceTester<fit_surrogate_fun_t> perf_tester;
 
-extern "C" void add_function_FIT_SURROGATE(fit_surrogate_fun_t f, char const * name,
-                                           int flop)
+extern "C" void add_function_FIT_SURROGATE(fit_surrogate_fun_t f,
+                                           char const *name, int flop)
 {
   std::cout << "Register " << name << "\n";
   perf_tester.add_function(f, name, flop);
@@ -44,14 +45,12 @@ extern "C" int perf_test_fit_surrogate(struct pso_data_constant_inertia *pso)
 extern "C" void register_functions_FIT_SURROGATE()
 {
   add_function_FIT_SURROGATE(&fit_surrogate_0, "Fit surrogate Base", 1);
-  
+
   add_function_FIT_SURROGATE(&fit_surrogate_1, "Fit surrogate without pso->",
                              1);
-  add_function_FIT_SURROGATE(&fit_surrogate_2, "Fit surrogate distances precomputed",
-                            1);
-  add_function_FIT_SURROGATE(&fit_surrogate_3, "Fit surrogate memcpy phi",
-                            1);
-  
-  add_function_FIT_SURROGATE(&fit_surrogate_4, "Fit surrogate early exit",
-                            1);
+  add_function_FIT_SURROGATE(&fit_surrogate_2,
+                             "Fit surrogate distances precomputed", 1);
+  add_function_FIT_SURROGATE(&fit_surrogate_3, "Fit surrogate memcpy phi", 1);
+
+  add_function_FIT_SURROGATE(&fit_surrogate_4, "Fit surrogate early exit", 1);
 }

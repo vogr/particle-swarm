@@ -8,14 +8,10 @@
 typedef double (*blackbox_fun)(double const *const);
 
 // PSO_X : pso::pso, i:int -> x_i :double*
-#define PSO_X(pso, i)                                                       \
-  ((pso)->x + (i) * (pso)->dimensions)
-#define PSO_FX(pso, i) \
-  ((pso)->x_eval[i])
+#define PSO_X(pso, i) ((pso)->x + (i) * (pso)->dimensions)
+#define PSO_FX(pso, i) ((pso)->x_eval[i])
 
-
-#define PSO_XD(pso, i) \
-  ((pso)->x_distinct + (i) * (pso)->dimensions)
+#define PSO_XD(pso, i) ((pso)->x_distinct + (i) * (pso)->dimensions)
 
 #define PSO_FXD(pso, i) (pso)->x_distinct_eval[i]
 
@@ -39,7 +35,7 @@ struct pso_data_constant_inertia
   // i.e. PSO_X(pso, i) is the current position vector x_i
   double *x;
   // f(x) for current positions
-  double * x_eval;
+  double *x_eval;
 
   // PSO_V(pso,i) = v_i
   double *v;
@@ -74,7 +70,7 @@ struct pso_data_constant_inertia
   size_t x_distinct_s;
 
   // fonction evaluation at x_distinct[k]
-  double * x_distinct_eval;
+  double *x_distinct_eval;
 
 #ifdef USE_ROUNDING_BLOOM_FILTER
   struct rounding_bloom *bloom;
@@ -84,7 +80,6 @@ struct pso_data_constant_inertia
   // store the concatenation lambda_0 ... lambda_i || p_0 ... p(d+1)
   // (as this is the format of the output vector of fit_surrogate)
   double *lambda_p;
-
 
   // random numbers precomputed
   double *step3_rands; // population_size * dimensions
