@@ -6,7 +6,8 @@
 #define STR(x) QUOTE(x)
 
 double surrogate_eval(struct pso_data_constant_inertia const *pso,
-                      double const *x) {
+                      double const *x)
+{
   return surrogate_eval_0(pso, x);
 }
 
