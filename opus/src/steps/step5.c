@@ -49,7 +49,7 @@ void step5_base(struct pso_data_constant_inertia *pso)
     fprintf(stderr, "ERROR: Failed to fit surrogate\n");
     exit(1);
   }
-  TIMING_STEP("fit_surrogate", FIT_SURROGATE_VERSION, pso->time);
+  TIMING_STEP("fit_surrogate", STR(FIT_SURROGATE_VERSION), pso->time);
 }
 
 void step5_optimized(struct pso_data_constant_inertia *pso) { step5_base(pso); }

@@ -6,11 +6,14 @@
 #define LOG_TIMING 0
 #endif
 
+#define QUOTE(x) #x
+#define STR(x) QUOTE(x)
+
 void set_logging_directory(char const *logdir);
 void stop_logging(void);
 
-void log_timing(char const *step, int version, uint64_t time, uint64_t cycles);
-uint64_t timing_step(char const *step, int version, uint64_t time,
+void log_timing(char const *step, char const * version, uint64_t time, uint64_t cycles);
+uint64_t timing_step(char const *step, char const * version, uint64_t time,
                      uint64_t tsc_start);
 
 #if LOG_TIMING

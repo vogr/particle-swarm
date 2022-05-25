@@ -11,6 +11,8 @@
 
 #include "perf_testers/tsc_x86.h"
 
+
+
 static int logging_dir_fd = -1;
 static FILE *timing_fp = NULL;
 
@@ -18,7 +20,8 @@ void set_logging_directory(char const *logdir)
 {
   if ((logging_dir_fd = open(logdir, O_RDONLY | O_DIRECTORY)) < 0)
   {
-    perror("Error opening logdir");
+    fprintf(stderr, "Error opening logdir %s:\n", logdir);
+    perror("");
     exit(1);
   }
 
@@ -38,18 +41,18 @@ void set_logging_directory(char const *logdir)
   }
 }
 
-void log_timing(char const *step, int version, uint64_t time, uint64_t cycles)
+void log_timing(char const *step, char const * version, uint64_t time, uint64_t cycles)
 {
   if (timing_fp == NULL)
   {
     return;
   }
 
-  fprintf(timing_fp, "%s,%d,%" PRIu64 ",%" PRIu64 "\n", step, version, time,
+  fprintf(timing_fp, "%s,%s,%" PRIu64 ",%" PRIu64 "\n", step, version, time,
           cycles);
 }
 
-uint64_t timing_step(char const *step, int version, uint64_t time,
+uint64_t timing_step(char const *step, char const * version, uint64_t time,
                      uint64_t tsc_start)
 {
   uint64_t cycles = stop_tsc(tsc_start);

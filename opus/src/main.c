@@ -16,9 +16,10 @@ int main(int argc, char **argv)
 {
   if (argc > 1)
   {
+    printf("Logging to %s\n", argv[1]);
     set_logging_directory(argv[1]);
   }
-
+  
   uint64_t seed = time(NULL);
   srand(seed);
 
