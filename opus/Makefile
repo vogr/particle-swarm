@@ -49,7 +49,7 @@ LDLIBS+=-lm
 # (indifferently C or C++, `make` will use the correct rule based on the
 # source file extension)
 OBJ_COMMON := src/helpers.o src/local_refinement.o src/logging.o \
-                 src/plu_factorization.o src/pso.o src/bloom.o src/murmurhash.o \
+                 src/lu_solve.o src/pso.o src/bloom.o src/murmurhash.o \
 		 src/rounding_bloom.o src/gaussian_elimination_solver.o \
 		 src/steps/step3.o src/steps/step4.o src/steps/step5.o \
 		 src/steps/step6.o src/steps/step7.o src/steps/step8.o \
@@ -57,10 +57,11 @@ OBJ_COMMON := src/helpers.o src/local_refinement.o src/logging.o \
 		 src/steps/surrogate_eval.o src/steps/fit_surrogate.o 
 
 # Object files required for the the library
-OBJ_LIB := src/perf_testers/perf_ge_solve.o src/pso_ffi.o
+OBJ_LIB := src/perf_testers/perf_ge_solve.o src/perf_testers/perf_lu_solve.o src/perf_testers/perf_fit_surrogate.o src/pso_ffi.o
 # Object files required for the the executable
 OBJ_EXE := src/main.o
-
+# If Clang is your CXX then specifying the standard is required
+CXXFLAGS = -std=c++0x
 
 ######
 # Library vs executable compilation options
@@ -71,12 +72,12 @@ UNAME_S := $(shell uname -s)
 
 
 ifeq ($(PSO_SHARED), 1)
-  # Option 1. Build a shared library
+	# Option 1. Build a shared library
 
-  # For the shared file we also need to pass
-  # a preprocessor definition
-  # TEST_PERF=1
-	CPPFLAGS += -DTEST_PERF
+	# For the shared file we also need to pass
+	# a preprocessor definition
+	# TEST_PERF=1
+	COMMON_FLAGS += -DTEST_PERF
 
 	ifeq ($(UNAME_S),Darwin)
 	target := libpso.dylib
@@ -91,15 +92,15 @@ ifeq ($(PSO_SHARED), 1)
 	OBJFILES := $(OBJ_COMMON) $(OBJ_LIB)
 
 else # PSO_SHARED
-  # Option 2. Build an executable
+	# Option 2. Build an executable
 
-  # Disable PIE
+	# Disable PIE
 	COMMON_FLAGS+=-fno-PIE
 	LDFLAGS+=-no-pie
 
-  # Optionnal sanitizers.
-  # Only enable int the executable as loading sanitized libraries
-  # from a non-sanitized executable results in an error
+	# Optionnal sanitizers.
+	# Only enable int the executable as loading sanitized libraries
+	# from a non-sanitized executable results in an error
 	DEBUG_FLAGS+=-fsanitize=undefined -fsanitize=address
 
 	target := pso

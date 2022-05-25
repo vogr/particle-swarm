@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "gaussian_elimination_solver.h"
 #include "helpers.h"
@@ -15,11 +16,7 @@
 #define DEBUG_TRIALS 0
 #define DEBUG_SURROGATE 0
 
-#define LOG_SURROGATE 0
-
-#if LOG_SURROGATE
 #include "logging.h"
-#endif
 
 #if USE_ROUNDING_BLOOM_FILTER
 #include "rounding_bloom.h"
@@ -61,13 +58,11 @@ void pso_constant_inertia_init(
   pso->population_size = population_size;
   pso->time_max = time_max, pso->n_trials = n_trials;
 
-  pso->n_past_refinement_points = 0;
   pso->time = 0;
 
-  pso->x = (double *)malloc(pso->time_max * pso->population_size *
-                            pso->dimensions * sizeof(double));
-
-  pso->x_eval = malloc(pso->time_max * pso->population_size * sizeof(double));
+  pso->x =
+      (double *)malloc(pso->population_size * pso->dimensions * sizeof(double));
+  pso->x_eval = malloc(pso->population_size * sizeof(double));
 
   pso->v = malloc(pso->population_size * pso->dimensions * sizeof(double));
 
@@ -75,10 +70,8 @@ void pso_constant_inertia_init(
 
   pso->y_eval = malloc(pso->population_size * sizeof(double *));
 
-  pso->past_refinement_points =
-      malloc(pso->time_max * pso->dimensions * sizeof(double));
-  pso->past_refinement_points_eval =
-      malloc(pso->population_size * sizeof(double));
+  // yhat will be a pointer in another array
+  pso->y_hat = NULL;
 
   pso->v_trial = malloc(pso->dimensions * sizeof(double));
   pso->x_trial = malloc(pso->dimensions * sizeof(double));
@@ -100,23 +93,13 @@ void pso_constant_inertia_init(
     pso->vmax[j] = vmax[j];
   }
 
-  // the size of phi is the total number of _distinct_ points where
-  // f has been evaluated
-  // max: pop_size * time
-  //  TODO: add the refinement points + 1 * time
-  //        add the space filling design +?
-  size_t max_n_phi = pso->time_max * pso->population_size;
-  size_t n_P = pso->dimensions + 1;
-  size_t max_n_A = max_n_phi + n_P;
-  // Ab size: n x n for A and n x 1 for b
-  size_t Ab_size = max_n_A * max_n_A + max_n_A;
-
-  pso->fit_surrogate_Ab = malloc(Ab_size * sizeof(double));
-  pso->fit_surrogate_x = malloc(max_n_A * sizeof(double));
-
+  size_t x_distinct_max_nb = pso->time_max * pso->population_size;
   pso->x_distinct =
-      malloc(pso->time_max * pso->population_size * sizeof(size_t));
+      malloc(x_distinct_max_nb * pso->dimensions * sizeof(double));
+  pso->x_distinct_idx_of_last_batch = 0;
   pso->x_distinct_s = 0;
+
+  pso->x_distinct_eval = malloc(x_distinct_max_nb * sizeof(double));
 
 #if USE_ROUNDING_BLOOM_FILTER
   pso->bloom = malloc(sizeof(struct rounding_bloom));
@@ -131,9 +114,18 @@ void pso_constant_inertia_init(
 // No data structure needed for naive search
 #endif
 
-  // will realloc in fit_surrogate
-  pso->lambda = NULL;
-  pso->p = malloc((pso->dimensions + 1) * sizeof(double));
+  // the size of phi is the total number of _distinct_ points where
+  // f has been evaluated
+  // max: pop_size * time
+  //  TODO: add the refinement points + 1 * time
+  //        add the space filling design +?
+  size_t max_n_phi = pso->time_max * pso->population_size;
+  size_t n_P = pso->dimensions + 1;
+  prealloc_fit_surrogate(max_n_phi, n_P);
+
+  // alloc maximum possible size: max_n_phi for lambda and d+1 for P
+  size_t lambda_p_s = max_n_phi + (pso->dimensions + 1);
+  pso->lambda_p = malloc(lambda_p_s * sizeof(double));
 
   // setup x
   for (int i = 0; i < population_size; i++)
@@ -141,22 +133,8 @@ void pso_constant_inertia_init(
     // add it to the point cloud
     for (int j = 0; j < pso->dimensions; j++)
     {
-      PSO_X(pso, 0, i)[j] = initial_positions[i * pso->dimensions + j];
+      PSO_X(pso, i)[j] = initial_positions[i * pso->dimensions + j];
     }
-
-// Check if x is distinct
-#if USE_ROUNDING_BLOOM_FILTER
-    // add and check proximity to previous points
-    if (!rounding_bloom_check_add(pso->bloom, dimensions, PSO_X(pso, 0, i), 1))
-    {
-      pso->x_distinct[pso->x_distinct_s] = i;
-      pso->x_distinct_s++;
-    }
-#else
-    // naive implementation with distance computation
-    fprintf(stderr, "Not implemented.\n");
-    exit(1);
-#endif
   }
 
   // setup bounds in space

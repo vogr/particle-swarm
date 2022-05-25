@@ -50,6 +50,15 @@ Occassionally you might see some strange behavior from the testing suite. This u
 1. precomputed random number generation!
 
 
+## Use x_distinct as the main place to store positions
+
+- currently all positions stored in x
+  + but really only accessed through x_distinct
+  + so non-contiguous accesses !
+- keep only current positions in x
+- keep f(x) only for x_distinct
+  + 
+
 ## Q° for Tomaso:
 
 - can we have the dimension as a compile time contstant?

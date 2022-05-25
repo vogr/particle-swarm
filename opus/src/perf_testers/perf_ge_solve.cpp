@@ -54,5 +54,6 @@ extern "C" void add_function_GE_SOLVE(ge_solve_fun_t f, char *name, int flop)
 
 extern "C" int perf_test_ge_solve(int N, double *Ab, double *x)
 {
+  register_functions_GE_SOLVE();
   return perf_tester.perf_test_all_registered(N, Ab, x);
 }

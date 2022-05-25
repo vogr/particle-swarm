@@ -107,19 +107,15 @@ public:
   void add_function(fun_T f, std::string name, int flop)
   {
     userFuncs.push_back(f);
-    // funcNames.emplace_back(nm);
-    funcNames.push_back(name);
+    funcNames.emplace_back(name);
     funcFlops.push_back(flop);
     numFuncs++;
   };
 
   /*
-   * Checks the given function for validity (XXX does it?). If valid, then
-   * computes and reports and returns the number of cycles required per
-   * iteration
-   *
-   * FIXME f is going to modify the contents of the functions. XXX
-   * thus each iteration is actually solving a *different* problem.
+   * Checks the given function for validity (XXX does it?) (RE: no, it doesn't).
+   * If valid, then computes and reports and returns the number of cycles
+   * required per iteration
    */
   double perf_test(fun_T f, std::string desc, int flops, Args_T... args)
   {

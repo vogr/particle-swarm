@@ -5,14 +5,14 @@ void step8_base(struct pso_data_constant_inertia *pso)
   // Update the best positions per particle and overall
   for (int i = 0; i < pso->population_size; i++)
   {
-    double x_eval = PSO_FX(pso, pso->time + 1, i);
+    double x_eval = PSO_FX(pso, i);
 
     if (x_eval < pso->y_eval[i])
     {
       // y_i <- x_i
       for (int k = 0; k < pso->dimensions; k++)
       {
-        PSO_Y(pso, i)[k] = PSO_X(pso, pso->time + 1, i)[k];
+        PSO_Y(pso, i)[k] = PSO_X(pso, i)[k];
       }
       pso->y_eval[i] = x_eval;
 

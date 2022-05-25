@@ -26,9 +26,14 @@ array_to_column_major(A::AbstractArray, sizes...)::AbstractArray =
 
 function alloc_aligned_vec(::Type{T}, dims...) where T
     # @assert isbits(T)
-    sz = sizeof(T) * prod(dims)
+    local n
     align = 32
-    @assert prod(dims) % align == 0
+    n = prod(dims)
+    if n % align != 0
+        n = ((n ÷ align) + 1) * align
+    end
+    sz = sizeof(T) * n
+    @assert n % align == 0
     pt = ccall(:aligned_alloc, Ptr{Cvoid}, (Base.Csize_t, Base.Csize_t), align, sz)
     # pt = Libc.calloc(prod(dims), sizeof(T))
     @assert pt != C_NULL
@@ -44,6 +49,14 @@ function fill_c_vec(A::AbstractArray, v::AbstractVector)
         for j in 0:(cols - 1)
             v[(i * cols + j) + 1] = A[i + 1, j + 1]
         end
+    end
+end
+
+function fill_c_vec(V::AbstractVector, v::AbstractVector)
+    @assert length(V) == length(v)
+    N = length(V)
+    for i in 1:N
+        v[i] = V[i]
     end
 end
 

@@ -42,19 +42,17 @@ void step6_base(struct pso_data_constant_inertia *pso)
 
         double w1 = (double)rand() / RAND_MAX;
         double w2 = (double)rand() / RAND_MAX;
-        double v =
-            pso->inertia * PSO_V(pso, i)[j] +
-            pso->cognition * w1 *
-                (PSO_Y(pso, i)[j] - PSO_X(pso, pso->time, i)[j]) +
-            pso->social * w2 * (pso->y_hat[j] - PSO_X(pso, pso->time, i)[j]);
+        double v = pso->inertia * PSO_V(pso, i)[j] +
+                   pso->cognition * w1 * (PSO_Y(pso, i)[j] - PSO_X(pso, i)[j]) +
+                   pso->social * w2 * (pso->y_hat[j] - PSO_X(pso, i)[j]);
 
         pso->v_trial[j] = clamp(v, pso->vmin[j], pso->vmax[j]);
 
-        pso->x_trial[j] = clamp(PSO_X(pso, pso->time, i)[j] + pso->v_trial[j],
+        pso->x_trial[j] = clamp(PSO_X(pso, i)[j] + pso->v_trial[j],
                                 pso->bound_low[j], pso->bound_high[j]);
       }
 
-      double x_trial_seval = surrogate_eval_optimized(pso, pso->x_trial);
+      double x_trial_seval = surrogate_eval(pso, pso->x_trial);
 
 #if DEBUG_TRIALS
       char trial_name[16] = {0};
@@ -91,7 +89,7 @@ void step6_base(struct pso_data_constant_inertia *pso)
 
     for (int j = 0; j < pso->dimensions; j++)
     {
-      PSO_X(pso, pso->time + 1, i)[j] = pso->x_trial_best[j];
+      PSO_X(pso, i)[j] = pso->x_trial_best[j];
       PSO_V(pso, i)[j] = pso->v_trial_best[j];
     }
 
@@ -99,7 +97,7 @@ void step6_base(struct pso_data_constant_inertia *pso)
     printf("set x[t+1][i]:\n");
     char new_x_name[16] = {0};
     snprintf(new_x_name, sizeof(new_x_name), "x%d_(t=%d)", i, t + 1);
-    print_vectord(PSO_X(pso, t + 1, i), pso->dimensions, new_x_name);
+    print_vectord(PSO_X(pso, i), pso->dimensions, new_x_name);
 #endif
   }
 }

@@ -1,10 +1,8 @@
 
-
 #include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
 
-#include "logging.h"
+#include "helpers.h"
+#include "perf_testers/perf_fit_surrogate.h"
 #include "pso.h"
 
 double my_f(double const *const x)
@@ -14,12 +12,9 @@ double my_f(double const *const x)
 
 int main(int argc, char **argv)
 {
-  if (argc > 1)
-  {
-    set_logging_directory(argv[1]);
-  }
-
-  srand(clock());
+  /*
+   * Get a valid PSO object
+   */
 
   double inertia = 0.7;
   double social = 1., cognition = 1.;
@@ -35,9 +30,18 @@ int main(int argc, char **argv)
   double vmax[2] = {10., 10.};
   double initial_positions[10] = {-1, 8, 5, -3, 5, 6, 7, 3, -9, -2};
 
-  run_pso(&my_f, inertia, social, cognition, local_refinement_box_size,
-          min_minimizer_distance, dimensions, population_size, time_max,
-          n_trials, bounds_low, bounds_high, vmin, vmax, initial_positions);
+  struct pso_data_constant_inertia pso;
+  pso_constant_inertia_init(
+      &pso, &my_f, inertia, social, cognition, local_refinement_box_size,
+      min_minimizer_distance, dimensions, population_size, time_max, n_trials,
+      bounds_low, bounds_high, vmin, vmax, initial_positions);
 
-  stop_logging();
+  pso_constant_inertia_first_steps(&pso);
+
+  while (pso.time < pso.time_max - 1)
+  {
+    pso_constant_inertia_loop(&pso);
+  }
+
+  perf_test_fit_surrogate(&pso);
 }

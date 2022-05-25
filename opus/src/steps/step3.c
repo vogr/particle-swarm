@@ -12,7 +12,7 @@ void step3_base(struct pso_data_constant_inertia *pso)
     for (int k = 0; k < pso->dimensions; k++)
     {
       double uk = rand_between(pso->bound_low[k], pso->bound_high[k]);
-      PSO_V(pso, i)[k] = 1. / 2 * (uk - PSO_X(pso, 0, i)[k]);
+      PSO_V(pso, i)[k] = 1. / 2 * (uk - PSO_X(pso, i)[k]);
     }
   }
 }
@@ -30,7 +30,7 @@ void step3_opt1(struct pso_data_constant_inertia *pso)
     for (int k = 0; k < pso->dimensions; k++)
     {
       uk = PSO_STEP3_RAND(pso, i)[k];
-      PSO_V(pso, i)[k] = 0.5 * (uk - PSO_X(pso, 0, i)[k]);
+      PSO_V(pso, i)[k] = 0.5 * (uk - PSO_X(pso, i)[k]);
     }
   }
 }
@@ -50,7 +50,7 @@ void step3_opt2(struct pso_data_constant_inertia *pso)
   for (int i = 0; i < pso->population_size; i++)
   {
     pso_step3_rands_i_ptr = PSO_STEP3_RAND(pso, i);
-    pso_x_0_i_ptr = PSO_X(pso, 0, i);
+    pso_x_0_i_ptr = PSO_X(pso, i);
     pso_v_i_ptr = PSO_V(pso, i);
     for (int k = 0; k < pso->dimensions; k++)
     {
@@ -76,7 +76,7 @@ void step3_opt3(struct pso_data_constant_inertia *pso)
   for (int i = 0; i < pso->population_size; i++)
   {
     pso_step3_rands_i_ptr = PSO_STEP3_RAND(pso, i);
-    pso_x_0_i_ptr = PSO_X(pso, 0, i);
+    pso_x_0_i_ptr = PSO_X(pso, i);
     pso_v_i_ptr = PSO_V(pso, i);
     int k = 0;
     for (; k < pso->dimensions - 3; k += 4)
@@ -124,7 +124,7 @@ void step3_opt4(struct pso_data_constant_inertia *pso)
   for (int i = 0; i < pso->population_size; i++)
   {
     pso_step3_rands_i_ptr = PSO_STEP3_RAND(pso, i);
-    pso_x_0_i_ptr = PSO_X(pso, 0, i);
+    pso_x_0_i_ptr = PSO_X(pso, i);
     pso_v_i_ptr = PSO_V(pso, i);
     int k = 0;
     for (; k < pso->dimensions - 3; k += 4)
@@ -146,4 +146,4 @@ void step3_opt4(struct pso_data_constant_inertia *pso)
   }
 }
 
-void step3_optimized(struct pso_data_constant_inertia *pso) { step3_opt4(pso); }
+void step3_optimized(struct pso_data_constant_inertia *pso) { step3_base(pso); }
