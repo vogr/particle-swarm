@@ -7,7 +7,10 @@
 #include <string.h>
 
 #include "helpers.h"
-// #include "mkl.h"
+
+#ifdef TEST_MKL
+#include "mkl.h"
+#endif
 
 #ifdef TEST_PERF
 #include "perf_testers/perf_lu_solve.h"
@@ -51,6 +54,9 @@
 int lu_solve_0(int N, double *A, int *ipiv, double *b);
 int lu_solve_1(int N, double *A, int *ipiv, double *b);
 int lu_solve_2(int N, double *A, int *ipiv, double *b);
+#ifdef TEST_MKL
+int lu_solve_3(int N, double *A, int *ipiv, double *b);
+#endif
 
 /** @brief Entry function to solve system A * x = b
  *         After exit b is overwritten with solution vector x.
@@ -83,6 +89,8 @@ static void swapd(double *a, int i, int j)
 // iteration XXX. This way performance testing is consistent.
 // Forward declaration are here merely to have useful doc
 // comments in one place.
+// Each is prefixed with a '_' to  avoid conflicts with the
+// Intel OneAPI.
 
 /** @brief Finds the index of the first element having maximum
  *         absolute value.
@@ -92,7 +100,7 @@ static void swapd(double *a, int i, int j)
  * @param stride Space between elements
  * @return Index of the first element with the maximum absolute value.
  */
-int isamax(int N, double *A, int stride);
+int _isamax(int N, double *A, int stride);
 
 /** @brief Swap interchanges two vectors.
  *
@@ -102,7 +110,7 @@ int isamax(int N, double *A, int stride);
  * @param Y The second vector of real valued elements to swap.
  * @param incy The storage stride between elements in Y.
  */
-void sswap(int N, double *X, int incx, double *Y, int incy);
+void _sswap(int N, double *X, int incx, double *Y, int incy);
 
 /** @brief Perform a series of row interchanges, one for each row
  *         k1 - k2 of A.
@@ -115,7 +123,7 @@ void sswap(int N, double *X, int incx, double *Y, int incy);
  * @param ipiv The array of vector pivot indices such that i <-> ipiv[i].
  * @param incx The increment between indices in ipiv.
  */
-void slaswp(int N, double *A, int LDA, int k1, int k2, int *ipiv, int incx);
+void _slaswp(int N, double *A, int LDA, int k1, int k2, int *ipiv, int incx);
 
 /** @brief Solves matrix equation A * X = B
  *         A is assumed to be Non-transposed (L)ower
@@ -130,13 +138,13 @@ void slaswp(int N, double *A, int LDA, int k1, int k2, int *ipiv, int incx);
  *  @param B Real valued matrix B.
  *  @param LDB Leading dimension of B.
  */
-void strsm_L(int M, int N, double *A, int LDA, double *B, int LDB);
+void _strsm_L(int M, int N, double *A, int LDA, double *B, int LDB);
 
 /** @brief equivalent to strsm_L except A is an (U)pper triangular matrix
  *         with a *Non-unit* diagonal. It is still assumed to be
 non-transposed.
  */
-void strsm_U(int M, int N, double *A, int LDA, double *B, int LDB);
+void _strsm_U(int M, int N, double *A, int LDA, double *B, int LDB);
 
 // Assume No-transpose for both matrices
 /** @brief compute C := alpha * A * B + beta * C
@@ -153,8 +161,8 @@ void strsm_U(int M, int N, double *A, int LDA, double *B, int LDB);
  * @param C Real valued MxN matrix C.
  * @param Leading dimension of C.
  */
-void sgemm(int M, int N, int K, double alpha, double *A, int LDA, double *B,
-           int LDB, double beta, double *C, int LDC);
+void _sgemm(int M, int N, int K, double alpha, double *A, int LDA, double *B,
+            int LDB, double beta, double *C, int LDC);
 
 /** @brief Factor A = P * L * U in place using BLAS1 / BLAS2 functions
  *
@@ -164,7 +172,7 @@ void sgemm(int M, int N, int K, double alpha, double *A, int LDA, double *B,
  * @param LDA The leading dimension of the matrix in memory A.
  * @param ipiv Pivot indices for A.
  */
-int sgetf2(int M, int N, double *A, int LDA, int *ipiv);
+int _sgetf2(int M, int N, double *A, int LDA, int *ipiv);
 
 // Equivalent to SGETRS (no-transpose).
 /** @brief Solves system of linear equations A * x = b.
@@ -175,7 +183,7 @@ int sgetf2(int M, int N, double *A, int LDA, int *ipiv);
  * @param ipiv Pivot indices used when factoring A.
  * @param b Real valued vector with N elements.
  */
-int sgetrs(int N, double *A, int *ipiv, double *b);
+int _sgetrs(int N, double *A, int *ipiv, double *b);
 
 // ------------------------------------------------------------------
 // Implementation start
@@ -913,7 +921,7 @@ static void sgemm_2(int M, int N, int K, double alpha, double *A, int LDA,
   // With cache lines of 64 B
 #define CACHE_BLOCK 16
   const int NB = CACHE_BLOCK;
-  const int DBL_LMT = 512;
+  const int DBL_LMT = 512 * 2;
 
   double AL[CACHE_BLOCK * CACHE_BLOCK];
   double BL[CACHE_BLOCK * CACHE_BLOCK];
@@ -1248,6 +1256,99 @@ int lu_solve_2(int N, double *A, int *ipiv, double *b)
   return retcode;
 }
 
+#ifdef TEST_MKL
+
+/**
+ * This implementation should remain /equal/ to the previous, however,
+ * it uses the Intel OneAPI MKL DGEMM to give Gavin a benchmark of how
+ * much a difference a fast DGEMM makes.
+ */
+int lu_solve_3(int N, double *A, int *ipiv, double *b)
+{
+  int retcode, ib, IB, k;
+
+  const int NB = 256, //
+      M = N,          //
+      LDA = N,        //
+      MIN_MN = N      //
+      ;
+
+  // BLocked factor A into [L \ U]
+
+  if (NB <= 1 || NB >= MIN_MN)
+  {
+    assert(0 == 1);
+    // Use unblocked code
+    retcode = sgetf2_2(M, N, A, LDA, ipiv);
+    if (retcode != 0)
+      return retcode;
+  }
+  else
+  {
+    for (ib = 0; ib < MIN_MN; ib += NB)
+    {
+      IB = MIN(MIN_MN - ib, NB);
+
+      retcode = sgetf2_2(M - ib, IB, &AIX(ib, ib), LDA, ipiv + ib);
+
+      if (retcode != 0)
+        return retcode;
+
+      // Update the pivot indices
+      for (k = ib; k < MIN(M, ib + IB) - 7; k += 8)
+      {
+        ipiv[k + 0] = ipiv[k + 0] + ib;
+        ipiv[k + 1] = ipiv[k + 1] + ib;
+        ipiv[k + 2] = ipiv[k + 2] + ib;
+        ipiv[k + 3] = ipiv[k + 3] + ib;
+
+        ipiv[k + 4] = ipiv[k + 4] + ib;
+        ipiv[k + 5] = ipiv[k + 5] + ib;
+        ipiv[k + 6] = ipiv[k + 6] + ib;
+        ipiv[k + 7] = ipiv[k + 7] + ib;
+      }
+      for (; k < MIN(M, ib + IB); ++k)
+      {
+        ipiv[k + 0] = ipiv[k + 0] + ib;
+      }
+
+      // Apply interchanges to columns 0 : ib
+      slaswp_2(ib, A, LDA, ib, ib + IB, ipiv, 1);
+
+      if (ib + IB < N)
+      {
+        // Apply interchanges to columns ib + IB : N
+        slaswp_2(N - ib - IB, &AIX(0, ib + IB), LDA, ib, ib + IB, ipiv, 1);
+
+        // Compute the block row of U
+        strsm_L_2(IB, N - ib - IB, &AIX(ib, ib), LDA, &AIX(ib, ib + IB), LDA);
+
+        if (ib + IB < M) // NOTE for a square matrix this will always be true.
+        {
+          // XXX for most blocks, the height of the multiplication 'M - ib - IB'
+          // is going to be much much larger than IB.
+          //
+          // Update trailing submatrix
+          cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M - ib - IB,
+                      N - ib - IB, IB, -ONE,      //
+                      &AIX(ib + IB, ib), LDA,     //
+                      &AIX(ib, ib + IB), LDA,     //
+                      ONE,                        //
+                      &AIX(ib + IB, ib + IB), LDA //
+          );
+        }
+      }
+    }
+  }
+
+  // Solve the system with A
+  retcode = sgetrs_2(N, A, ipiv, b);
+
+  return retcode;
+}
+
+#endif // TEST_MKL
+
 #ifdef TEST_PERF
 
 // NOTE I bet we can put these in the templated perf framework and remove the
@@ -1257,6 +1358,9 @@ void register_functions_LU_SOLVE()
   add_function_LU_SOLVE(&lu_solve_0, "LU Solve Base", 1);
   add_function_LU_SOLVE(&lu_solve_1, "LU Solve Recursive", 1);
   add_function_LU_SOLVE(&lu_solve_2, "LU Solve Basic C Opts", 1);
+#ifdef TEST_MKL
+  add_function_LU_SOLVE(&lu_solve_3, "LU Solve Intel DGEMM", 1);
+#endif
 }
 
 #endif

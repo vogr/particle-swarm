@@ -72,6 +72,11 @@ UNAME_S := $(shell uname -s)
 
 
 ifeq ($(PSO_SHARED), 1)
+
+ifeq ($(INC_MKL), 1)
+	COMMON_FLAGS += -DTEST_MKL -L$MKLPATH -Wl,-rpath,$MKLPATH -lmkl_rt
+endif # MKL
+
 	# Option 1. Build a shared library
 
 	# For the shared file we also need to pass
