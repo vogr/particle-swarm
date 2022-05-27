@@ -9,7 +9,7 @@ const tu = TestUtils
 
 
 function solve_tests()
-  PSO_GE.solve_tests()
+  # PSO_GE.solve_tests()
   LU.solve_tests()
 end
 
@@ -22,12 +22,12 @@ function solve_perf_tests()
         b = rand(n)
         (!LU.valid(n, A, b) && !PSO_GE.valid(n, A, b)) || break
     end
-  PSO_GE.perf_tests(n, A, b)
+  # PSO_GE.perf_tests(n, A, b)
   LU.perf_tests(n, A, b)
 end
 
-# solve_tests()
-solve_perf_tests()
+solve_tests()
+# solve_perf_tests()
 
 
 end # module

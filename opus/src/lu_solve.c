@@ -56,6 +56,7 @@ int lu_solve_1(int N, double *A, int *ipiv, double *b);
 int lu_solve_2(int N, double *A, int *ipiv, double *b);
 #ifdef TEST_MKL
 int lu_solve_3(int N, double *A, int *ipiv, double *b);
+int lu_solve_4(int N, double *A, int *ipiv, double *b);
 #endif
 
 /** @brief Entry function to solve system A * x = b
@@ -68,7 +69,7 @@ int lu_solve_3(int N, double *A, int *ipiv, double *b);
  */
 int lu_solve(int N, double *A, int *ipiv, double *b)
 {
-  return lu_solve_2(N, A, ipiv, b);
+  return lu_solve_3(N, A, ipiv, b);
 }
 
 // -----------------
@@ -1267,7 +1268,7 @@ int lu_solve_3(int N, double *A, int *ipiv, double *b)
 {
   int retcode, ib, IB, k;
 
-  const int NB = 256, //
+  const int NB = 128, // 256 * 2, //
       M = N,          //
       LDA = N,        //
       MIN_MN = N      //
@@ -1347,19 +1348,32 @@ int lu_solve_3(int N, double *A, int *ipiv, double *b)
   return retcode;
 }
 
+/**
+ * Solve system only with the Intel OneAPI routine.
+ */
+int lu_solve_4(int N, double *A, int *ipiv, double *b)
+{
+  return LAPACKE_dgesv(LAPACK_ROW_MAJOR,
+                       N,    // Number of equations
+                       1,    // Number of rhs equations
+                       A, N, //
+                       ipiv, //
+                       b, 1  //
+  );
+}
+
 #endif // TEST_MKL
 
 #ifdef TEST_PERF
 
-// NOTE I bet we can put these in the templated perf framework and remove the
-// weirdness of compiling seperately and linking.
 void register_functions_LU_SOLVE()
 {
-  add_function_LU_SOLVE(&lu_solve_0, "LU Solve Base", 1);
-  add_function_LU_SOLVE(&lu_solve_1, "LU Solve Recursive", 1);
+  // add_function_LU_SOLVE(&lu_solve_0, "LU Solve Base", 1);
+  // add_function_LU_SOLVE(&lu_solve_1, "LU Solve Recursive", 1);
   add_function_LU_SOLVE(&lu_solve_2, "LU Solve Basic C Opts", 1);
 #ifdef TEST_MKL
   add_function_LU_SOLVE(&lu_solve_3, "LU Solve Intel DGEMM", 1);
+  add_function_LU_SOLVE(&lu_solve_4, "Intel DGESV", 1);
 #endif
 }
 
