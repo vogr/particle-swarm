@@ -16,26 +16,6 @@
 #include "perf_testers/perf_lu_solve.h"
 #endif
 
-/**
- * === State of Affairs ===
- *
- * The bottleneck for this algorithm is dgemm (inappropriately named sgemm
- * here). This is especially the case because the leading dimension of the
- * matrices will most likely be >>512, meaning that a single row occupies at
- * least 1 page in memory (4096 Bytes).
- *
- * Optimization things Gavin plans on trying.
- *
- * - Allocating a static contiguous
- * amount of memory in this file, and copying each matrix into that first,
- * then performing the multiplication, then storing again. This will reduce
- * number pages loaded when accessing different rows of the matrix. Even
- * if we choose an outer block size to optimize for the cache, it doesn't
- * matter if each row is stored on a different page in memory.
- *
- * TODO add more ideas here
- */
-
 // XXX Assume 'A' is an NxN defined in scope
 #define AIX(ROW, COL) (A)[(N) * (ROW) + (COL)]
 #define IX(ROW, COL) ((N) * (ROW) + (COL))
@@ -69,29 +49,17 @@ int lu_solve_4(int N, double *A, int *ipiv, double *b);
  */
 int lu_solve(int N, double *A, int *ipiv, double *b)
 {
-  return lu_solve_3(N, A, ipiv, b);
-}
-
-// -----------------
-// Utilities
-
-static void swapd(double *a, int i, int j)
-{
-  double t = a[i];
-  a[i] = a[j];
-  a[j] = t;
+  return lu_solve_2(N, A, ipiv, b);
 }
 
 // -----------------
 // LAPACK routines
-//
+#if 0
 // NOTE these functions have no declaration. However, a
 // corresponding <name>_XXX  definition is made for each
 // iteration XXX. This way performance testing is consistent.
 // Forward declaration are here merely to have useful doc
 // comments in one place.
-// Each is prefixed with a '_' to  avoid conflicts with the
-// Intel OneAPI.
 
 /** @brief Finds the index of the first element having maximum
  *         absolute value.
@@ -101,7 +69,7 @@ static void swapd(double *a, int i, int j)
  * @param stride Space between elements
  * @return Index of the first element with the maximum absolute value.
  */
-int _isamax(int N, double *A, int stride);
+int isamax(int N, double *A, int stride);
 
 /** @brief Swap interchanges two vectors.
  *
@@ -111,7 +79,7 @@ int _isamax(int N, double *A, int stride);
  * @param Y The second vector of real valued elements to swap.
  * @param incy The storage stride between elements in Y.
  */
-void _sswap(int N, double *X, int incx, double *Y, int incy);
+void sswap(int N, double *X, int incx, double *Y, int incy);
 
 /** @brief Perform a series of row interchanges, one for each row
  *         k1 - k2 of A.
@@ -124,7 +92,7 @@ void _sswap(int N, double *X, int incx, double *Y, int incy);
  * @param ipiv The array of vector pivot indices such that i <-> ipiv[i].
  * @param incx The increment between indices in ipiv.
  */
-void _slaswp(int N, double *A, int LDA, int k1, int k2, int *ipiv, int incx);
+void slaswp(int N, double *A, int LDA, int k1, int k2, int *ipiv, int incx);
 
 /** @brief Solves matrix equation A * X = B
  *         A is assumed to be Non-transposed (L)ower
@@ -139,13 +107,13 @@ void _slaswp(int N, double *A, int LDA, int k1, int k2, int *ipiv, int incx);
  *  @param B Real valued matrix B.
  *  @param LDB Leading dimension of B.
  */
-void _strsm_L(int M, int N, double *A, int LDA, double *B, int LDB);
+void strsm_L(int M, int N, double *A, int LDA, double *B, int LDB);
 
 /** @brief equivalent to strsm_L except A is an (U)pper triangular matrix
  *         with a *Non-unit* diagonal. It is still assumed to be
 non-transposed.
  */
-void _strsm_U(int M, int N, double *A, int LDA, double *B, int LDB);
+void strsm_U(int M, int N, double *A, int LDA, double *B, int LDB);
 
 // Assume No-transpose for both matrices
 /** @brief compute C := alpha * A * B + beta * C
@@ -162,7 +130,7 @@ void _strsm_U(int M, int N, double *A, int LDA, double *B, int LDB);
  * @param C Real valued MxN matrix C.
  * @param Leading dimension of C.
  */
-void _sgemm(int M, int N, int K, double alpha, double *A, int LDA, double *B,
+void sgemm(int M, int N, int K, double alpha, double *A, int LDA, double *B,
             int LDB, double beta, double *C, int LDC);
 
 /** @brief Factor A = P * L * U in place using BLAS1 / BLAS2 functions
@@ -173,7 +141,7 @@ void _sgemm(int M, int N, int K, double alpha, double *A, int LDA, double *B,
  * @param LDA The leading dimension of the matrix in memory A.
  * @param ipiv Pivot indices for A.
  */
-int _sgetf2(int M, int N, double *A, int LDA, int *ipiv);
+int sgetf2(int M, int N, double *A, int LDA, int *ipiv);
 
 // Equivalent to SGETRS (no-transpose).
 /** @brief Solves system of linear equations A * x = b.
@@ -184,7 +152,21 @@ int _sgetf2(int M, int N, double *A, int LDA, int *ipiv);
  * @param ipiv Pivot indices used when factoring A.
  * @param b Real valued vector with N elements.
  */
-int _sgetrs(int N, double *A, int *ipiv, double *b);
+int sgetrs(int N, double *A, int *ipiv, double *b);
+
+#endif // FALSE to remove the above documentation.
+
+// -----------------
+// Utilities
+
+static void swapd(double *a, int i, int j)
+{
+  double t = a[i];
+  a[i] = a[j];
+  a[j] = t;
+}
+
+static int ideal_block(int M, int N) { return 32; }
 
 // ------------------------------------------------------------------
 // Implementation start
@@ -619,14 +601,17 @@ int lu_solve_1(int N, double *A, int *ipiv, double *b)
  * Using blocked (outer function) and delayed updates.
  *
  */
+// FIXME XXX we can play with NB
 static int isamax_2(int N, double *A, int stride)
 {
   // NOTE N can be 0 if we iterate to the end of the rows in _lu_solve_XXX
   // this saves us from initializing the ipiv array. We could also do this
   // by just setting the end index to itself.
 
-  // assert(0 < N);
-  if (0 == N)
+  assert(0 <= N);
+
+  // TODO FIXME
+  if (N < 1 || stride == 0)
     return 0;
 
   assert(0 < stride);
@@ -672,7 +657,25 @@ static void sswap_2(int N, double *X, int incx, double *Y, int incy)
       t_4, //
       t_5, //
       t_6, //
-      t_7  //
+      t_7, //
+
+      x_i_0, //
+      x_i_1, //
+      x_i_2, //
+      x_i_3, //
+      x_i_4, //
+      x_i_5, //
+      x_i_6, //
+      x_i_7, //
+
+      y_i_0, //
+      y_i_1, //
+      y_i_2, //
+      y_i_3, //
+      y_i_4, //
+      y_i_5, //
+      y_i_6, //
+      y_i_7  //
       ;
 
   int i, ix, iy;
@@ -681,32 +684,42 @@ static void sswap_2(int N, double *X, int incx, double *Y, int incy)
   {
     for (i = 0; i < N - 7; i += 8)
     {
-      t_0 = X[i + 0];
-      t_1 = X[i + 1];
-      t_2 = X[i + 2];
-      t_3 = X[i + 3];
-      t_4 = X[i + 4];
-      t_5 = X[i + 5];
-      t_6 = X[i + 6];
-      t_7 = X[i + 7];
 
-      X[i + 0] = Y[i + 0];
-      X[i + 1] = Y[i + 1];
-      X[i + 2] = Y[i + 2];
-      X[i + 3] = Y[i + 3];
-      X[i + 4] = Y[i + 4];
-      X[i + 5] = Y[i + 5];
-      X[i + 6] = Y[i + 6];
-      X[i + 7] = Y[i + 7];
+      x_i_0 = X[i + 0];
+      x_i_1 = X[i + 1];
+      x_i_2 = X[i + 2];
+      x_i_3 = X[i + 3];
+      x_i_4 = X[i + 4];
+      x_i_5 = X[i + 5];
+      x_i_6 = X[i + 6];
+      x_i_7 = X[i + 7];
 
-      Y[i + 0] = t_0;
-      Y[i + 1] = t_1;
-      Y[i + 2] = t_2;
-      Y[i + 3] = t_3;
-      Y[i + 4] = t_4;
-      Y[i + 5] = t_5;
-      Y[i + 6] = t_6;
-      Y[i + 7] = t_7;
+      y_i_0 = Y[i + 0];
+      y_i_1 = Y[i + 1];
+      y_i_2 = Y[i + 2];
+      y_i_3 = Y[i + 3];
+      y_i_4 = Y[i + 4];
+      y_i_5 = Y[i + 5];
+      y_i_6 = Y[i + 6];
+      y_i_7 = Y[i + 7];
+
+      X[i + 0] = y_i_0;
+      X[i + 1] = y_i_1;
+      X[i + 2] = y_i_2;
+      X[i + 3] = y_i_3;
+      X[i + 4] = y_i_4;
+      X[i + 5] = y_i_5;
+      X[i + 6] = y_i_6;
+      X[i + 7] = y_i_7;
+
+      Y[i + 0] = x_i_0;
+      Y[i + 1] = x_i_1;
+      Y[i + 2] = x_i_2;
+      Y[i + 3] = x_i_3;
+      Y[i + 4] = x_i_4;
+      Y[i + 5] = x_i_5;
+      Y[i + 6] = x_i_6;
+      Y[i + 7] = x_i_7;
     }
 
     for (; i < N; ++i)
@@ -858,11 +871,13 @@ static void slaswp_2(int N, double *A, int LDA, int k1, int k2, int *ipiv,
           MIX(A, LDA, p_i, k + 6) = a__i_k_6;
           MIX(A, LDA, p_i, k + 7) = a__i_k_7;
         }
+
         for (; k < N; ++k)
         {
-          tmp = MIX(A, LDA, i, k + 0);
-          MIX(A, LDA, i, k + 0) = MIX(A, LDA, p_i, k + 0);
-          MIX(A, LDA, p_i, k + 0) = tmp;
+          a__i_k_0 = MIX(A, LDA, i, k + 0);
+          a_pi_k_0 = MIX(A, LDA, p_i, k + 0);
+          MIX(A, LDA, p_i, k + 0) = a__i_k_0;
+          MIX(A, LDA, i, k + 0) = a_pi_k_0;
         }
       }
     }
@@ -934,142 +949,109 @@ static void sgemm_2(int M, int N, int K, double alpha, double *A, int LDA,
   const int NU = 4;
   const int KU = 1;
 
-  /* assert(M % NB == 0); */
-  /* assert(N % NB == 0); */
-  /* assert(K % NB == 0); */
-
   int i, j, k,      //
       ii, jj, kk,   //
       iii, jjj, kkk //
       ;
 
-  // If the leading dimension is greater than a page,
-  // loading and storing into contiguous memory could
-  // improve performance.
-  if (DBL_LMT < LDA || DBL_LMT < LDB || DBL_LMT < LDC)
+  i = 0;
+  ii = 0;
+  iii = 0;
+
+  j = 0;
+  jj = 0;
+  jjj = 0;
+
+  k = 0;
+  kk = 0;
+  kkk = 0;
+
+  // -----------------------------------------------------------------
+  // Basic unrolled MMM with no register blocking
+
+  // jj blocked
+  for (j = 0; j <= N - NB; j += NB)
   {
 
-    for (j = 0; j <= N - NB; j += NB)
+    // i blocked
+    for (i = 0; i <= M - NB; i += NB)
     {
 
-      for (i = 0; i <= M - NB; i += NB)
-      {
+      // k blocked
+      for (k = 0; k <= K - NB; k += NB)
+        for (jj = j; jj < j + NB; ++jj)
+          for (ii = i; ii < i + NB; ++ii)
+            for (kk = k; kk < k + NB; ++kk)
+              MIX(C, LDC, ii, jj) = MIX(C, LDC, ii, jj) -
+                                    MIX(B, LDB, kk, jj) * MIX(A, LDA, ii, kk);
 
-        for (k = 0; k <= K - NB; k += NB)
-        {
-
-          // Load matrix into contiguous memory
-
-          for (ii = 0; ii < NB; ++ii)
-            for (jj = 0; jj < NB; ++jj)
-            {
-              MIX(AL, NB, ii, jj) = MIX(A, LDA, i + ii, k + jj);
-              MIX(BL, NB, ii, jj) = MIX(B, LDB, k + ii, j + jj);
-              MIX(CL, NB, ii, jj) = MIX(C, LDC, i + ii, j + jj);
-            }
-
-          // ----
-
-          // Mini MMM (cache blocking)
-          for (jj = 0; jj < NB; jj += NU)
-            for (ii = 0; ii < NB; ii += MU)
-              for (kk = 0; kk < NB; kk += KU)
-
-                // Micro MMM (register blocking)
-                for (kkk = kk; kkk < kk + KU; ++kkk)
-                  for (iii = ii; iii < ii + MU; ++iii)
-                    for (jjj = jj; jjj < jj + NU; ++jjj)
-
-                      MIX(CL, NB, iii, jjj) =
-                          MIX(CL, NB, iii, jjj) -
-                          MIX(BL, NB, kkk, jjj) * MIX(AL, NB, iii, kkk);
-
-          // ----
-
-          // Store the local matrices back into memory.
-
-          for (ii = 0; ii < NB; ++ii)
-            for (jj = 0; jj < NB; ++jj)
-            {
-              MIX(A, LDA, i + ii, k + jj) = MIX(AL, NB, ii, jj);
-              MIX(B, LDB, k + ii, j + jj) = MIX(BL, NB, ii, jj);
-              MIX(C, LDC, i + ii, j + jj) = MIX(CL, NB, ii, jj);
-            }
-        }
-        // Overflow k
-        for (; k < K; ++k)
-          MIX(C, LDC, i, j) =
-              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
-      }
-
-      // Overflow i
-      for (; i < M; ++i)
-        for (k = 0; k < K; ++k)
-          MIX(C, LDC, i, j) =
-              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+      // k overflow
+      for (; k < K; ++k)
+        for (jj = j; jj < j + NB; ++jj)
+          for (ii = i; ii < i + NB; ++ii)
+            MIX(C, LDC, ii, jj) =
+                MIX(C, LDC, ii, jj) - MIX(B, LDB, k, jj) * MIX(A, LDA, ii, k);
     }
 
-    // Overflow j
-    for (; j < N; ++j)
-      for (i = 0; i < M; ++i)
-        for (k = 0; k < K; ++k)
-          MIX(C, LDC, i, j) =
-              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+    // i overflow
+    for (; i < M; ++i)
+    {
 
-  } // If outside page bounds
+      // K blocked
+      for (k = 0; k <= K - NB; k += NB)
+        for (jj = j; jj < j + NB; ++jj)
+          for (kk = k; kk < k + NB; ++kk)
+            MIX(C, LDC, i, jj) =
+                MIX(C, LDC, i, jj) - MIX(B, LDB, kk, jj) * MIX(A, LDA, i, kk);
 
-  else
+      // K overflow
+      for (; k < K; ++k)
+        for (jj = j; jj < j + NB; ++jj)
+          MIX(C, LDC, i, jj) =
+              MIX(C, LDC, i, jj) - MIX(B, LDB, k, jj) * MIX(A, LDA, i, k);
+    }
+  }
+
+  // j overflow
+  for (; j < N; ++j)
   {
-    for (j = 0; j <= N - NB; j += NB)
+
+    // i blocked
+    for (i = 0; i <= M - NB; i += NB)
     {
 
-      for (i = 0; i <= M - NB; i += NB)
-      {
+      // k blocked
+      for (k = 0; k <= K - NB; k += NB)
+        for (ii = i; ii < i + NB; ++ii)
+          for (kk = k; kk < k + NB; ++kk)
+            MIX(C, LDC, ii, j) =
+                MIX(C, LDC, ii, j) - MIX(B, LDB, kk, j) * MIX(A, LDA, ii, kk);
 
-        for (k = 0; k <= K - NB; k += NB)
-        {
-
-          // Mini MMM (cache blocking)
-          for (jj = j; jj < j + NB; jj += NU)
-            for (ii = i; ii < i + NB; ii += MU)
-              for (kk = k; kk < k + NB; kk += KU)
-
-                // Micro MMM (register blocking)
-                // NOTE in a final version this should be completely
-                // unrolled and done manually.
-                for (kkk = kk; kkk < kk + KU; ++kkk)
-                  for (iii = ii; iii < ii + MU; ++iii)
-                    for (jjj = jj; jjj < jj + NU; ++jjj)
-
-                      MIX(C, LDC, iii, jjj) =
-                          MIX(C, LDC, iii, jjj) -
-                          MIX(B, LDB, kkk, jjj) * MIX(A, LDA, iii, kkk);
-        }
-
-        // Overflow k
-        for (; k < K; ++k)
-          MIX(C, LDC, i, j) =
-              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
-      }
-
-      // Overflow i
-      for (; i < M; ++i)
-        // TODO optimize k loop
-        for (k = 0; k < K; ++k)
-          MIX(C, LDC, i, j) =
-              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+      // k overflow
+      for (; k < K; ++k)
+        for (ii = i; ii < i + NB; ++ii)
+          MIX(C, LDC, ii, j) =
+              MIX(C, LDC, ii, j) - MIX(B, LDB, k, j) * MIX(A, LDA, ii, k);
     }
 
-    // Overflow j
-    for (; j < N; ++j)
-      // TODO optimize i loop
-      for (i = 0; i < M; ++i)
-        // TODO optimize k loop
-        for (k = 0; k < K; ++k)
-          MIX(C, LDC, i, j) =
-              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+    // i overflow
+    for (; i < M; ++i)
+    {
 
-  } // Else within page bounds
+      // K blocked
+      for (k = 0; k <= K - NB; k += NB)
+        for (kk = k; kk < k + NB; ++kk)
+          MIX(C, LDC, i, j) =
+              MIX(C, LDC, i, j) - MIX(B, LDB, kk, j) * MIX(A, LDA, i, kk);
+
+      // K overflow
+      for (; k < K; ++k)
+        MIX(C, LDC, i, j) =
+            MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+    }
+  }
+
+  return;
 }
 
 int sgetf2_2(int M, int N, double *A, int LDA, int *ipiv)
@@ -1082,18 +1064,49 @@ int sgetf2_2(int M, int N, double *A, int LDA, int *ipiv)
       m_0  //
       ;
 
+  double      //
+      A_j_k0, //
+      A_j_k1, //
+      A_j_k2, //
+      A_j_k3, //
+      A_j_k4, //
+      A_j_k5, //
+      A_j_k6, //
+      A_j_k7, //
+
+      A_i_k0, //
+      A_i_k1, //
+      A_i_k2, //
+      A_i_k3, //
+      A_i_k4, //
+      A_i_k5, //
+      A_i_k6, //
+      A_i_k7  //
+      ;
+  // Quick return
+  if (!M || !N)
+    return 0;
+
   // NOTE I have increased this to iterate *until* N however you could
   // stop at < N - 1 if you cover the bounds case.
   for (i = 0; i < MIN(M, N); ++i)
   {
 
-    p_i = i + isamax_2(M - i, &MIX(A, LDA, i, i), LDA);
+    p_i = i;
     p_v = MIX(A, LDA, p_i, i);
 
+    // Only try to find a pivot if  the current value is approaching 0
     if (APPROX_EQUAL(p_v, 0.))
     {
-      fprintf(stderr, "ERROR: LU Solve singular matrix\n");
-      return -1;
+
+      p_i = i + isamax_2(M - i, &MIX(A, LDA, i, i), LDA);
+      p_v = MIX(A, LDA, p_i, i);
+
+      if (APPROX_EQUAL(p_v, 0.))
+      {
+        fprintf(stderr, "ERROR: LU Solve singular matrix\n");
+        return -1;
+      }
     }
 
     ipiv[i] = p_i;
@@ -1126,28 +1139,39 @@ int sgetf2_2(int M, int N, double *A, int LDA, int *ipiv)
         m_0 = -MIX(A, LDA, j, i);
         for (k = i + 1; k < N - 7; k += 8)
         {
-          MIX(A, LDA, j, k + 0) =
-              m_0 * MIX(A, LDA, i, k + 0) + MIX(A, LDA, j, k + 0);
-          MIX(A, LDA, j, k + 1) =
-              m_0 * MIX(A, LDA, i, k + 1) + MIX(A, LDA, j, k + 1);
-          MIX(A, LDA, j, k + 2) =
-              m_0 * MIX(A, LDA, i, k + 2) + MIX(A, LDA, j, k + 2);
-          MIX(A, LDA, j, k + 3) =
-              m_0 * MIX(A, LDA, i, k + 3) + MIX(A, LDA, j, k + 3);
+          A_j_k0 = MIX(A, LDA, j, k + 0);
+          A_j_k1 = MIX(A, LDA, j, k + 1);
+          A_j_k2 = MIX(A, LDA, j, k + 2);
+          A_j_k3 = MIX(A, LDA, j, k + 3);
+          A_j_k4 = MIX(A, LDA, j, k + 4);
+          A_j_k5 = MIX(A, LDA, j, k + 5);
+          A_j_k6 = MIX(A, LDA, j, k + 6);
+          A_j_k7 = MIX(A, LDA, j, k + 7);
 
-          MIX(A, LDA, j, k + 4) =
-              m_0 * MIX(A, LDA, i, k + 4) + MIX(A, LDA, j, k + 4);
-          MIX(A, LDA, j, k + 5) =
-              m_0 * MIX(A, LDA, i, k + 5) + MIX(A, LDA, j, k + 5);
-          MIX(A, LDA, j, k + 6) =
-              m_0 * MIX(A, LDA, i, k + 6) + MIX(A, LDA, j, k + 6);
-          MIX(A, LDA, j, k + 7) =
-              m_0 * MIX(A, LDA, i, k + 7) + MIX(A, LDA, j, k + 7);
+          A_i_k0 = MIX(A, LDA, i, k + 0);
+          A_i_k1 = MIX(A, LDA, i, k + 1);
+          A_i_k2 = MIX(A, LDA, i, k + 2);
+          A_i_k3 = MIX(A, LDA, i, k + 3);
+          A_i_k4 = MIX(A, LDA, i, k + 4);
+          A_i_k5 = MIX(A, LDA, i, k + 5);
+          A_i_k6 = MIX(A, LDA, i, k + 6);
+          A_i_k7 = MIX(A, LDA, i, k + 7);
+
+          MIX(A, LDA, j, k + 0) = m_0 * A_i_k0 + A_j_k0;
+          MIX(A, LDA, j, k + 1) = m_0 * A_i_k1 + A_j_k1;
+          MIX(A, LDA, j, k + 2) = m_0 * A_i_k2 + A_j_k2;
+          MIX(A, LDA, j, k + 3) = m_0 * A_i_k3 + A_j_k3;
+          MIX(A, LDA, j, k + 4) = m_0 * A_i_k4 + A_j_k4;
+          MIX(A, LDA, j, k + 5) = m_0 * A_i_k5 + A_j_k5;
+          MIX(A, LDA, j, k + 6) = m_0 * A_i_k6 + A_j_k6;
+          MIX(A, LDA, j, k + 7) = m_0 * A_i_k7 + A_j_k7;
         }
 
         for (; k < N; ++k)
         {
-          MIX(A, LDA, j, k) = m_0 * MIX(A, LDA, i, k) + MIX(A, LDA, j, k);
+          A_j_k0 = MIX(A, LDA, j, k + 0);
+          A_i_k0 = MIX(A, LDA, i, k + 0);
+          MIX(A, LDA, j, k + 0) = m_0 * A_i_k0 + A_j_k0;
         }
       }
     }
@@ -1175,18 +1199,16 @@ int lu_solve_2(int N, double *A, int *ipiv, double *b)
 {
   int retcode, ib, IB, k;
 
-  // FIXME XXX we can play with NB
-  const int NB = 256, //
-      M = N,          //
-      LDA = N,        //
-      MIN_MN = N      //
+  const int NB = ideal_block(N, N), //
+      M = N,                        //
+      LDA = N,                      //
+      MIN_MN = N                    //
       ;
 
   // BLocked factor A into [L \ U]
 
   if (NB <= 1 || NB >= MIN_MN)
   {
-    assert(0 == 1);
     // Use unblocked code
     retcode = sgetf2_2(M, N, A, LDA, ipiv);
     if (retcode != 0)
@@ -1268,17 +1290,16 @@ int lu_solve_3(int N, double *A, int *ipiv, double *b)
 {
   int retcode, ib, IB, k;
 
-  const int NB = 128, // 256 * 2, //
-      M = N,          //
-      LDA = N,        //
-      MIN_MN = N      //
+  const int NB = ideal_block(N, N),
+            M = N, //
+      LDA = N,     //
+      MIN_MN = N   //
       ;
 
   // BLocked factor A into [L \ U]
 
   if (NB <= 1 || NB >= MIN_MN)
   {
-    assert(0 == 1);
     // Use unblocked code
     retcode = sgetf2_2(M, N, A, LDA, ipiv);
     if (retcode != 0)
@@ -1324,20 +1345,17 @@ int lu_solve_3(int N, double *A, int *ipiv, double *b)
         // Compute the block row of U
         strsm_L_2(IB, N - ib - IB, &AIX(ib, ib), LDA, &AIX(ib, ib + IB), LDA);
 
-        if (ib + IB < M) // NOTE for a square matrix this will always be true.
-        {
-          // XXX for most blocks, the height of the multiplication 'M - ib - IB'
-          // is going to be much much larger than IB.
-          //
-          // Update trailing submatrix
-          cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M - ib - IB,
-                      N - ib - IB, IB, -ONE,      //
-                      &AIX(ib + IB, ib), LDA,     //
-                      &AIX(ib, ib + IB), LDA,     //
-                      ONE,                        //
-                      &AIX(ib + IB, ib + IB), LDA //
-          );
-        }
+        // XXX for most blocks, the height of the multiplication 'M - ib - IB'
+        // is going to be much much larger than IB.
+        //
+        // Update trailing submatrix
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M - ib - IB,
+                    N - ib - IB, IB, -ONE,      //
+                    &AIX(ib + IB, ib), LDA,     //
+                    &AIX(ib, ib + IB), LDA,     //
+                    ONE,                        //
+                    &AIX(ib + IB, ib + IB), LDA //
+        );
       }
     }
   }
@@ -1373,7 +1391,7 @@ void register_functions_LU_SOLVE()
   add_function_LU_SOLVE(&lu_solve_2, "LU Solve Basic C Opts", 1);
 #ifdef TEST_MKL
   add_function_LU_SOLVE(&lu_solve_3, "LU Solve Intel DGEMM", 1);
-  add_function_LU_SOLVE(&lu_solve_4, "Intel DGESV", 1);
+  add_function_LU_SOLVE(&lu_solve_4, "Intel DGESV Row Major", 1);
 #endif
 }
 
