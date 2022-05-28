@@ -7,7 +7,7 @@
 // #include "perf_testers/perf_lu_solve.h"
 
 // #define N 32768L
-#define N 527L
+#define N 256
 
 static double drand()
 {
@@ -20,13 +20,15 @@ int main()
 
   printf("Solving\n");
 
-  double *A = (double *)aligned_alloc(32, N * N * sizeof(double));
-  double *b = (double *)aligned_alloc(32, N * sizeof(double));
-  int *ipiv = (int *)aligned_alloc(32, N * sizeof(int));
+  // FIXME change back to aligned_alloc for SIMD
+  double *A = (double *)malloc(N * N * sizeof(double));
+  double *b = (double *)malloc(N * sizeof(double));
+  int *ipiv = (int *)malloc(N * sizeof(int));
 
   for (int i = 0; i < N; ++i)
     for (int j = 0; j < N; ++j)
       A[i * N + j] = drand();
+
   for (int i = 0; i < N; ++i)
     b[i] = drand();
 
