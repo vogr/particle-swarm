@@ -66,8 +66,7 @@ function solve_tests()
 
 
         @testset "Random LU Solve Large" begin
-            tu.@run_random_N 1 2^10 2^12 "large lu solve" test_lambda
-            # tu.@run_random_N 1 3^8 3^10 "large lu solve" test_lambda
+            tu.@run_random_N 1 2^8 2^10 "large lu solve" test_lambda
         end
 
     end
