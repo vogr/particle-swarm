@@ -54,7 +54,8 @@ OBJ_COMMON := src/helpers.o src/local_refinement.o src/logging.o \
 		 src/steps/step3.o src/steps/step4.o src/steps/step5.o \
 		 src/steps/step6.o src/steps/step7.o src/steps/step8.o \
 		 src/steps/step9.o src/steps/step10.o src/steps/step11.o \
-		 src/steps/surrogate_eval.o src/steps/fit_surrogate.o 
+		 src/steps/surrogate_eval.o src/steps/fit_surrogate.o \
+		 src/timing.o
 
 # Object files required for the the library
 OBJ_LIB := src/perf_testers/perf_ge_solve.o src/perf_testers/perf_lu_solve.o src/perf_testers/perf_fit_surrogate.o src/pso_ffi.o

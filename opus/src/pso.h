@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+#include "timing.h"
+
 #define USE_ROUNDING_BLOOM_FILTER 1
 
 typedef double (*blackbox_fun)(double const *const);

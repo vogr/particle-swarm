@@ -157,23 +157,59 @@ void step1(struct pso_data_constant_inertia *pso) {}
 
 void step2(struct pso_data_constant_inertia *pso) {}
 
+void step12(struct pso_data_constant_inertia *pso) {}
+
 void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso)
 {
+  myInt64 start, end;
+
   step1(pso);
+
   step2(pso);
+
   step3_optimized(pso);
+
   step4_optimized(pso);
 }
 
 bool pso_constant_inertia_loop(struct pso_data_constant_inertia *pso)
 {
+  myInt64 start, end;
+
+  start = start_tsc();
   step5_optimized(pso);
+  end = stop_tsc(start);
+  add_timing(pso->time, 0, end);
+
+  start = start_tsc();
   step6_optimized(pso);
+  end = stop_tsc(start);
+  add_timing(pso->time, 1, end);
+
+  start = start_tsc();
   step7_optimized(pso);
+  end = stop_tsc(start);
+  add_timing(pso->time, 2, end);
+
+  start = start_tsc();
   step8_optimized(pso);
+  end = stop_tsc(start);
+  add_timing(pso->time, 3, end);
+
+  start = start_tsc();
   step9_optimized(pso);
+  end = stop_tsc(start);
+  add_timing(pso->time, 4, end);
+
+  start = start_tsc();
   step10_optimized(pso);
+  end = stop_tsc(start);
+  add_timing(pso->time, 5, end);
+
+  start = start_tsc();
   step11_optimized(pso);
+  end = stop_tsc(start);
+  add_timing(pso->time, 6, end);
 
   return (pso->time < pso->time_max - 1);
 }

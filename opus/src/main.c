@@ -7,6 +7,8 @@
 #include "logging.h"
 #include "pso.h"
 
+#include "timing.h"
+
 double my_f(double const *const x)
 {
   return (x[0] - 2) * (x[0] - 2) + (x[1] - 5) * (x[1] - 5);
@@ -20,6 +22,8 @@ int main(int argc, char **argv)
   }
 
   srand(clock());
+
+  init_timings(100);
 
   double inertia = 0.7;
   double social = 1., cognition = 1.;
@@ -40,4 +44,6 @@ int main(int argc, char **argv)
           n_trials, bounds_low, bounds_high, vmin, vmax, initial_positions);
 
   stop_logging();
+
+  print_timings();
 }
