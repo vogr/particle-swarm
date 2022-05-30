@@ -1,0 +1,20 @@
+#+TITLE: Lu Timings
+#+AUTHOR: Gavin Gray
+
+* LU Solve Outer Block Variance Timings
+
+The variance in timings when using the Intel DGEMM
+matrix multiplication. The block size for the self
+made program is a constant 256.
+
+A[1024, 1024]x = b
+
+| Block | Cycles Self | Cycles DGEMM | Cycles Intel |
+|-------+-------------+--------------+--------------|
+|   128 | 3.53 E8     | 2.0 E8       | 1.9 E7       |
+|   256 | 3.6 E8      | 2.98E8       | 2.3 E7       |
+|   512 | 3.5 E8      | 9.4 E7       | 2.2 E7       |
+
+
+* LU Solve Optimizations tried.
+- [ ]

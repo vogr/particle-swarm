@@ -7,31 +7,15 @@
 #include <string.h>
 
 #include "helpers.h"
-// #include "mkl.h"
+
+#ifdef TEST_MKL
+#include "mkl.h"
+#endif
 
 #ifdef TEST_PERF
 #include "perf_testers/perf_lu_solve.h"
+#include "perf_testers/perf_mmm.h"
 #endif
-
-/**
- * === State of Affairs ===
- *
- * The bottleneck for this algorithm is dgemm (inappropriately named sgemm
- * here). This is especially the case because the leading dimension of the
- * matrices will most likely be >>512, meaning that a single row occupies at
- * least 1 page in memory (4096 Bytes).
- *
- * Optimization things Gavin plans on trying.
- *
- * - Allocating a static contiguous
- * amount of memory in this file, and copying each matrix into that first,
- * then performing the multiplication, then storing again. This will reduce
- * number pages loaded when accessing different rows of the matrix. Even
- * if we choose an outer block size to optimize for the cache, it doesn't
- * matter if each row is stored on a different page in memory.
- *
- * TODO add more ideas here
- */
 
 // XXX Assume 'A' is an NxN defined in scope
 #define AIX(ROW, COL) (A)[(N) * (ROW) + (COL)]
@@ -51,6 +35,10 @@
 int lu_solve_0(int N, double *A, int *ipiv, double *b);
 int lu_solve_1(int N, double *A, int *ipiv, double *b);
 int lu_solve_2(int N, double *A, int *ipiv, double *b);
+#ifdef TEST_MKL
+int lu_solve_3(int N, double *A, int *ipiv, double *b);
+int lu_solve_4(int N, double *A, int *ipiv, double *b);
+#endif
 
 /** @brief Entry function to solve system A * x = b
  *         After exit b is overwritten with solution vector x.
@@ -66,23 +54,16 @@ int lu_solve(int N, double *A, int *ipiv, double *b)
 }
 
 // -----------------
-// Utilities
-
-static void swapd(double *a, int i, int j)
-{
-  double t = a[i];
-  a[i] = a[j];
-  a[j] = t;
-}
-
-// -----------------
 // LAPACK routines
-//
+#if 0
 // NOTE these functions have no declaration. However, a
 // corresponding <name>_XXX  definition is made for each
 // iteration XXX. This way performance testing is consistent.
 // Forward declaration are here merely to have useful doc
 // comments in one place.
+// And YES, they are incorrectly using an (s) for single
+// precision floats when they should be using a (d) for
+// double precision (but I didn't notice until too late).
 
 /** @brief Finds the index of the first element having maximum
  *         absolute value.
@@ -154,7 +135,7 @@ void strsm_U(int M, int N, double *A, int LDA, double *B, int LDB);
  * @param Leading dimension of C.
  */
 void sgemm(int M, int N, int K, double alpha, double *A, int LDA, double *B,
-           int LDB, double beta, double *C, int LDC);
+            int LDB, double beta, double *C, int LDC);
 
 /** @brief Factor A = P * L * U in place using BLAS1 / BLAS2 functions
  *
@@ -176,6 +157,20 @@ int sgetf2(int M, int N, double *A, int LDA, int *ipiv);
  * @param b Real valued vector with N elements.
  */
 int sgetrs(int N, double *A, int *ipiv, double *b);
+
+#endif // FALSE to remove the above documentation.
+
+// -----------------
+// Utilities
+
+static void swapd(double *a, int i, int j)
+{
+  double t = a[i];
+  a[i] = a[j];
+  a[j] = t;
+}
+
+static int ideal_block(int M, int N) { return 64; }
 
 // ------------------------------------------------------------------
 // Implementation start
@@ -442,6 +437,14 @@ static void sgemm_1(int M, int N, int K, double alpha, double *A, int LDA,
   }
 }
 
+void sgemm_intel(int M, int N, int K, double alpha, double *A, int LDA,
+                 double *B, int LDB, double beta, double *C, int LDC)
+{
+  // Update trailing submatrix
+  // return cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha,
+                    //  A, LDA, B, LDB, beta, C, LDC);
+}
+
 int sgetf2_1(int M, int N, double *A, int LDA, int *ipiv)
 {
 
@@ -610,14 +613,17 @@ int lu_solve_1(int N, double *A, int *ipiv, double *b)
  * Using blocked (outer function) and delayed updates.
  *
  */
+// FIXME XXX we can play with NB
 static int isamax_2(int N, double *A, int stride)
 {
   // NOTE N can be 0 if we iterate to the end of the rows in _lu_solve_XXX
   // this saves us from initializing the ipiv array. We could also do this
   // by just setting the end index to itself.
 
-  // assert(0 < N);
-  if (0 == N)
+  assert(0 <= N);
+
+  // TODO FIXME
+  if (N < 1 || stride == 0)
     return 0;
 
   assert(0 < stride);
@@ -663,7 +669,25 @@ static void sswap_2(int N, double *X, int incx, double *Y, int incy)
       t_4, //
       t_5, //
       t_6, //
-      t_7  //
+      t_7, //
+
+      x_i_0, //
+      x_i_1, //
+      x_i_2, //
+      x_i_3, //
+      x_i_4, //
+      x_i_5, //
+      x_i_6, //
+      x_i_7, //
+
+      y_i_0, //
+      y_i_1, //
+      y_i_2, //
+      y_i_3, //
+      y_i_4, //
+      y_i_5, //
+      y_i_6, //
+      y_i_7  //
       ;
 
   int i, ix, iy;
@@ -672,32 +696,42 @@ static void sswap_2(int N, double *X, int incx, double *Y, int incy)
   {
     for (i = 0; i < N - 7; i += 8)
     {
-      t_0 = X[i + 0];
-      t_1 = X[i + 1];
-      t_2 = X[i + 2];
-      t_3 = X[i + 3];
-      t_4 = X[i + 4];
-      t_5 = X[i + 5];
-      t_6 = X[i + 6];
-      t_7 = X[i + 7];
 
-      X[i + 0] = Y[i + 0];
-      X[i + 1] = Y[i + 1];
-      X[i + 2] = Y[i + 2];
-      X[i + 3] = Y[i + 3];
-      X[i + 4] = Y[i + 4];
-      X[i + 5] = Y[i + 5];
-      X[i + 6] = Y[i + 6];
-      X[i + 7] = Y[i + 7];
+      x_i_0 = X[i + 0];
+      x_i_1 = X[i + 1];
+      x_i_2 = X[i + 2];
+      x_i_3 = X[i + 3];
+      x_i_4 = X[i + 4];
+      x_i_5 = X[i + 5];
+      x_i_6 = X[i + 6];
+      x_i_7 = X[i + 7];
 
-      Y[i + 0] = t_0;
-      Y[i + 1] = t_1;
-      Y[i + 2] = t_2;
-      Y[i + 3] = t_3;
-      Y[i + 4] = t_4;
-      Y[i + 5] = t_5;
-      Y[i + 6] = t_6;
-      Y[i + 7] = t_7;
+      y_i_0 = Y[i + 0];
+      y_i_1 = Y[i + 1];
+      y_i_2 = Y[i + 2];
+      y_i_3 = Y[i + 3];
+      y_i_4 = Y[i + 4];
+      y_i_5 = Y[i + 5];
+      y_i_6 = Y[i + 6];
+      y_i_7 = Y[i + 7];
+
+      X[i + 0] = y_i_0;
+      X[i + 1] = y_i_1;
+      X[i + 2] = y_i_2;
+      X[i + 3] = y_i_3;
+      X[i + 4] = y_i_4;
+      X[i + 5] = y_i_5;
+      X[i + 6] = y_i_6;
+      X[i + 7] = y_i_7;
+
+      Y[i + 0] = x_i_0;
+      Y[i + 1] = x_i_1;
+      Y[i + 2] = x_i_2;
+      Y[i + 3] = x_i_3;
+      Y[i + 4] = x_i_4;
+      Y[i + 5] = x_i_5;
+      Y[i + 6] = x_i_6;
+      Y[i + 7] = x_i_7;
     }
 
     for (; i < N; ++i)
@@ -849,11 +883,13 @@ static void slaswp_2(int N, double *A, int LDA, int k1, int k2, int *ipiv,
           MIX(A, LDA, p_i, k + 6) = a__i_k_6;
           MIX(A, LDA, p_i, k + 7) = a__i_k_7;
         }
+
         for (; k < N; ++k)
         {
-          tmp = MIX(A, LDA, i, k + 0);
-          MIX(A, LDA, i, k + 0) = MIX(A, LDA, p_i, k + 0);
-          MIX(A, LDA, p_i, k + 0) = tmp;
+          a__i_k_0 = MIX(A, LDA, i, k + 0);
+          a_pi_k_0 = MIX(A, LDA, p_i, k + 0);
+          MIX(A, LDA, p_i, k + 0) = a__i_k_0;
+          MIX(A, LDA, i, k + 0) = a_pi_k_0;
         }
       }
     }
@@ -895,12 +931,14 @@ static void strsm_U_2(int M, int N, double *A, int LDA, double *B, int LDB)
   }
 }
 
-/**
- * TODO continue optimizing DGEMM I ran out of time :(
- */
-static void sgemm_2(int M, int N, int K, double alpha, double *A, int LDA,
-                    double *B, int LDB, double beta, double *C, int LDC)
+static void sgemm_2(int M, int N, int K, double alpha, double *restrict A,
+                    int LDA, double *restrict B, int LDB, double beta,
+                    double *restrict C, int LDC)
 {
+
+  /**
+   * A[ M x K ] * B[ K x N ] = C[ M x N ]
+   */
 
   // NOTE as written below, we specialize to alpha = -1 beta = 1
   assert(APPROX_EQUAL(beta, ONE));
@@ -911,110 +949,1205 @@ static void sgemm_2(int M, int N, int K, double alpha, double *A, int LDA,
   //
   // NOTE Skylake has a 32000 B L1 cache
   // With cache lines of 64 B
-#define CACHE_BLOCK 16
+
+#define CACHE_BLOCK 56
   const int NB = CACHE_BLOCK;
-  const int DBL_LMT = 512;
+  const int DBL_LMT = 512 * 2;
 
-  double AL[CACHE_BLOCK * CACHE_BLOCK];
-  double BL[CACHE_BLOCK * CACHE_BLOCK];
-  double CL[CACHE_BLOCK * CACHE_BLOCK];
+  double __attribute__((aligned(32))) AL[CACHE_BLOCK * CACHE_BLOCK];
+  double __attribute__((aligned(32))) BL[CACHE_BLOCK * CACHE_BLOCK];
+  double __attribute__((aligned(32))) CL[CACHE_BLOCK * CACHE_BLOCK];
 
-  // Skylake has 32 FP registers
-  // NOTE choose MU + NU + MU * NU <= #_registers
-  int MU = 4;
-  int NU = 4;
-  int KU = 1;
-
-  assert(M % NB == 0);
-  assert(N % NB == 0);
-  assert(K % NB == 0);
+  // NOTE choose MU + NU + MU * NU <= 16
+  const int MU = 4;
+  const int NU = 2;
+  const int KU = 8;
 
   int i, j, k,      //
       ii, jj, kk,   //
       iii, jjj, kkk //
       ;
 
-  // If the leading dimension is greater than a page,
-  // loading and storing into contiguous memory could
-  // improve performance.
-  if (DBL_LMT < LDA || DBL_LMT < LDB || DBL_LMT < LDC)
+  i = 0;
+  ii = 0;
+  iii = 0;
+
+  j = 0;
+  jj = 0;
+  jjj = 0;
+
+  k = 0;
+  kk = 0;
+  kkk = 0;
+
+  double             //
+      A_iii_0_kkk_0, //
+      A_iii_0_kkk_1, //
+      A_iii_0_kkk_2, //
+      A_iii_0_kkk_3, //
+      A_iii_0_kkk_4, //
+      A_iii_0_kkk_5, //
+      A_iii_0_kkk_6, //
+      A_iii_0_kkk_7, //
+
+      A_iii_1_kkk_0, //
+      A_iii_1_kkk_1, //
+      A_iii_1_kkk_2, //
+      A_iii_1_kkk_3, //
+      A_iii_1_kkk_4, //
+      A_iii_1_kkk_5, //
+      A_iii_1_kkk_6, //
+      A_iii_1_kkk_7, //
+
+      A_iii_2_kkk_0, //
+      A_iii_2_kkk_1, //
+      A_iii_2_kkk_2, //
+      A_iii_2_kkk_3, //
+      A_iii_2_kkk_4, //
+      A_iii_2_kkk_5, //
+      A_iii_2_kkk_6, //
+      A_iii_2_kkk_7, //
+
+      A_iii_3_kkk_0, //
+      A_iii_3_kkk_1, //
+      A_iii_3_kkk_2, //
+      A_iii_3_kkk_3, //
+      A_iii_3_kkk_4, //
+      A_iii_3_kkk_5, //
+      A_iii_3_kkk_6, //
+      A_iii_3_kkk_7, //
+      A_iii_3_kkk_8, //
+
+      C_iii_0_jjj_0, //
+      C_iii_0_jjj_1, //
+      C_iii_1_jjj_0, //
+      C_iii_1_jjj_1, //
+      C_iii_2_jjj_0, //
+      C_iii_2_jjj_1, //
+      C_iii_3_jjj_0, //
+      C_iii_3_jjj_1, //
+
+      B_kkk_0_jjj_0, //
+      B_kkk_0_jjj_1, //
+      B_kkk_1_jjj_0, //
+      B_kkk_1_jjj_1, //
+      B_kkk_2_jjj_0, //
+      B_kkk_2_jjj_1, //
+      B_kkk_3_jjj_0, //
+      B_kkk_3_jjj_1, //
+      B_kkk_4_jjj_0, //
+      B_kkk_4_jjj_1, //
+      B_kkk_5_jjj_0, //
+      B_kkk_5_jjj_1, //
+      B_kkk_6_jjj_0, //
+      B_kkk_6_jjj_1, //
+      B_kkk_7_jjj_0, //
+      B_kkk_7_jjj_1  //
+
+      ;
+
+  // -----------------------------------------------------------------
+  // Basic unrolled MMM with no register blocking
+
+  // NOTE this should be our case as the incoming matrix A is tall and skinny.
+  if (1 || M > N) // FIXME remove automatic true
   {
 
-    for (j = 0; j < N - NB + 1; j += NB)
-      for (i = 0; i < M - NB + 1; i += NB)
-        for (k = 0; k < K - NB + 1; k += NB)
-        {
+    // i blocked
+    for (i = 0; i <= M - NB; i += NB)
+    {
+      // j blocked
+      for (j = 0; j <= N - NB; j += NB)
+      {
 
-          // Load matrix into contiguous memory
+        // k blocked
+        for (k = 0; k <= K - NB; k += NB)
 
-          for (ii = 0; ii < NB; ++ii)
-            for (jj = 0; jj < NB; ++jj)
+          // Cache blocking
+          for (ii = i; ii <= (i + NB) - MU; ii += MU)
+            for (jj = j; jj <= (j + NB) - NU; jj += NU)
+              for (kk = k; kk <= (k + NB) - KU; kk += KU)
+
+              /* // Register blocking */
+              /* for (kkk = kk; kkk < kk + KU; ++kkk) */
+              /*   for (iii = ii; iii < ii + MU; ++iii) */
+              /*     for (jjj = jj; jjj < jj + NU; ++jjj) */
+              {
+
+                // FIXME reorder stores and loads
+
+                C_iii_0_jjj_0 = MIX(C, LDC, ii + 0, jj + 0);
+                C_iii_0_jjj_1 = MIX(C, LDC, ii + 0, jj + 1);
+                C_iii_1_jjj_0 = MIX(C, LDC, ii + 1, jj + 0);
+                C_iii_1_jjj_1 = MIX(C, LDC, ii + 1, jj + 1);
+                C_iii_2_jjj_0 = MIX(C, LDC, ii + 2, jj + 0);
+                C_iii_2_jjj_1 = MIX(C, LDC, ii + 2, jj + 1);
+                C_iii_3_jjj_0 = MIX(C, LDC, ii + 3, jj + 0);
+                C_iii_3_jjj_1 = MIX(C, LDC, ii + 3, jj + 1);
+
+                B_kkk_0_jjj_0 = MIX(B, LDB, kk + 0, jj + 0);
+                B_kkk_1_jjj_0 = MIX(B, LDB, kk + 1, jj + 0);
+                B_kkk_2_jjj_0 = MIX(B, LDB, kk + 2, jj + 0);
+                B_kkk_3_jjj_0 = MIX(B, LDB, kk + 3, jj + 0);
+                B_kkk_4_jjj_0 = MIX(B, LDB, kk + 4, jj + 0);
+                B_kkk_5_jjj_0 = MIX(B, LDB, kk + 5, jj + 0);
+                B_kkk_6_jjj_0 = MIX(B, LDB, kk + 6, jj + 0);
+                B_kkk_7_jjj_0 = MIX(B, LDB, kk + 7, jj + 0);
+
+                B_kkk_0_jjj_1 = MIX(B, LDB, kk + 0, jj + 1);
+                B_kkk_1_jjj_1 = MIX(B, LDB, kk + 1, jj + 1);
+                B_kkk_2_jjj_1 = MIX(B, LDB, kk + 2, jj + 1);
+                B_kkk_3_jjj_1 = MIX(B, LDB, kk + 3, jj + 1);
+                B_kkk_4_jjj_1 = MIX(B, LDB, kk + 4, jj + 1);
+                B_kkk_5_jjj_1 = MIX(B, LDB, kk + 5, jj + 1);
+                B_kkk_6_jjj_1 = MIX(B, LDB, kk + 6, jj + 1);
+                B_kkk_7_jjj_1 = MIX(B, LDB, kk + 7, jj + 1);
+
+                A_iii_0_kkk_0 = MIX(A, LDA, ii + 0, kk + 0);
+                A_iii_0_kkk_1 = MIX(A, LDA, ii + 0, kk + 1);
+                A_iii_0_kkk_2 = MIX(A, LDA, ii + 0, kk + 2);
+                A_iii_0_kkk_3 = MIX(A, LDA, ii + 0, kk + 3);
+                A_iii_0_kkk_4 = MIX(A, LDA, ii + 0, kk + 4);
+                A_iii_0_kkk_5 = MIX(A, LDA, ii + 0, kk + 5);
+                A_iii_0_kkk_6 = MIX(A, LDA, ii + 0, kk + 6);
+                A_iii_0_kkk_7 = MIX(A, LDA, ii + 0, kk + 7);
+
+                A_iii_1_kkk_0 = MIX(A, LDA, ii + 1, kk + 0);
+                A_iii_1_kkk_1 = MIX(A, LDA, ii + 1, kk + 1);
+                A_iii_1_kkk_2 = MIX(A, LDA, ii + 1, kk + 2);
+                A_iii_1_kkk_3 = MIX(A, LDA, ii + 1, kk + 3);
+                A_iii_1_kkk_4 = MIX(A, LDA, ii + 1, kk + 4);
+                A_iii_1_kkk_5 = MIX(A, LDA, ii + 1, kk + 5);
+                A_iii_1_kkk_6 = MIX(A, LDA, ii + 1, kk + 6);
+                A_iii_1_kkk_7 = MIX(A, LDA, ii + 1, kk + 7);
+
+                A_iii_2_kkk_0 = MIX(A, LDA, ii + 2, kk + 0);
+                A_iii_2_kkk_1 = MIX(A, LDA, ii + 2, kk + 1);
+                A_iii_2_kkk_2 = MIX(A, LDA, ii + 2, kk + 2);
+                A_iii_2_kkk_3 = MIX(A, LDA, ii + 2, kk + 3);
+                A_iii_2_kkk_4 = MIX(A, LDA, ii + 2, kk + 4);
+                A_iii_2_kkk_5 = MIX(A, LDA, ii + 2, kk + 5);
+                A_iii_2_kkk_6 = MIX(A, LDA, ii + 2, kk + 6);
+                A_iii_2_kkk_7 = MIX(A, LDA, ii + 2, kk + 7);
+
+                A_iii_3_kkk_0 = MIX(A, LDA, ii + 3, kk + 0);
+                A_iii_3_kkk_1 = MIX(A, LDA, ii + 3, kk + 1);
+                A_iii_3_kkk_2 = MIX(A, LDA, ii + 3, kk + 2);
+                A_iii_3_kkk_3 = MIX(A, LDA, ii + 3, kk + 3);
+                A_iii_3_kkk_4 = MIX(A, LDA, ii + 3, kk + 4);
+                A_iii_3_kkk_5 = MIX(A, LDA, ii + 3, kk + 5);
+                A_iii_3_kkk_6 = MIX(A, LDA, ii + 3, kk + 6);
+                A_iii_3_kkk_7 = MIX(A, LDA, ii + 3, kk + 7);
+                A_iii_3_kkk_8 = MIX(A, LDA, ii + 3, kk + 8);
+
+                // ------
+
+                C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+                C_iii_0_jjj_1 -= B_kkk_0_jjj_1 * A_iii_0_kkk_0;
+                C_iii_1_jjj_0 -= B_kkk_0_jjj_0 * A_iii_1_kkk_0;
+                C_iii_1_jjj_1 -= B_kkk_0_jjj_1 * A_iii_1_kkk_0;
+                C_iii_2_jjj_0 -= B_kkk_0_jjj_0 * A_iii_2_kkk_0;
+                C_iii_2_jjj_1 -= B_kkk_0_jjj_1 * A_iii_2_kkk_0;
+                C_iii_3_jjj_0 -= B_kkk_0_jjj_0 * A_iii_3_kkk_0;
+                C_iii_3_jjj_1 -= B_kkk_0_jjj_1 * A_iii_3_kkk_0;
+
+                C_iii_0_jjj_0 -= B_kkk_1_jjj_0 * A_iii_0_kkk_1;
+                C_iii_0_jjj_1 -= B_kkk_1_jjj_1 * A_iii_0_kkk_1;
+                C_iii_1_jjj_0 -= B_kkk_1_jjj_0 * A_iii_1_kkk_1;
+                C_iii_1_jjj_1 -= B_kkk_1_jjj_1 * A_iii_1_kkk_1;
+                C_iii_2_jjj_0 -= B_kkk_1_jjj_0 * A_iii_2_kkk_1;
+                C_iii_2_jjj_1 -= B_kkk_1_jjj_1 * A_iii_2_kkk_1;
+                C_iii_3_jjj_0 -= B_kkk_1_jjj_0 * A_iii_3_kkk_1;
+                C_iii_3_jjj_1 -= B_kkk_1_jjj_1 * A_iii_3_kkk_1;
+
+                C_iii_0_jjj_0 -= B_kkk_2_jjj_0 * A_iii_0_kkk_2;
+                C_iii_0_jjj_1 -= B_kkk_2_jjj_1 * A_iii_0_kkk_2;
+                C_iii_1_jjj_0 -= B_kkk_2_jjj_0 * A_iii_1_kkk_2;
+                C_iii_1_jjj_1 -= B_kkk_2_jjj_1 * A_iii_1_kkk_2;
+                C_iii_2_jjj_0 -= B_kkk_2_jjj_0 * A_iii_2_kkk_2;
+                C_iii_2_jjj_1 -= B_kkk_2_jjj_1 * A_iii_2_kkk_2;
+                C_iii_3_jjj_0 -= B_kkk_2_jjj_0 * A_iii_3_kkk_2;
+                C_iii_3_jjj_1 -= B_kkk_2_jjj_1 * A_iii_3_kkk_2;
+
+                C_iii_0_jjj_0 -= B_kkk_3_jjj_0 * A_iii_0_kkk_3;
+                C_iii_0_jjj_1 -= B_kkk_3_jjj_1 * A_iii_0_kkk_3;
+                C_iii_1_jjj_0 -= B_kkk_3_jjj_0 * A_iii_1_kkk_3;
+                C_iii_1_jjj_1 -= B_kkk_3_jjj_1 * A_iii_1_kkk_3;
+                C_iii_2_jjj_0 -= B_kkk_3_jjj_0 * A_iii_2_kkk_3;
+                C_iii_2_jjj_1 -= B_kkk_3_jjj_1 * A_iii_2_kkk_3;
+                C_iii_3_jjj_0 -= B_kkk_3_jjj_0 * A_iii_3_kkk_3;
+                C_iii_3_jjj_1 -= B_kkk_3_jjj_1 * A_iii_3_kkk_3;
+
+                C_iii_0_jjj_0 -= B_kkk_4_jjj_0 * A_iii_0_kkk_4;
+                C_iii_0_jjj_1 -= B_kkk_4_jjj_1 * A_iii_0_kkk_4;
+                C_iii_1_jjj_0 -= B_kkk_4_jjj_0 * A_iii_1_kkk_4;
+                C_iii_1_jjj_1 -= B_kkk_4_jjj_1 * A_iii_1_kkk_4;
+                C_iii_2_jjj_0 -= B_kkk_4_jjj_0 * A_iii_2_kkk_4;
+                C_iii_2_jjj_1 -= B_kkk_4_jjj_1 * A_iii_2_kkk_4;
+                C_iii_3_jjj_0 -= B_kkk_4_jjj_0 * A_iii_3_kkk_4;
+                C_iii_3_jjj_1 -= B_kkk_4_jjj_1 * A_iii_3_kkk_4;
+
+                C_iii_0_jjj_0 -= B_kkk_5_jjj_0 * A_iii_0_kkk_5;
+                C_iii_0_jjj_1 -= B_kkk_5_jjj_1 * A_iii_0_kkk_5;
+                C_iii_1_jjj_0 -= B_kkk_5_jjj_0 * A_iii_1_kkk_5;
+                C_iii_1_jjj_1 -= B_kkk_5_jjj_1 * A_iii_1_kkk_5;
+                C_iii_2_jjj_0 -= B_kkk_5_jjj_0 * A_iii_2_kkk_5;
+                C_iii_2_jjj_1 -= B_kkk_5_jjj_1 * A_iii_2_kkk_5;
+                C_iii_3_jjj_0 -= B_kkk_5_jjj_0 * A_iii_3_kkk_5;
+                C_iii_3_jjj_1 -= B_kkk_5_jjj_1 * A_iii_3_kkk_5;
+
+                C_iii_0_jjj_0 -= B_kkk_6_jjj_0 * A_iii_0_kkk_6;
+                C_iii_0_jjj_1 -= B_kkk_6_jjj_1 * A_iii_0_kkk_6;
+                C_iii_1_jjj_0 -= B_kkk_6_jjj_0 * A_iii_1_kkk_6;
+                C_iii_1_jjj_1 -= B_kkk_6_jjj_1 * A_iii_1_kkk_6;
+                C_iii_2_jjj_0 -= B_kkk_6_jjj_0 * A_iii_2_kkk_6;
+                C_iii_2_jjj_1 -= B_kkk_6_jjj_1 * A_iii_2_kkk_6;
+                C_iii_3_jjj_0 -= B_kkk_6_jjj_0 * A_iii_3_kkk_6;
+                C_iii_3_jjj_1 -= B_kkk_6_jjj_1 * A_iii_3_kkk_6;
+
+                C_iii_0_jjj_1 -= B_kkk_7_jjj_1 * A_iii_0_kkk_7;
+                C_iii_0_jjj_0 -= B_kkk_7_jjj_0 * A_iii_0_kkk_7;
+                C_iii_1_jjj_1 -= B_kkk_7_jjj_1 * A_iii_1_kkk_7;
+                C_iii_1_jjj_0 -= B_kkk_7_jjj_0 * A_iii_1_kkk_7;
+                C_iii_2_jjj_0 -= B_kkk_7_jjj_0 * A_iii_2_kkk_7;
+                C_iii_2_jjj_1 -= B_kkk_7_jjj_1 * A_iii_2_kkk_7;
+                C_iii_3_jjj_0 -= B_kkk_7_jjj_0 * A_iii_3_kkk_7;
+                C_iii_3_jjj_1 -= B_kkk_7_jjj_1 * A_iii_3_kkk_7;
+
+                // -----
+
+                MIX(C, LDC, ii + 0, jj + 0) = C_iii_0_jjj_0;
+                MIX(C, LDC, ii + 0, jj + 1) = C_iii_0_jjj_1;
+                MIX(C, LDC, ii + 1, jj + 0) = C_iii_1_jjj_0;
+                MIX(C, LDC, ii + 1, jj + 1) = C_iii_1_jjj_1;
+                MIX(C, LDC, ii + 2, jj + 0) = C_iii_2_jjj_0;
+                MIX(C, LDC, ii + 2, jj + 1) = C_iii_2_jjj_1;
+                MIX(C, LDC, ii + 3, jj + 0) = C_iii_3_jjj_0;
+                MIX(C, LDC, ii + 3, jj + 1) = C_iii_3_jjj_1;
+              }
+
+        // k overflow
+        for (; k < K; ++k)
+
+          // Cache blocking
+          for (ii = i; ii <= (i + NB) - MU; ii += MU)
+            for (jj = j; jj <= (j + NB) - NU; jj += NU)
+            /* // Registier blocking */
+            /* for (iii = ii; iii < ii + MU; ++iii) */
+            /*   for (jjj = jj; jjj < jj + NU; ++jjj) */
             {
-              MIX(AL, NB, ii, jj) = MIX(A, LDA, i + ii, k + jj);
-              MIX(BL, NB, ii, jj) = MIX(B, LDB, k + ii, j + jj);
-              MIX(CL, NB, ii, jj) = MIX(C, LDC, i + ii, j + jj);
+              C_iii_0_jjj_0 = MIX(C, LDC, ii + 0, jj + 0);
+              C_iii_0_jjj_1 = MIX(C, LDC, ii + 0, jj + 1);
+
+              C_iii_1_jjj_0 = MIX(C, LDC, ii + 1, jj + 0);
+              C_iii_1_jjj_1 = MIX(C, LDC, ii + 1, jj + 1);
+
+              C_iii_2_jjj_0 = MIX(C, LDC, ii + 2, jj + 0);
+              C_iii_2_jjj_1 = MIX(C, LDC, ii + 2, jj + 1);
+
+              C_iii_3_jjj_0 = MIX(C, LDC, ii + 3, jj + 0);
+              C_iii_3_jjj_1 = MIX(C, LDC, ii + 3, jj + 1);
+
+              B_kkk_0_jjj_0 = MIX(B, LDB, k + 0, jj + 0);
+              B_kkk_0_jjj_1 = MIX(B, LDB, k + 0, jj + 1);
+
+              A_iii_0_kkk_0 = MIX(A, LDA, ii + 0, k + 0);
+              A_iii_1_kkk_0 = MIX(A, LDA, ii + 1, k + 0);
+              A_iii_2_kkk_0 = MIX(A, LDA, ii + 2, k + 0);
+              A_iii_3_kkk_0 = MIX(A, LDA, ii + 3, k + 0);
+
+              // ----
+
+              C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+              C_iii_0_jjj_1 -= B_kkk_0_jjj_1 * A_iii_0_kkk_0;
+              C_iii_1_jjj_0 -= B_kkk_0_jjj_0 * A_iii_1_kkk_0;
+              C_iii_1_jjj_1 -= B_kkk_0_jjj_1 * A_iii_1_kkk_0;
+              C_iii_2_jjj_0 -= B_kkk_0_jjj_0 * A_iii_2_kkk_0;
+              C_iii_2_jjj_1 -= B_kkk_0_jjj_1 * A_iii_2_kkk_0;
+              C_iii_3_jjj_0 -= B_kkk_0_jjj_0 * A_iii_3_kkk_0;
+              C_iii_3_jjj_1 -= B_kkk_0_jjj_1 * A_iii_3_kkk_0;
+
+              // ----
+
+              MIX(C, LDC, ii + 0, jj + 0) = C_iii_0_jjj_0;
+              MIX(C, LDC, ii + 0, jj + 1) = C_iii_0_jjj_1;
+              MIX(C, LDC, ii + 1, jj + 0) = C_iii_1_jjj_0;
+              MIX(C, LDC, ii + 1, jj + 1) = C_iii_1_jjj_1;
+              MIX(C, LDC, ii + 2, jj + 0) = C_iii_2_jjj_0;
+              MIX(C, LDC, ii + 2, jj + 1) = C_iii_2_jjj_1;
+              MIX(C, LDC, ii + 3, jj + 0) = C_iii_3_jjj_0;
+              MIX(C, LDC, ii + 3, jj + 1) = C_iii_3_jjj_1;
+            }
+      }
+
+      // j overflow
+      for (; j < N; ++j)
+      {
+
+        // k blocked
+        for (k = 0; k <= K - NB; k += NB)
+
+          // Cache blocking
+          for (ii = i; ii <= (i + NB) - MU; ii += MU)
+            for (kk = k; kk <= (k + NB) - KU; kk += KU)
+
+            // Registier blocking
+            /* for (kkk = kk; kkk < kk + KU; ++kkk) */
+            /*   for (iii = ii; iii < ii + MU; ++iii) */
+            {
+
+              C_iii_0_jjj_0 = MIX(C, LDC, ii + 0, j + 0);
+              C_iii_1_jjj_0 = MIX(C, LDC, ii + 1, j + 0);
+              C_iii_2_jjj_0 = MIX(C, LDC, ii + 2, j + 0);
+              C_iii_3_jjj_0 = MIX(C, LDC, ii + 3, j + 0);
+
+              B_kkk_0_jjj_0 = MIX(B, LDB, kk + 0, j + 0);
+              B_kkk_1_jjj_0 = MIX(B, LDB, kk + 1, j + 0);
+              B_kkk_2_jjj_0 = MIX(B, LDB, kk + 2, j + 0);
+              B_kkk_3_jjj_0 = MIX(B, LDB, kk + 3, j + 0);
+              B_kkk_4_jjj_0 = MIX(B, LDB, kk + 4, j + 0);
+              B_kkk_5_jjj_0 = MIX(B, LDB, kk + 5, j + 0);
+              B_kkk_6_jjj_0 = MIX(B, LDB, kk + 6, j + 0);
+              B_kkk_7_jjj_0 = MIX(B, LDB, kk + 7, j + 0);
+
+              A_iii_0_kkk_0 = MIX(A, LDA, ii + 0, kk + 0);
+              A_iii_0_kkk_1 = MIX(A, LDA, ii + 0, kk + 1);
+              A_iii_0_kkk_2 = MIX(A, LDA, ii + 0, kk + 2);
+              A_iii_0_kkk_3 = MIX(A, LDA, ii + 0, kk + 3);
+              A_iii_0_kkk_4 = MIX(A, LDA, ii + 0, kk + 4);
+              A_iii_0_kkk_5 = MIX(A, LDA, ii + 0, kk + 5);
+              A_iii_0_kkk_6 = MIX(A, LDA, ii + 0, kk + 6);
+              A_iii_0_kkk_7 = MIX(A, LDA, ii + 0, kk + 7);
+
+              A_iii_1_kkk_0 = MIX(A, LDA, ii + 1, kk + 0);
+              A_iii_1_kkk_1 = MIX(A, LDA, ii + 1, kk + 1);
+              A_iii_1_kkk_2 = MIX(A, LDA, ii + 1, kk + 2);
+              A_iii_1_kkk_3 = MIX(A, LDA, ii + 1, kk + 3);
+              A_iii_1_kkk_4 = MIX(A, LDA, ii + 1, kk + 4);
+              A_iii_1_kkk_5 = MIX(A, LDA, ii + 1, kk + 5);
+              A_iii_1_kkk_6 = MIX(A, LDA, ii + 1, kk + 6);
+              A_iii_1_kkk_7 = MIX(A, LDA, ii + 1, kk + 7);
+
+              A_iii_2_kkk_0 = MIX(A, LDA, ii + 2, kk + 0);
+              A_iii_2_kkk_1 = MIX(A, LDA, ii + 2, kk + 1);
+              A_iii_2_kkk_2 = MIX(A, LDA, ii + 2, kk + 2);
+              A_iii_2_kkk_3 = MIX(A, LDA, ii + 2, kk + 3);
+              A_iii_2_kkk_4 = MIX(A, LDA, ii + 2, kk + 4);
+              A_iii_2_kkk_5 = MIX(A, LDA, ii + 2, kk + 5);
+              A_iii_2_kkk_6 = MIX(A, LDA, ii + 2, kk + 6);
+              A_iii_2_kkk_7 = MIX(A, LDA, ii + 2, kk + 7);
+
+              A_iii_3_kkk_0 = MIX(A, LDA, ii + 3, kk + 0);
+              A_iii_3_kkk_1 = MIX(A, LDA, ii + 3, kk + 1);
+              A_iii_3_kkk_2 = MIX(A, LDA, ii + 3, kk + 2);
+              A_iii_3_kkk_3 = MIX(A, LDA, ii + 3, kk + 3);
+              A_iii_3_kkk_4 = MIX(A, LDA, ii + 3, kk + 4);
+              A_iii_3_kkk_5 = MIX(A, LDA, ii + 3, kk + 5);
+              A_iii_3_kkk_6 = MIX(A, LDA, ii + 3, kk + 6);
+              A_iii_3_kkk_7 = MIX(A, LDA, ii + 3, kk + 7);
+              A_iii_3_kkk_8 = MIX(A, LDA, ii + 3, kk + 8);
+
+              // ------
+
+              C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+              C_iii_1_jjj_0 -= B_kkk_0_jjj_0 * A_iii_1_kkk_0;
+              C_iii_2_jjj_0 -= B_kkk_0_jjj_0 * A_iii_2_kkk_0;
+              C_iii_3_jjj_0 -= B_kkk_0_jjj_0 * A_iii_3_kkk_0;
+
+              C_iii_0_jjj_0 -= B_kkk_1_jjj_0 * A_iii_0_kkk_1;
+              C_iii_1_jjj_0 -= B_kkk_1_jjj_0 * A_iii_1_kkk_1;
+              C_iii_2_jjj_0 -= B_kkk_1_jjj_0 * A_iii_2_kkk_1;
+              C_iii_3_jjj_0 -= B_kkk_1_jjj_0 * A_iii_3_kkk_1;
+
+              C_iii_0_jjj_0 -= B_kkk_2_jjj_0 * A_iii_0_kkk_2;
+              C_iii_1_jjj_0 -= B_kkk_2_jjj_0 * A_iii_1_kkk_2;
+              C_iii_2_jjj_0 -= B_kkk_2_jjj_0 * A_iii_2_kkk_2;
+              C_iii_3_jjj_0 -= B_kkk_2_jjj_0 * A_iii_3_kkk_2;
+
+              C_iii_0_jjj_0 -= B_kkk_3_jjj_0 * A_iii_0_kkk_3;
+              C_iii_1_jjj_0 -= B_kkk_3_jjj_0 * A_iii_1_kkk_3;
+              C_iii_2_jjj_0 -= B_kkk_3_jjj_0 * A_iii_2_kkk_3;
+              C_iii_3_jjj_0 -= B_kkk_3_jjj_0 * A_iii_3_kkk_3;
+
+              C_iii_0_jjj_0 -= B_kkk_4_jjj_0 * A_iii_0_kkk_4;
+              C_iii_1_jjj_0 -= B_kkk_4_jjj_0 * A_iii_1_kkk_4;
+              C_iii_2_jjj_0 -= B_kkk_4_jjj_0 * A_iii_2_kkk_4;
+              C_iii_3_jjj_0 -= B_kkk_4_jjj_0 * A_iii_3_kkk_4;
+
+              C_iii_0_jjj_0 -= B_kkk_5_jjj_0 * A_iii_0_kkk_5;
+              C_iii_1_jjj_0 -= B_kkk_5_jjj_0 * A_iii_1_kkk_5;
+              C_iii_2_jjj_0 -= B_kkk_5_jjj_0 * A_iii_2_kkk_5;
+              C_iii_3_jjj_0 -= B_kkk_5_jjj_0 * A_iii_3_kkk_5;
+
+              C_iii_0_jjj_0 -= B_kkk_6_jjj_0 * A_iii_0_kkk_6;
+              C_iii_1_jjj_0 -= B_kkk_6_jjj_0 * A_iii_1_kkk_6;
+              C_iii_2_jjj_0 -= B_kkk_6_jjj_0 * A_iii_2_kkk_6;
+              C_iii_3_jjj_0 -= B_kkk_6_jjj_0 * A_iii_3_kkk_6;
+
+              C_iii_0_jjj_0 -= B_kkk_7_jjj_0 * A_iii_0_kkk_7;
+              C_iii_1_jjj_0 -= B_kkk_7_jjj_0 * A_iii_1_kkk_7;
+              C_iii_2_jjj_0 -= B_kkk_7_jjj_0 * A_iii_2_kkk_7;
+              C_iii_3_jjj_0 -= B_kkk_7_jjj_0 * A_iii_3_kkk_7;
+
+              // -----
+
+              MIX(C, LDC, ii + 0, j + 0) = C_iii_0_jjj_0;
+              MIX(C, LDC, ii + 1, j + 0) = C_iii_1_jjj_0;
+              MIX(C, LDC, ii + 2, j + 0) = C_iii_2_jjj_0;
+              MIX(C, LDC, ii + 3, j + 0) = C_iii_3_jjj_0;
             }
 
-          // ----
+        // k overflow
+        for (; k < K; ++k)
 
-          // Mini MMM (cache blocking)
-          for (jj = 0; jj < NB; jj += NU)
-            for (ii = 0; ii < NB; ii += MU)
-              for (kk = 0; kk < NB; kk += KU)
+          // Cache blocking
+          for (ii = i; ii <= (i + NB) - MU; ii += MU)
 
-                // Micro MMM (register blocking)
-                for (kkk = kk; kkk < kk + KU; ++kkk)
-                  for (iii = ii; iii < ii + MU; ++iii)
-                    for (jjj = jj; jjj < jj + NU; ++jjj)
+          // Register blocking
+          /* for (iii = ii; iii < ii + MU; ++iii) */
+          {
+            C_iii_0_jjj_0 = MIX(C, LDC, ii + 0, j + 0);
+            C_iii_1_jjj_0 = MIX(C, LDC, ii + 1, j + 0);
+            C_iii_2_jjj_0 = MIX(C, LDC, ii + 2, j + 0);
+            C_iii_3_jjj_0 = MIX(C, LDC, ii + 3, j + 0);
 
-                      MIX(CL, NB, iii, jjj) =
-                          MIX(CL, NB, iii, jjj) -
-                          MIX(BL, NB, kkk, jjj) * MIX(AL, NB, iii, kkk);
+            B_kkk_0_jjj_0 = MIX(B, LDB, k + 0, j + 0);
 
-          // ----
+            A_iii_0_kkk_0 = MIX(A, LDA, ii + 0, k + 0);
+            A_iii_1_kkk_0 = MIX(A, LDA, ii + 1, k + 0);
+            A_iii_2_kkk_0 = MIX(A, LDA, ii + 2, k + 0);
+            A_iii_3_kkk_0 = MIX(A, LDA, ii + 3, k + 0);
 
-          // Store the local matrices back into memory.
+            // ------
 
-          for (ii = 0; ii < NB; ++ii)
-            for (jj = 0; jj < NB; ++jj)
+            C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+            C_iii_1_jjj_0 -= B_kkk_0_jjj_0 * A_iii_1_kkk_0;
+            C_iii_2_jjj_0 -= B_kkk_0_jjj_0 * A_iii_2_kkk_0;
+            C_iii_3_jjj_0 -= B_kkk_0_jjj_0 * A_iii_3_kkk_0;
+
+            // -----
+
+            MIX(C, LDC, ii + 0, j + 0) = C_iii_0_jjj_0;
+            MIX(C, LDC, ii + 1, j + 0) = C_iii_1_jjj_0;
+            MIX(C, LDC, ii + 2, j + 0) = C_iii_2_jjj_0;
+            MIX(C, LDC, ii + 3, j + 0) = C_iii_3_jjj_0;
+          }
+      }
+    }
+
+    // i overflow
+    for (; i < M; ++i)
+    {
+      // j blocked
+      for (j = 0; j <= N - NB; j += NB)
+      {
+
+        // k blocked
+        for (k = 0; k <= K - NB; k += NB)
+
+          // Cache blocking
+          for (jj = j; jj <= (j + NB) - NU; jj += NU)
+            for (kk = k; kk <= (k + NB) - KU; kk += KU)
+
+            // Register blocking
+            /* for (kkk = kk; kkk < kk + KU; ++kkk) */
+            /*   for (jjj = jj; jjj < jj + NU; ++jjj) */
             {
-              MIX(A, LDA, i + ii, k + jj) = MIX(AL, NB, ii, jj);
-              MIX(B, LDB, k + ii, j + jj) = MIX(BL, NB, ii, jj);
-              MIX(C, LDC, i + ii, j + jj) = MIX(CL, NB, ii, jj);
+
+              C_iii_0_jjj_0 = MIX(C, LDC, i + 0, jj + 0);
+              C_iii_0_jjj_1 = MIX(C, LDC, i + 0, jj + 1);
+
+              B_kkk_0_jjj_0 = MIX(B, LDB, kk + 0, jj + 0);
+              B_kkk_0_jjj_1 = MIX(B, LDB, kk + 0, jj + 1);
+              B_kkk_1_jjj_0 = MIX(B, LDB, kk + 1, jj + 0);
+              B_kkk_1_jjj_1 = MIX(B, LDB, kk + 1, jj + 1);
+              B_kkk_2_jjj_0 = MIX(B, LDB, kk + 2, jj + 0);
+              B_kkk_2_jjj_1 = MIX(B, LDB, kk + 2, jj + 1);
+              B_kkk_3_jjj_0 = MIX(B, LDB, kk + 3, jj + 0);
+              B_kkk_3_jjj_1 = MIX(B, LDB, kk + 3, jj + 1);
+              B_kkk_4_jjj_0 = MIX(B, LDB, kk + 4, jj + 0);
+              B_kkk_4_jjj_1 = MIX(B, LDB, kk + 4, jj + 1);
+              B_kkk_5_jjj_0 = MIX(B, LDB, kk + 5, jj + 0);
+              B_kkk_5_jjj_1 = MIX(B, LDB, kk + 5, jj + 1);
+              B_kkk_6_jjj_0 = MIX(B, LDB, kk + 6, jj + 0);
+              B_kkk_6_jjj_1 = MIX(B, LDB, kk + 6, jj + 1);
+              B_kkk_7_jjj_0 = MIX(B, LDB, kk + 7, jj + 0);
+              B_kkk_7_jjj_1 = MIX(B, LDB, kk + 7, jj + 1);
+
+              A_iii_0_kkk_0 = MIX(A, LDA, i + 0, kk + 0);
+              A_iii_0_kkk_1 = MIX(A, LDA, i + 0, kk + 1);
+              A_iii_0_kkk_2 = MIX(A, LDA, i + 0, kk + 2);
+              A_iii_0_kkk_3 = MIX(A, LDA, i + 0, kk + 3);
+              A_iii_0_kkk_4 = MIX(A, LDA, i + 0, kk + 4);
+              A_iii_0_kkk_5 = MIX(A, LDA, i + 0, kk + 5);
+              A_iii_0_kkk_6 = MIX(A, LDA, i + 0, kk + 6);
+              A_iii_0_kkk_7 = MIX(A, LDA, i + 0, kk + 7);
+
+              // ------
+
+              C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+              C_iii_0_jjj_1 -= B_kkk_0_jjj_1 * A_iii_0_kkk_0;
+
+              C_iii_0_jjj_0 -= B_kkk_1_jjj_0 * A_iii_0_kkk_1;
+              C_iii_0_jjj_1 -= B_kkk_1_jjj_1 * A_iii_0_kkk_1;
+
+              C_iii_0_jjj_0 -= B_kkk_2_jjj_0 * A_iii_0_kkk_2;
+              C_iii_0_jjj_1 -= B_kkk_2_jjj_1 * A_iii_0_kkk_2;
+
+              C_iii_0_jjj_0 -= B_kkk_3_jjj_0 * A_iii_0_kkk_3;
+              C_iii_0_jjj_1 -= B_kkk_3_jjj_1 * A_iii_0_kkk_3;
+
+              C_iii_0_jjj_0 -= B_kkk_4_jjj_0 * A_iii_0_kkk_4;
+              C_iii_0_jjj_1 -= B_kkk_4_jjj_1 * A_iii_0_kkk_4;
+
+              C_iii_0_jjj_0 -= B_kkk_5_jjj_0 * A_iii_0_kkk_5;
+              C_iii_0_jjj_1 -= B_kkk_5_jjj_1 * A_iii_0_kkk_5;
+
+              C_iii_0_jjj_0 -= B_kkk_6_jjj_0 * A_iii_0_kkk_6;
+              C_iii_0_jjj_1 -= B_kkk_6_jjj_1 * A_iii_0_kkk_6;
+
+              C_iii_0_jjj_0 -= B_kkk_7_jjj_0 * A_iii_0_kkk_7;
+              C_iii_0_jjj_1 -= B_kkk_7_jjj_1 * A_iii_0_kkk_7;
+
+              // -----
+
+              MIX(C, LDC, i + 0, jj + 0) = C_iii_0_jjj_0;
+              MIX(C, LDC, i + 0, jj + 1) = C_iii_0_jjj_1;
             }
-        }
 
-  } // If outside page bounds
+        // k overflow
+        for (; k < K; ++k)
 
+          // Cache blocking
+          for (jj = j; jj <= (j + NB) - NU; jj += NU)
+
+          // Register blocking
+          /* for (jjj = jj; jjj < jj + NU; ++jjj) */
+          {
+
+            C_iii_0_jjj_0 = MIX(C, LDC, i + 0, jj + 0);
+            C_iii_0_jjj_1 = MIX(C, LDC, i + 0, jj + 1);
+
+            B_kkk_0_jjj_0 = MIX(B, LDB, k + 0, jj + 0);
+            B_kkk_0_jjj_1 = MIX(B, LDB, k + 0, jj + 1);
+
+            A_iii_0_kkk_0 = MIX(A, LDA, i + 0, k + 0);
+
+            // ------
+
+            C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+            C_iii_0_jjj_1 -= B_kkk_0_jjj_1 * A_iii_0_kkk_0;
+
+            // -----
+
+            MIX(C, LDC, i + 0, jj + 0) = C_iii_0_jjj_0;
+            MIX(C, LDC, i + 0, jj + 1) = C_iii_0_jjj_1;
+          }
+      }
+
+      // j overflow
+      for (; j < N; ++j)
+      {
+
+        // k blocked
+        for (k = 0; k <= K - NB; k += NB)
+
+          // Cache blocking
+          for (kk = k; kk <= (k + NB) - KU; kk += KU)
+
+          // Register blocking
+          /* for (kkk = kk; kkk < kk + KU; ++kkk) */
+          {
+            C_iii_0_jjj_0 = MIX(C, LDC, i + 0, j + 0);
+
+            B_kkk_0_jjj_0 = MIX(B, LDB, kk + 0, j + 0);
+            B_kkk_1_jjj_0 = MIX(B, LDB, kk + 1, j + 0);
+            B_kkk_2_jjj_0 = MIX(B, LDB, kk + 2, j + 0);
+            B_kkk_3_jjj_0 = MIX(B, LDB, kk + 3, j + 0);
+            B_kkk_4_jjj_0 = MIX(B, LDB, kk + 4, j + 0);
+            B_kkk_5_jjj_0 = MIX(B, LDB, kk + 5, j + 0);
+            B_kkk_6_jjj_0 = MIX(B, LDB, kk + 6, j + 0);
+            B_kkk_7_jjj_0 = MIX(B, LDB, kk + 7, j + 0);
+
+            A_iii_0_kkk_0 = MIX(A, LDA, i + 0, kk + 0);
+            A_iii_0_kkk_1 = MIX(A, LDA, i + 0, kk + 1);
+            A_iii_0_kkk_2 = MIX(A, LDA, i + 0, kk + 2);
+            A_iii_0_kkk_3 = MIX(A, LDA, i + 0, kk + 3);
+            A_iii_0_kkk_4 = MIX(A, LDA, i + 0, kk + 4);
+            A_iii_0_kkk_5 = MIX(A, LDA, i + 0, kk + 5);
+            A_iii_0_kkk_6 = MIX(A, LDA, i + 0, kk + 6);
+            A_iii_0_kkk_7 = MIX(A, LDA, i + 0, kk + 7);
+
+            // ------
+
+            C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+            C_iii_0_jjj_0 -= B_kkk_1_jjj_0 * A_iii_0_kkk_1;
+            C_iii_0_jjj_0 -= B_kkk_2_jjj_0 * A_iii_0_kkk_2;
+            C_iii_0_jjj_0 -= B_kkk_3_jjj_0 * A_iii_0_kkk_3;
+            C_iii_0_jjj_0 -= B_kkk_4_jjj_0 * A_iii_0_kkk_4;
+            C_iii_0_jjj_0 -= B_kkk_5_jjj_0 * A_iii_0_kkk_5;
+            C_iii_0_jjj_0 -= B_kkk_6_jjj_0 * A_iii_0_kkk_6;
+            C_iii_0_jjj_0 -= B_kkk_7_jjj_0 * A_iii_0_kkk_7;
+
+            // -----
+
+            MIX(C, LDC, i + 0, j + 0) = C_iii_0_jjj_0;
+          }
+
+        // k overflow
+        for (; k < K; ++k)
+          MIX(C, LDC, i, j) =
+              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+      }
+    }
+  }
+
+  // Matrices where M < N
+  // FIXME replace all inner unrolled loops with the version from above.
   else
   {
 
-    for (j = 0; j < N; j += NB)
-      for (i = 0; i < M; i += NB)
-        for (k = 0; k < K; k += NB)
+    // jj blocked
+    for (j = 0; j <= N - NB; j += NB)
+    {
 
-          // Mini MMM (cache blocking)
-          for (jj = j; jj < j + NB; jj += NU)
-            for (ii = i; ii < i + NB; ii += MU)
-              for (kk = k; kk < k + NB; kk += KU)
+      // i blocked
+      for (i = 0; i <= M - NB; i += NB)
+      {
 
-                // Micro MMM (register blocking)
-                for (kkk = kk; kkk < kk + KU; ++kkk)
-                  for (iii = ii; iii < ii + MU; ++iii)
-                    for (jjj = jj; jjj < jj + NU; ++jjj)
+        // k blocked
+        for (k = 0; k <= K - NB; k += NB)
 
-                      MIX(C, LDC, iii, jjj) =
-                          MIX(C, LDC, iii, jjj) -
-                          MIX(B, LDB, kkk, jjj) * MIX(A, LDA, iii, kkk);
+          // Cache blocked
+          for (jj = j; jj <= (j + NB) - NU; jj += NU)
+            for (ii = i; ii <= (i + NB) - MU; ii += MU)
+              for (kk = k; kk <= (k + NB) - KU; kk += KU)
 
-  } // Else within page bounds
+              // Register blocked
+              /* for (kkk = kk; kkk < kk + KU; ++kkk) */
+              /*   for (iii = ii; iii < ii + MU; ++iii) */
+              /*     for (jjj = jj; jjj < jj + NU; ++jjj) */
+              {
 
-  // Cleanup cases. This should also be optimized.
-  for (; j < N; ++j)
-    for (; i < N; ++i)
-      for (; k < N; ++k)
-        MIX(C, LDC, i, j) =
-            MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+                C_iii_0_jjj_0 = MIX(C, LDC, ii + 0, jj + 0);
+                C_iii_0_jjj_1 = MIX(C, LDC, ii + 0, jj + 1);
+                C_iii_1_jjj_0 = MIX(C, LDC, ii + 1, jj + 0);
+                C_iii_1_jjj_1 = MIX(C, LDC, ii + 1, jj + 1);
+                C_iii_2_jjj_0 = MIX(C, LDC, ii + 2, jj + 0);
+                C_iii_2_jjj_1 = MIX(C, LDC, ii + 2, jj + 1);
+                C_iii_3_jjj_0 = MIX(C, LDC, ii + 3, jj + 0);
+                C_iii_3_jjj_1 = MIX(C, LDC, ii + 3, jj + 1);
+
+                B_kkk_0_jjj_0 = MIX(B, LDB, kk + 0, jj + 0);
+                B_kkk_0_jjj_1 = MIX(B, LDB, kk + 0, jj + 1);
+                B_kkk_1_jjj_0 = MIX(B, LDB, kk + 1, jj + 0);
+                B_kkk_1_jjj_1 = MIX(B, LDB, kk + 1, jj + 1);
+                B_kkk_2_jjj_0 = MIX(B, LDB, kk + 2, jj + 0);
+                B_kkk_2_jjj_1 = MIX(B, LDB, kk + 2, jj + 1);
+                B_kkk_3_jjj_0 = MIX(B, LDB, kk + 3, jj + 0);
+                B_kkk_3_jjj_1 = MIX(B, LDB, kk + 3, jj + 1);
+                B_kkk_4_jjj_0 = MIX(B, LDB, kk + 4, jj + 0);
+                B_kkk_4_jjj_1 = MIX(B, LDB, kk + 4, jj + 1);
+                B_kkk_5_jjj_0 = MIX(B, LDB, kk + 5, jj + 0);
+                B_kkk_5_jjj_1 = MIX(B, LDB, kk + 5, jj + 1);
+                B_kkk_6_jjj_0 = MIX(B, LDB, kk + 6, jj + 0);
+                B_kkk_6_jjj_1 = MIX(B, LDB, kk + 6, jj + 1);
+                B_kkk_7_jjj_0 = MIX(B, LDB, kk + 7, jj + 0);
+                B_kkk_7_jjj_1 = MIX(B, LDB, kk + 7, jj + 1);
+
+                A_iii_0_kkk_0 = MIX(A, LDA, ii + 0, kk + 0);
+                A_iii_0_kkk_1 = MIX(A, LDA, ii + 0, kk + 1);
+                A_iii_0_kkk_2 = MIX(A, LDA, ii + 0, kk + 2);
+                A_iii_0_kkk_3 = MIX(A, LDA, ii + 0, kk + 3);
+                A_iii_0_kkk_4 = MIX(A, LDA, ii + 0, kk + 4);
+                A_iii_0_kkk_5 = MIX(A, LDA, ii + 0, kk + 5);
+                A_iii_0_kkk_6 = MIX(A, LDA, ii + 0, kk + 6);
+                A_iii_0_kkk_7 = MIX(A, LDA, ii + 0, kk + 7);
+
+                A_iii_1_kkk_0 = MIX(A, LDA, ii + 1, kk + 0);
+                A_iii_1_kkk_1 = MIX(A, LDA, ii + 1, kk + 1);
+                A_iii_1_kkk_2 = MIX(A, LDA, ii + 1, kk + 2);
+                A_iii_1_kkk_3 = MIX(A, LDA, ii + 1, kk + 3);
+                A_iii_1_kkk_4 = MIX(A, LDA, ii + 1, kk + 4);
+                A_iii_1_kkk_5 = MIX(A, LDA, ii + 1, kk + 5);
+                A_iii_1_kkk_6 = MIX(A, LDA, ii + 1, kk + 6);
+                A_iii_1_kkk_7 = MIX(A, LDA, ii + 1, kk + 7);
+
+                A_iii_2_kkk_0 = MIX(A, LDA, ii + 2, kk + 0);
+                A_iii_2_kkk_1 = MIX(A, LDA, ii + 2, kk + 1);
+                A_iii_2_kkk_2 = MIX(A, LDA, ii + 2, kk + 2);
+                A_iii_2_kkk_3 = MIX(A, LDA, ii + 2, kk + 3);
+                A_iii_2_kkk_4 = MIX(A, LDA, ii + 2, kk + 4);
+                A_iii_2_kkk_5 = MIX(A, LDA, ii + 2, kk + 5);
+                A_iii_2_kkk_6 = MIX(A, LDA, ii + 2, kk + 6);
+                A_iii_2_kkk_7 = MIX(A, LDA, ii + 2, kk + 7);
+
+                A_iii_3_kkk_0 = MIX(A, LDA, ii + 3, kk + 0);
+                A_iii_3_kkk_1 = MIX(A, LDA, ii + 3, kk + 1);
+                A_iii_3_kkk_2 = MIX(A, LDA, ii + 3, kk + 2);
+                A_iii_3_kkk_3 = MIX(A, LDA, ii + 3, kk + 3);
+                A_iii_3_kkk_4 = MIX(A, LDA, ii + 3, kk + 4);
+                A_iii_3_kkk_5 = MIX(A, LDA, ii + 3, kk + 5);
+                A_iii_3_kkk_6 = MIX(A, LDA, ii + 3, kk + 6);
+                A_iii_3_kkk_7 = MIX(A, LDA, ii + 3, kk + 7);
+                A_iii_3_kkk_8 = MIX(A, LDA, ii + 3, kk + 8);
+
+                // ------
+
+                C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+                C_iii_0_jjj_0 -= B_kkk_1_jjj_0 * A_iii_0_kkk_1;
+                C_iii_0_jjj_0 -= B_kkk_2_jjj_0 * A_iii_0_kkk_2;
+                C_iii_0_jjj_0 -= B_kkk_3_jjj_0 * A_iii_0_kkk_3;
+                C_iii_0_jjj_0 -= B_kkk_4_jjj_0 * A_iii_0_kkk_4;
+                C_iii_0_jjj_0 -= B_kkk_5_jjj_0 * A_iii_0_kkk_5;
+                C_iii_0_jjj_0 -= B_kkk_6_jjj_0 * A_iii_0_kkk_6;
+                C_iii_0_jjj_0 -= B_kkk_7_jjj_0 * A_iii_0_kkk_7;
+
+                C_iii_0_jjj_1 -= B_kkk_0_jjj_1 * A_iii_0_kkk_0;
+                C_iii_0_jjj_1 -= B_kkk_1_jjj_1 * A_iii_0_kkk_1;
+                C_iii_0_jjj_1 -= B_kkk_2_jjj_1 * A_iii_0_kkk_2;
+                C_iii_0_jjj_1 -= B_kkk_3_jjj_1 * A_iii_0_kkk_3;
+                C_iii_0_jjj_1 -= B_kkk_4_jjj_1 * A_iii_0_kkk_4;
+                C_iii_0_jjj_1 -= B_kkk_5_jjj_1 * A_iii_0_kkk_5;
+                C_iii_0_jjj_1 -= B_kkk_6_jjj_1 * A_iii_0_kkk_6;
+                C_iii_0_jjj_1 -= B_kkk_7_jjj_1 * A_iii_0_kkk_7;
+
+                C_iii_1_jjj_0 -= B_kkk_0_jjj_0 * A_iii_1_kkk_0;
+                C_iii_1_jjj_0 -= B_kkk_1_jjj_0 * A_iii_1_kkk_1;
+                C_iii_1_jjj_0 -= B_kkk_2_jjj_0 * A_iii_1_kkk_2;
+                C_iii_1_jjj_0 -= B_kkk_3_jjj_0 * A_iii_1_kkk_3;
+                C_iii_1_jjj_0 -= B_kkk_4_jjj_0 * A_iii_1_kkk_4;
+                C_iii_1_jjj_0 -= B_kkk_5_jjj_0 * A_iii_1_kkk_5;
+                C_iii_1_jjj_0 -= B_kkk_6_jjj_0 * A_iii_1_kkk_6;
+                C_iii_1_jjj_0 -= B_kkk_7_jjj_0 * A_iii_1_kkk_7;
+
+                C_iii_1_jjj_1 -= B_kkk_0_jjj_1 * A_iii_1_kkk_0;
+                C_iii_1_jjj_1 -= B_kkk_1_jjj_1 * A_iii_1_kkk_1;
+                C_iii_1_jjj_1 -= B_kkk_2_jjj_1 * A_iii_1_kkk_2;
+                C_iii_1_jjj_1 -= B_kkk_3_jjj_1 * A_iii_1_kkk_3;
+                C_iii_1_jjj_1 -= B_kkk_4_jjj_1 * A_iii_1_kkk_4;
+                C_iii_1_jjj_1 -= B_kkk_5_jjj_1 * A_iii_1_kkk_5;
+                C_iii_1_jjj_1 -= B_kkk_6_jjj_1 * A_iii_1_kkk_6;
+                C_iii_1_jjj_1 -= B_kkk_7_jjj_1 * A_iii_1_kkk_7;
+
+                C_iii_2_jjj_0 -= B_kkk_0_jjj_0 * A_iii_2_kkk_0;
+                C_iii_2_jjj_0 -= B_kkk_1_jjj_0 * A_iii_2_kkk_1;
+                C_iii_2_jjj_0 -= B_kkk_2_jjj_0 * A_iii_2_kkk_2;
+                C_iii_2_jjj_0 -= B_kkk_3_jjj_0 * A_iii_2_kkk_3;
+                C_iii_2_jjj_0 -= B_kkk_4_jjj_0 * A_iii_2_kkk_4;
+                C_iii_2_jjj_0 -= B_kkk_5_jjj_0 * A_iii_2_kkk_5;
+                C_iii_2_jjj_0 -= B_kkk_6_jjj_0 * A_iii_2_kkk_6;
+                C_iii_2_jjj_0 -= B_kkk_7_jjj_0 * A_iii_2_kkk_7;
+
+                C_iii_2_jjj_1 -= B_kkk_0_jjj_1 * A_iii_2_kkk_0;
+                C_iii_2_jjj_1 -= B_kkk_1_jjj_1 * A_iii_2_kkk_1;
+                C_iii_2_jjj_1 -= B_kkk_2_jjj_1 * A_iii_2_kkk_2;
+                C_iii_2_jjj_1 -= B_kkk_3_jjj_1 * A_iii_2_kkk_3;
+                C_iii_2_jjj_1 -= B_kkk_4_jjj_1 * A_iii_2_kkk_4;
+                C_iii_2_jjj_1 -= B_kkk_5_jjj_1 * A_iii_2_kkk_5;
+                C_iii_2_jjj_1 -= B_kkk_6_jjj_1 * A_iii_2_kkk_6;
+                C_iii_2_jjj_1 -= B_kkk_7_jjj_1 * A_iii_2_kkk_7;
+
+                C_iii_3_jjj_0 -= B_kkk_0_jjj_0 * A_iii_3_kkk_0;
+                C_iii_3_jjj_0 -= B_kkk_1_jjj_0 * A_iii_3_kkk_1;
+                C_iii_3_jjj_0 -= B_kkk_2_jjj_0 * A_iii_3_kkk_2;
+                C_iii_3_jjj_0 -= B_kkk_3_jjj_0 * A_iii_3_kkk_3;
+                C_iii_3_jjj_0 -= B_kkk_4_jjj_0 * A_iii_3_kkk_4;
+                C_iii_3_jjj_0 -= B_kkk_5_jjj_0 * A_iii_3_kkk_5;
+                C_iii_3_jjj_0 -= B_kkk_6_jjj_0 * A_iii_3_kkk_6;
+                C_iii_3_jjj_0 -= B_kkk_7_jjj_0 * A_iii_3_kkk_7;
+
+                C_iii_3_jjj_1 -= B_kkk_0_jjj_1 * A_iii_3_kkk_0;
+                C_iii_3_jjj_1 -= B_kkk_1_jjj_1 * A_iii_3_kkk_1;
+                C_iii_3_jjj_1 -= B_kkk_2_jjj_1 * A_iii_3_kkk_2;
+                C_iii_3_jjj_1 -= B_kkk_3_jjj_1 * A_iii_3_kkk_3;
+                C_iii_3_jjj_1 -= B_kkk_4_jjj_1 * A_iii_3_kkk_4;
+                C_iii_3_jjj_1 -= B_kkk_5_jjj_1 * A_iii_3_kkk_5;
+                C_iii_3_jjj_1 -= B_kkk_6_jjj_1 * A_iii_3_kkk_6;
+                C_iii_3_jjj_1 -= B_kkk_7_jjj_1 * A_iii_3_kkk_7;
+
+                // -----
+
+                MIX(C, LDC, ii + 0, jj + 0) = C_iii_0_jjj_0;
+                MIX(C, LDC, ii + 0, jj + 1) = C_iii_0_jjj_1;
+                MIX(C, LDC, ii + 1, jj + 0) = C_iii_1_jjj_0;
+                MIX(C, LDC, ii + 1, jj + 1) = C_iii_1_jjj_1;
+                MIX(C, LDC, ii + 2, jj + 0) = C_iii_2_jjj_0;
+                MIX(C, LDC, ii + 2, jj + 1) = C_iii_2_jjj_1;
+                MIX(C, LDC, ii + 3, jj + 0) = C_iii_3_jjj_0;
+                MIX(C, LDC, ii + 3, jj + 1) = C_iii_3_jjj_1;
+              }
+
+        // k overflow
+        for (; k < K; ++k)
+
+          // Cache blocked
+          for (jj = j; jj <= (j + NB) - NU; jj += NU)
+            for (ii = i; ii <= (i + NB) - MU; ii += MU)
+
+            // Register blocked
+            /* for (iii = ii; iii < ii + MU; ++iii) */
+            /*   for (jjj = jj; jjj < jj + NU; ++jjj) */
+            {
+
+              C_iii_0_jjj_0 = MIX(C, LDC, ii + 0, jj + 0);
+              C_iii_0_jjj_1 = MIX(C, LDC, ii + 0, jj + 1);
+
+              C_iii_1_jjj_0 = MIX(C, LDC, ii + 1, jj + 0);
+              C_iii_1_jjj_1 = MIX(C, LDC, ii + 1, jj + 1);
+
+              C_iii_2_jjj_0 = MIX(C, LDC, ii + 2, jj + 0);
+              C_iii_2_jjj_1 = MIX(C, LDC, ii + 2, jj + 1);
+
+              C_iii_3_jjj_0 = MIX(C, LDC, ii + 3, jj + 0);
+              C_iii_3_jjj_1 = MIX(C, LDC, ii + 3, jj + 1);
+
+              B_kkk_0_jjj_0 = MIX(B, LDB, k + 0, jj + 0);
+              B_kkk_0_jjj_1 = MIX(B, LDB, k + 0, jj + 1);
+
+              A_iii_0_kkk_0 = MIX(A, LDA, ii + 0, k + 0);
+              A_iii_1_kkk_0 = MIX(A, LDA, ii + 1, k + 0);
+              A_iii_2_kkk_0 = MIX(A, LDA, ii + 2, k + 0);
+              A_iii_3_kkk_0 = MIX(A, LDA, ii + 3, k + 0);
+
+              // ----
+
+              C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+              C_iii_0_jjj_1 -= B_kkk_0_jjj_1 * A_iii_0_kkk_0;
+              C_iii_1_jjj_0 -= B_kkk_0_jjj_0 * A_iii_1_kkk_0;
+              C_iii_1_jjj_1 -= B_kkk_0_jjj_1 * A_iii_1_kkk_0;
+              C_iii_2_jjj_0 -= B_kkk_0_jjj_0 * A_iii_2_kkk_0;
+              C_iii_2_jjj_1 -= B_kkk_0_jjj_1 * A_iii_2_kkk_0;
+              C_iii_3_jjj_0 -= B_kkk_0_jjj_0 * A_iii_3_kkk_0;
+              C_iii_3_jjj_1 -= B_kkk_0_jjj_1 * A_iii_3_kkk_0;
+
+              // ----
+
+              MIX(C, LDC, ii + 0, jj + 0) = C_iii_0_jjj_0;
+              MIX(C, LDC, ii + 0, jj + 1) = C_iii_0_jjj_1;
+              MIX(C, LDC, ii + 1, jj + 0) = C_iii_1_jjj_0;
+              MIX(C, LDC, ii + 1, jj + 1) = C_iii_1_jjj_1;
+              MIX(C, LDC, ii + 2, jj + 0) = C_iii_2_jjj_0;
+              MIX(C, LDC, ii + 2, jj + 1) = C_iii_2_jjj_1;
+              MIX(C, LDC, ii + 3, jj + 0) = C_iii_3_jjj_0;
+              MIX(C, LDC, ii + 3, jj + 1) = C_iii_3_jjj_1;
+            }
+      }
+
+      // i overflow
+      for (; i < M; ++i)
+      {
+
+        // K blocked
+        for (k = 0; k <= K - NB; k += NB)
+
+          // Cache blocked
+          for (jj = j; jj <= (j + NB) - NU; jj += NU)
+            for (kk = k; kk <= (k + NB) - KU; kk += KU)
+
+            // Register blocked
+            /* for (jjj = jj; jjj < jj + NU; ++jjj) */
+            /*   for (kkk = kk; kkk < kk + KU; ++kkk) */
+            {
+
+              C_iii_0_jjj_0 = MIX(C, LDC, i + 0, jj + 0);
+              C_iii_0_jjj_1 = MIX(C, LDC, i + 0, jj + 1);
+
+              B_kkk_0_jjj_0 = MIX(B, LDB, kk + 0, jj + 0);
+              B_kkk_0_jjj_1 = MIX(B, LDB, kk + 0, jj + 1);
+              B_kkk_1_jjj_0 = MIX(B, LDB, kk + 1, jj + 0);
+              B_kkk_1_jjj_1 = MIX(B, LDB, kk + 1, jj + 1);
+              B_kkk_2_jjj_0 = MIX(B, LDB, kk + 2, jj + 0);
+              B_kkk_2_jjj_1 = MIX(B, LDB, kk + 2, jj + 1);
+              B_kkk_3_jjj_0 = MIX(B, LDB, kk + 3, jj + 0);
+              B_kkk_3_jjj_1 = MIX(B, LDB, kk + 3, jj + 1);
+              B_kkk_4_jjj_0 = MIX(B, LDB, kk + 4, jj + 0);
+              B_kkk_4_jjj_1 = MIX(B, LDB, kk + 4, jj + 1);
+              B_kkk_5_jjj_0 = MIX(B, LDB, kk + 5, jj + 0);
+              B_kkk_5_jjj_1 = MIX(B, LDB, kk + 5, jj + 1);
+              B_kkk_6_jjj_0 = MIX(B, LDB, kk + 6, jj + 0);
+              B_kkk_6_jjj_1 = MIX(B, LDB, kk + 6, jj + 1);
+              B_kkk_7_jjj_0 = MIX(B, LDB, kk + 7, jj + 0);
+              B_kkk_7_jjj_1 = MIX(B, LDB, kk + 7, jj + 1);
+
+              A_iii_0_kkk_0 = MIX(A, LDA, i + 0, kk + 0);
+              A_iii_0_kkk_1 = MIX(A, LDA, i + 0, kk + 1);
+              A_iii_0_kkk_2 = MIX(A, LDA, i + 0, kk + 2);
+              A_iii_0_kkk_3 = MIX(A, LDA, i + 0, kk + 3);
+              A_iii_0_kkk_4 = MIX(A, LDA, i + 0, kk + 4);
+              A_iii_0_kkk_5 = MIX(A, LDA, i + 0, kk + 5);
+              A_iii_0_kkk_6 = MIX(A, LDA, i + 0, kk + 6);
+              A_iii_0_kkk_7 = MIX(A, LDA, i + 0, kk + 7);
+
+              // ------
+
+              C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+              C_iii_0_jjj_0 -= B_kkk_1_jjj_0 * A_iii_0_kkk_1;
+              C_iii_0_jjj_0 -= B_kkk_2_jjj_0 * A_iii_0_kkk_2;
+              C_iii_0_jjj_0 -= B_kkk_3_jjj_0 * A_iii_0_kkk_3;
+              C_iii_0_jjj_0 -= B_kkk_4_jjj_0 * A_iii_0_kkk_4;
+              C_iii_0_jjj_0 -= B_kkk_5_jjj_0 * A_iii_0_kkk_5;
+              C_iii_0_jjj_0 -= B_kkk_6_jjj_0 * A_iii_0_kkk_6;
+              C_iii_0_jjj_0 -= B_kkk_7_jjj_0 * A_iii_0_kkk_7;
+
+              C_iii_0_jjj_1 -= B_kkk_0_jjj_1 * A_iii_0_kkk_0;
+              C_iii_0_jjj_1 -= B_kkk_1_jjj_1 * A_iii_0_kkk_1;
+              C_iii_0_jjj_1 -= B_kkk_2_jjj_1 * A_iii_0_kkk_2;
+              C_iii_0_jjj_1 -= B_kkk_3_jjj_1 * A_iii_0_kkk_3;
+              C_iii_0_jjj_1 -= B_kkk_4_jjj_1 * A_iii_0_kkk_4;
+              C_iii_0_jjj_1 -= B_kkk_5_jjj_1 * A_iii_0_kkk_5;
+              C_iii_0_jjj_1 -= B_kkk_6_jjj_1 * A_iii_0_kkk_6;
+              C_iii_0_jjj_1 -= B_kkk_7_jjj_1 * A_iii_0_kkk_7;
+
+              // -----
+
+              MIX(C, LDC, i + 0, jj + 0) = C_iii_0_jjj_0;
+              MIX(C, LDC, i + 0, jj + 1) = C_iii_0_jjj_1;
+            }
+
+        // K overflow
+        for (; k < K; ++k)
+
+          // Cache blocking
+          for (jj = j; jj <= (j + NB) - NU; jj += NU)
+
+          // Register blocking
+          /* for (jjj = jj; jjj < jj + NU; ++jjj) */
+          {
+
+            C_iii_0_jjj_0 = MIX(C, LDC, i + 0, jj + 0);
+            C_iii_0_jjj_1 = MIX(C, LDC, i + 0, jj + 1);
+
+            B_kkk_0_jjj_0 = MIX(B, LDB, k + 0, jj + 0);
+            B_kkk_0_jjj_1 = MIX(B, LDB, k + 0, jj + 1);
+
+            A_iii_0_kkk_0 = MIX(A, LDA, i + 0, k + 0);
+
+            // ------
+
+            C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+            C_iii_0_jjj_1 -= B_kkk_0_jjj_1 * A_iii_0_kkk_0;
+
+            // -----
+
+            MIX(C, LDC, i + 0, jj + 0) = C_iii_0_jjj_0;
+            MIX(C, LDC, i + 0, jj + 1) = C_iii_0_jjj_1;
+          }
+      }
+    }
+
+    // j overflow
+    for (; j < N; ++j)
+    {
+
+      // i blocked
+      for (i = 0; i <= M - NB; i += NB)
+      {
+
+        // k blocked
+        for (k = 0; k <= K - NB; k += NB)
+
+          // Cache blocking
+          for (ii = i; ii <= (i + NB) - MU; ii += MU)
+            for (kk = k; kk <= (k + NB) - KU; kk += KU)
+
+            // Register blocking
+            /* for (kkk = kk; kkk < kk + KU; ++kkk) */
+            /*   for (iii = ii; iii < ii + MU; ++iii) */
+            {
+
+              C_iii_0_jjj_0 = MIX(C, LDC, ii + 0, j + 0);
+              C_iii_1_jjj_0 = MIX(C, LDC, ii + 1, j + 0);
+              C_iii_2_jjj_0 = MIX(C, LDC, ii + 2, j + 0);
+              C_iii_3_jjj_0 = MIX(C, LDC, ii + 3, j + 0);
+
+              B_kkk_0_jjj_0 = MIX(B, LDB, kk + 0, j + 0);
+              B_kkk_1_jjj_0 = MIX(B, LDB, kk + 1, j + 0);
+              B_kkk_2_jjj_0 = MIX(B, LDB, kk + 2, j + 0);
+              B_kkk_3_jjj_0 = MIX(B, LDB, kk + 3, j + 0);
+              B_kkk_4_jjj_0 = MIX(B, LDB, kk + 4, j + 0);
+              B_kkk_5_jjj_0 = MIX(B, LDB, kk + 5, j + 0);
+              B_kkk_6_jjj_0 = MIX(B, LDB, kk + 6, j + 0);
+              B_kkk_7_jjj_0 = MIX(B, LDB, kk + 7, j + 0);
+
+              A_iii_0_kkk_0 = MIX(A, LDA, ii + 0, kk + 0);
+              A_iii_0_kkk_1 = MIX(A, LDA, ii + 0, kk + 1);
+              A_iii_0_kkk_2 = MIX(A, LDA, ii + 0, kk + 2);
+              A_iii_0_kkk_3 = MIX(A, LDA, ii + 0, kk + 3);
+              A_iii_0_kkk_4 = MIX(A, LDA, ii + 0, kk + 4);
+              A_iii_0_kkk_5 = MIX(A, LDA, ii + 0, kk + 5);
+              A_iii_0_kkk_6 = MIX(A, LDA, ii + 0, kk + 6);
+              A_iii_0_kkk_7 = MIX(A, LDA, ii + 0, kk + 7);
+
+              A_iii_1_kkk_0 = MIX(A, LDA, ii + 1, kk + 0);
+              A_iii_1_kkk_1 = MIX(A, LDA, ii + 1, kk + 1);
+              A_iii_1_kkk_2 = MIX(A, LDA, ii + 1, kk + 2);
+              A_iii_1_kkk_3 = MIX(A, LDA, ii + 1, kk + 3);
+              A_iii_1_kkk_4 = MIX(A, LDA, ii + 1, kk + 4);
+              A_iii_1_kkk_5 = MIX(A, LDA, ii + 1, kk + 5);
+              A_iii_1_kkk_6 = MIX(A, LDA, ii + 1, kk + 6);
+              A_iii_1_kkk_7 = MIX(A, LDA, ii + 1, kk + 7);
+
+              A_iii_2_kkk_0 = MIX(A, LDA, ii + 2, kk + 0);
+              A_iii_2_kkk_1 = MIX(A, LDA, ii + 2, kk + 1);
+              A_iii_2_kkk_2 = MIX(A, LDA, ii + 2, kk + 2);
+              A_iii_2_kkk_3 = MIX(A, LDA, ii + 2, kk + 3);
+              A_iii_2_kkk_4 = MIX(A, LDA, ii + 2, kk + 4);
+              A_iii_2_kkk_5 = MIX(A, LDA, ii + 2, kk + 5);
+              A_iii_2_kkk_6 = MIX(A, LDA, ii + 2, kk + 6);
+              A_iii_2_kkk_7 = MIX(A, LDA, ii + 2, kk + 7);
+
+              A_iii_3_kkk_0 = MIX(A, LDA, ii + 3, kk + 0);
+              A_iii_3_kkk_1 = MIX(A, LDA, ii + 3, kk + 1);
+              A_iii_3_kkk_2 = MIX(A, LDA, ii + 3, kk + 2);
+              A_iii_3_kkk_3 = MIX(A, LDA, ii + 3, kk + 3);
+              A_iii_3_kkk_4 = MIX(A, LDA, ii + 3, kk + 4);
+              A_iii_3_kkk_5 = MIX(A, LDA, ii + 3, kk + 5);
+              A_iii_3_kkk_6 = MIX(A, LDA, ii + 3, kk + 6);
+              A_iii_3_kkk_7 = MIX(A, LDA, ii + 3, kk + 7);
+              A_iii_3_kkk_8 = MIX(A, LDA, ii + 3, kk + 8);
+
+              // ------
+
+              C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+              C_iii_0_jjj_0 -= B_kkk_1_jjj_0 * A_iii_0_kkk_1;
+              C_iii_0_jjj_0 -= B_kkk_2_jjj_0 * A_iii_0_kkk_2;
+              C_iii_0_jjj_0 -= B_kkk_3_jjj_0 * A_iii_0_kkk_3;
+              C_iii_0_jjj_0 -= B_kkk_4_jjj_0 * A_iii_0_kkk_4;
+              C_iii_0_jjj_0 -= B_kkk_5_jjj_0 * A_iii_0_kkk_5;
+              C_iii_0_jjj_0 -= B_kkk_6_jjj_0 * A_iii_0_kkk_6;
+              C_iii_0_jjj_0 -= B_kkk_7_jjj_0 * A_iii_0_kkk_7;
+
+              C_iii_1_jjj_0 -= B_kkk_0_jjj_0 * A_iii_1_kkk_0;
+              C_iii_1_jjj_0 -= B_kkk_1_jjj_0 * A_iii_1_kkk_1;
+              C_iii_1_jjj_0 -= B_kkk_2_jjj_0 * A_iii_1_kkk_2;
+              C_iii_1_jjj_0 -= B_kkk_3_jjj_0 * A_iii_1_kkk_3;
+              C_iii_1_jjj_0 -= B_kkk_4_jjj_0 * A_iii_1_kkk_4;
+              C_iii_1_jjj_0 -= B_kkk_5_jjj_0 * A_iii_1_kkk_5;
+              C_iii_1_jjj_0 -= B_kkk_6_jjj_0 * A_iii_1_kkk_6;
+              C_iii_1_jjj_0 -= B_kkk_7_jjj_0 * A_iii_1_kkk_7;
+
+              C_iii_2_jjj_0 -= B_kkk_0_jjj_0 * A_iii_2_kkk_0;
+              C_iii_2_jjj_0 -= B_kkk_1_jjj_0 * A_iii_2_kkk_1;
+              C_iii_2_jjj_0 -= B_kkk_2_jjj_0 * A_iii_2_kkk_2;
+              C_iii_2_jjj_0 -= B_kkk_3_jjj_0 * A_iii_2_kkk_3;
+              C_iii_2_jjj_0 -= B_kkk_4_jjj_0 * A_iii_2_kkk_4;
+              C_iii_2_jjj_0 -= B_kkk_5_jjj_0 * A_iii_2_kkk_5;
+              C_iii_2_jjj_0 -= B_kkk_6_jjj_0 * A_iii_2_kkk_6;
+              C_iii_2_jjj_0 -= B_kkk_7_jjj_0 * A_iii_2_kkk_7;
+
+              C_iii_3_jjj_0 -= B_kkk_0_jjj_0 * A_iii_3_kkk_0;
+              C_iii_3_jjj_0 -= B_kkk_1_jjj_0 * A_iii_3_kkk_1;
+              C_iii_3_jjj_0 -= B_kkk_2_jjj_0 * A_iii_3_kkk_2;
+              C_iii_3_jjj_0 -= B_kkk_3_jjj_0 * A_iii_3_kkk_3;
+              C_iii_3_jjj_0 -= B_kkk_4_jjj_0 * A_iii_3_kkk_4;
+              C_iii_3_jjj_0 -= B_kkk_5_jjj_0 * A_iii_3_kkk_5;
+              C_iii_3_jjj_0 -= B_kkk_6_jjj_0 * A_iii_3_kkk_6;
+              C_iii_3_jjj_0 -= B_kkk_7_jjj_0 * A_iii_3_kkk_7;
+
+              // -----
+
+              MIX(C, LDC, ii + 0, j + 0) = C_iii_0_jjj_0;
+              MIX(C, LDC, ii + 1, j + 0) = C_iii_1_jjj_0;
+              MIX(C, LDC, ii + 2, j + 0) = C_iii_2_jjj_0;
+              MIX(C, LDC, ii + 3, j + 0) = C_iii_3_jjj_0;
+            }
+
+        // k overflow
+        for (; k < K; ++k)
+
+          // Cache blocking
+          for (ii = i; ii <= (i + NB) - MU; ii += MU)
+
+          // Register blocking
+          /* for (iii = ii; iii < ii + MU; ++iii) */
+          {
+            C_iii_0_jjj_0 = MIX(C, LDC, ii + 0, j + 0);
+            C_iii_1_jjj_0 = MIX(C, LDC, ii + 1, j + 0);
+            C_iii_2_jjj_0 = MIX(C, LDC, ii + 2, j + 0);
+            C_iii_3_jjj_0 = MIX(C, LDC, ii + 3, j + 0);
+
+            B_kkk_0_jjj_0 = MIX(B, LDB, k + 0, j + 0);
+
+            A_iii_0_kkk_0 = MIX(A, LDA, ii + 0, k + 0);
+            A_iii_1_kkk_0 = MIX(A, LDA, ii + 1, k + 0);
+            A_iii_2_kkk_0 = MIX(A, LDA, ii + 2, k + 0);
+            A_iii_3_kkk_0 = MIX(A, LDA, ii + 3, k + 0);
+
+            // ------
+
+            C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+            C_iii_1_jjj_0 -= B_kkk_0_jjj_0 * A_iii_1_kkk_0;
+            C_iii_2_jjj_0 -= B_kkk_0_jjj_0 * A_iii_2_kkk_0;
+            C_iii_3_jjj_0 -= B_kkk_0_jjj_0 * A_iii_3_kkk_0;
+
+            // -----
+
+            MIX(C, LDC, ii + 0, j + 0) = C_iii_0_jjj_0;
+            MIX(C, LDC, ii + 1, j + 0) = C_iii_1_jjj_0;
+            MIX(C, LDC, ii + 2, j + 0) = C_iii_2_jjj_0;
+            MIX(C, LDC, ii + 3, j + 0) = C_iii_3_jjj_0;
+          }
+      }
+
+      // i overflow
+      for (; i < M; ++i)
+      {
+
+        // K blocked
+        for (k = 0; k <= K - NB; k += NB)
+
+          // Cache blocking
+          for (kk = k; kk <= (k + NB) - KU; kk += KU)
+
+          // Register blocking
+          /* for (kkk = kk; kkk < kk + KU; ++kkk) */
+          {
+
+            C_iii_0_jjj_0 = MIX(C, LDC, i + 0, j + 0);
+
+            B_kkk_0_jjj_0 = MIX(B, LDB, kk + 0, j + 0);
+            B_kkk_1_jjj_0 = MIX(B, LDB, kk + 1, j + 0);
+            B_kkk_2_jjj_0 = MIX(B, LDB, kk + 2, j + 0);
+            B_kkk_3_jjj_0 = MIX(B, LDB, kk + 3, j + 0);
+            B_kkk_4_jjj_0 = MIX(B, LDB, kk + 4, j + 0);
+            B_kkk_5_jjj_0 = MIX(B, LDB, kk + 5, j + 0);
+            B_kkk_6_jjj_0 = MIX(B, LDB, kk + 6, j + 0);
+            B_kkk_7_jjj_0 = MIX(B, LDB, kk + 7, j + 0);
+
+            A_iii_0_kkk_0 = MIX(A, LDA, i + 0, kk + 0);
+            A_iii_0_kkk_1 = MIX(A, LDA, i + 0, kk + 1);
+            A_iii_0_kkk_2 = MIX(A, LDA, i + 0, kk + 2);
+            A_iii_0_kkk_3 = MIX(A, LDA, i + 0, kk + 3);
+            A_iii_0_kkk_4 = MIX(A, LDA, i + 0, kk + 4);
+            A_iii_0_kkk_5 = MIX(A, LDA, i + 0, kk + 5);
+            A_iii_0_kkk_6 = MIX(A, LDA, i + 0, kk + 6);
+            A_iii_0_kkk_7 = MIX(A, LDA, i + 0, kk + 7);
+
+            // ------
+
+            C_iii_0_jjj_0 -= B_kkk_0_jjj_0 * A_iii_0_kkk_0;
+            C_iii_0_jjj_0 -= B_kkk_1_jjj_0 * A_iii_0_kkk_1;
+            C_iii_0_jjj_0 -= B_kkk_2_jjj_0 * A_iii_0_kkk_2;
+            C_iii_0_jjj_0 -= B_kkk_3_jjj_0 * A_iii_0_kkk_3;
+            C_iii_0_jjj_0 -= B_kkk_4_jjj_0 * A_iii_0_kkk_4;
+            C_iii_0_jjj_0 -= B_kkk_5_jjj_0 * A_iii_0_kkk_5;
+            C_iii_0_jjj_0 -= B_kkk_6_jjj_0 * A_iii_0_kkk_6;
+            C_iii_0_jjj_0 -= B_kkk_7_jjj_0 * A_iii_0_kkk_7;
+
+            // -----
+
+            MIX(C, LDC, i + 0, j + 0) = C_iii_0_jjj_0;
+          }
+
+        // K overflow
+        for (; k < K; ++k)
+          MIX(C, LDC, i, j) =
+              MIX(C, LDC, i, j) - MIX(B, LDB, k, j) * MIX(A, LDA, i, k);
+      }
+    }
+  }
+  return;
 }
 
 int sgetf2_2(int M, int N, double *A, int LDA, int *ipiv)
@@ -1027,18 +2160,49 @@ int sgetf2_2(int M, int N, double *A, int LDA, int *ipiv)
       m_0  //
       ;
 
+  double      //
+      A_j_k0, //
+      A_j_k1, //
+      A_j_k2, //
+      A_j_k3, //
+      A_j_k4, //
+      A_j_k5, //
+      A_j_k6, //
+      A_j_k7, //
+
+      A_i_k0, //
+      A_i_k1, //
+      A_i_k2, //
+      A_i_k3, //
+      A_i_k4, //
+      A_i_k5, //
+      A_i_k6, //
+      A_i_k7  //
+      ;
+  // Quick return
+  if (!M || !N)
+    return 0;
+
   // NOTE I have increased this to iterate *until* N however you could
   // stop at < N - 1 if you cover the bounds case.
   for (i = 0; i < MIN(M, N); ++i)
   {
 
-    p_i = i + isamax_2(M - i, &MIX(A, LDA, i, i), LDA);
+    p_i = i;
     p_v = MIX(A, LDA, p_i, i);
 
-    if (APPROX_EQUAL(p_v, 0.))
+    // Only try to find a pivot if  the current value is approaching 0
+    if (APPROX_EQUAL(p_v, 0.)) // FIXME
     {
-      fprintf(stderr, "ERROR: LU Solve singular matrix\n");
-      return -1;
+
+      p_i = i + isamax_2(M - i, &MIX(A, LDA, i, i), LDA);
+      p_v = MIX(A, LDA, p_i, i);
+
+      if (APPROX_EQUAL(p_v, 0.))
+      {
+        fprintf(stderr, "ERROR: LU Solve singular matrix\n");
+        return -1;
+      }
     }
 
     ipiv[i] = p_i;
@@ -1071,28 +2235,39 @@ int sgetf2_2(int M, int N, double *A, int LDA, int *ipiv)
         m_0 = -MIX(A, LDA, j, i);
         for (k = i + 1; k < N - 7; k += 8)
         {
-          MIX(A, LDA, j, k + 0) =
-              m_0 * MIX(A, LDA, i, k + 0) + MIX(A, LDA, j, k + 0);
-          MIX(A, LDA, j, k + 1) =
-              m_0 * MIX(A, LDA, i, k + 1) + MIX(A, LDA, j, k + 1);
-          MIX(A, LDA, j, k + 2) =
-              m_0 * MIX(A, LDA, i, k + 2) + MIX(A, LDA, j, k + 2);
-          MIX(A, LDA, j, k + 3) =
-              m_0 * MIX(A, LDA, i, k + 3) + MIX(A, LDA, j, k + 3);
+          A_j_k0 = MIX(A, LDA, j, k + 0);
+          A_j_k1 = MIX(A, LDA, j, k + 1);
+          A_j_k2 = MIX(A, LDA, j, k + 2);
+          A_j_k3 = MIX(A, LDA, j, k + 3);
+          A_j_k4 = MIX(A, LDA, j, k + 4);
+          A_j_k5 = MIX(A, LDA, j, k + 5);
+          A_j_k6 = MIX(A, LDA, j, k + 6);
+          A_j_k7 = MIX(A, LDA, j, k + 7);
 
-          MIX(A, LDA, j, k + 4) =
-              m_0 * MIX(A, LDA, i, k + 4) + MIX(A, LDA, j, k + 4);
-          MIX(A, LDA, j, k + 5) =
-              m_0 * MIX(A, LDA, i, k + 5) + MIX(A, LDA, j, k + 5);
-          MIX(A, LDA, j, k + 6) =
-              m_0 * MIX(A, LDA, i, k + 6) + MIX(A, LDA, j, k + 6);
-          MIX(A, LDA, j, k + 7) =
-              m_0 * MIX(A, LDA, i, k + 7) + MIX(A, LDA, j, k + 7);
+          A_i_k0 = MIX(A, LDA, i, k + 0);
+          A_i_k1 = MIX(A, LDA, i, k + 1);
+          A_i_k2 = MIX(A, LDA, i, k + 2);
+          A_i_k3 = MIX(A, LDA, i, k + 3);
+          A_i_k4 = MIX(A, LDA, i, k + 4);
+          A_i_k5 = MIX(A, LDA, i, k + 5);
+          A_i_k6 = MIX(A, LDA, i, k + 6);
+          A_i_k7 = MIX(A, LDA, i, k + 7);
+
+          MIX(A, LDA, j, k + 0) = m_0 * A_i_k0 + A_j_k0;
+          MIX(A, LDA, j, k + 1) = m_0 * A_i_k1 + A_j_k1;
+          MIX(A, LDA, j, k + 2) = m_0 * A_i_k2 + A_j_k2;
+          MIX(A, LDA, j, k + 3) = m_0 * A_i_k3 + A_j_k3;
+          MIX(A, LDA, j, k + 4) = m_0 * A_i_k4 + A_j_k4;
+          MIX(A, LDA, j, k + 5) = m_0 * A_i_k5 + A_j_k5;
+          MIX(A, LDA, j, k + 6) = m_0 * A_i_k6 + A_j_k6;
+          MIX(A, LDA, j, k + 7) = m_0 * A_i_k7 + A_j_k7;
         }
 
         for (; k < N; ++k)
         {
-          MIX(A, LDA, j, k) = m_0 * MIX(A, LDA, i, k) + MIX(A, LDA, j, k);
+          A_j_k0 = MIX(A, LDA, j, k + 0);
+          A_i_k0 = MIX(A, LDA, i, k + 0);
+          MIX(A, LDA, j, k + 0) = m_0 * A_i_k0 + A_j_k0;
         }
       }
     }
@@ -1120,25 +2295,23 @@ int lu_solve_2(int N, double *A, int *ipiv, double *b)
 {
   int retcode, ib, IB, k;
 
-  // FIXME XXX we can play with NB
-  const int NB = 256, //
-      M = N,          //
-      LDA = N,        //
-      MIN_MN = N      //
+  const int NB = ideal_block(N, N), //
+      M = N,                        //
+      LDA = N,                      //
+      MIN_MN = N                    //
       ;
 
-  // BLocked factor A into [L \ U]
-
+  // Use unblocked code
   if (NB <= 1 || NB >= MIN_MN)
   {
-    // Use unblocked code
     retcode = sgetf2_2(M, N, A, LDA, ipiv);
     if (retcode != 0)
       return retcode;
   }
+
+  // BLocked factor A into [L \ U]
   else
   {
-
     for (ib = 0; ib < MIN_MN; ib += NB)
     {
       IB = MIN(MIN_MN - ib, NB);
@@ -1177,21 +2350,13 @@ int lu_solve_2(int N, double *A, int *ipiv, double *b)
         // Compute the block row of U
         strsm_L_2(IB, N - ib - IB, &AIX(ib, ib), LDA, &AIX(ib, ib + IB), LDA);
 
-        if (ib + IB < M) // NOTE for a square matrix this will always be true.
-        {
-          // XXX for most blocks, the height of the multiplication 'M - ib - IB'
-          // is going to be much much larger than IB.
-          //
-          // Update trailing submatrix
-          sgemm_2(
-              // cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
-              M - ib - IB, N - ib - IB, IB, -ONE, //
-              &AIX(ib + IB, ib), LDA,             //
-              &AIX(ib, ib + IB), LDA,             //
-              ONE,                                //
-              &AIX(ib + IB, ib + IB), LDA         //
-          );
-        }
+        // Update trailing submatrix
+        sgemm_2(M - ib - IB, N - ib - IB, IB, -ONE, //
+                &AIX(ib + IB, ib), LDA,             //
+                &AIX(ib, ib + IB), LDA,             //
+                ONE,                                //
+                &AIX(ib + IB, ib + IB), LDA         //
+        );
       }
     }
   }
@@ -1202,15 +2367,131 @@ int lu_solve_2(int N, double *A, int *ipiv, double *b)
   return retcode;
 }
 
+#ifdef TEST_MKL
+
+/**
+ * This implementation should remain /equal/ to the previous, however,
+ * it uses the Intel OneAPI MKL instead of the handrolled LAPACK routines.
+ */
+int lu_solve_3(int N, double *A, int *ipiv, double *b)
+{
+  int retcode, ib, IB, k;
+
+  const int //
+      NB = ideal_block(N, N),
+      M = N,     //
+      LDA = N,   //
+      MIN_MN = N //
+      ;
+
+  // BLocked factor A into [L \ U]
+
+  if (NB <= 1 || NB >= MIN_MN)
+  {
+    // Use unblocked code
+    retcode = LAPACKE_dgetf2(LAPACK_ROW_MAJOR, M, N, A, LDA, ipiv);
+    if (retcode != 0)
+      return retcode;
+  }
+  else
+  {
+    for (ib = 0; ib < MIN_MN; ib += NB)
+    {
+      IB = MIN(MIN_MN - ib, NB);
+
+      retcode = LAPACKE_dgetf2(LAPACK_ROW_MAJOR, M - ib, IB, &AIX(ib, ib), LDA,
+                               ipiv + ib);
+
+      if (retcode != 0)
+        return retcode;
+
+      // Update the pivot indices
+      for (k = ib; k < MIN(M, ib + IB) - 7; k += 8)
+      {
+        ipiv[k + 0] = ipiv[k + 0] + ib;
+        ipiv[k + 1] = ipiv[k + 1] + ib;
+        ipiv[k + 2] = ipiv[k + 2] + ib;
+        ipiv[k + 3] = ipiv[k + 3] + ib;
+
+        ipiv[k + 4] = ipiv[k + 4] + ib;
+        ipiv[k + 5] = ipiv[k + 5] + ib;
+        ipiv[k + 6] = ipiv[k + 6] + ib;
+        ipiv[k + 7] = ipiv[k + 7] + ib;
+      }
+      for (; k < MIN(M, ib + IB); ++k)
+      {
+        ipiv[k + 0] = ipiv[k + 0] + ib;
+      }
+
+      // Apply interchanges to columns 0 : ib
+      slaswp_2(ib, A, LDA, ib, ib + IB, ipiv, 1);
+
+      if (ib + IB < N)
+      {
+        // Apply interchanges to columns ib + IB : N
+        slaswp_2(N - ib - IB, &AIX(0, ib + IB), LDA, ib, ib + IB, ipiv, 1);
+
+        // Compute the block row of U
+        strsm_L_2(IB, N - ib - IB, &AIX(ib, ib), LDA, &AIX(ib, ib + IB), LDA);
+
+        // Update trailing submatrix
+        sgemm_intel(M - ib - IB, N - ib - IB, IB, -ONE, //
+                    &AIX(ib + IB, ib), LDA,             //
+                    &AIX(ib, ib + IB), LDA,             //
+                    ONE,                                //
+                    &AIX(ib + IB, ib + IB), LDA         //
+        );
+      }
+    }
+  }
+
+  // Solve the system with A
+  // retcode = sgetrs_2(N, A, ipiv, b);
+  retcode = LAPACKE_dgetrs(LAPACK_ROW_MAJOR, 'N',
+                           N,    // Number of equations
+                           1,    // Number of rhs equations
+                           A, N, //
+                           ipiv, //
+                           b, 1  //
+  );
+
+  return retcode;
+}
+
+/**
+ * Solve system only with the Intel OneAPI routine.
+ */
+int lu_solve_4(int N, double *A, int *ipiv, double *b)
+{
+  return LAPACKE_dgesv(LAPACK_ROW_MAJOR,
+                       N,    // Number of equations
+                       1,    // Number of rhs equations
+                       A, N, //
+                       ipiv, //
+                       b, 1  //
+  );
+}
+
+#endif // TEST_MKL
+
 #ifdef TEST_PERF
 
-// NOTE I bet we can put these in the templated perf framework and remove the
-// weirdness of compiling seperately and linking.
 void register_functions_LU_SOLVE()
 {
-  add_function_LU_SOLVE(&lu_solve_0, "LU Solve Base", 1);
-  add_function_LU_SOLVE(&lu_solve_1, "LU Solve Recursive", 1);
-  add_function_LU_SOLVE(&lu_solve_2, "LU Solve Unrolled", 1);
+  // add_function_LU_SOLVE(&lu_solve_0, "LU Solve Base", 1);
+  // add_function_LU_SOLVE(&lu_solve_1, "LU Solve Recursive", 1);
+  add_function_LU_SOLVE(&lu_solve_2, "LU Solve Basic C Opts", 1);
+#ifdef TEST_MKL
+  add_function_LU_SOLVE(&lu_solve_3, "LU Solve Intel DGEMM", 1);
+  add_function_LU_SOLVE(&lu_solve_4, "Intel DGESV Row Major", 1);
+#endif
+}
+
+void register_functions_MMM()
+{
+  add_function_MMM(&sgemm_1, "MMM Base", 1);
+  add_function_MMM(&sgemm_2, "MMM C opts", 1);
+  add_function_MMM(&sgemm_intel, "MMM Intel", 1);
 }
 
 #endif

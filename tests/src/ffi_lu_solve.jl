@@ -61,41 +61,34 @@ function solve_tests()
 
         @testset "Random LU Solve Small" begin
             # tu.@run_random_N 100 2^5 2^8 "small lu solve" test_lambda
-            tu.@run_random_N 2 50 600 "small lu solve" test_lambda
+            tu.@run_random_N 2 3^4 3^6 "small lu solve" test_lambda
         end
 
 
-        # @testset "Random LU Solve Large" begin
-        #     tu.@run_random_N 1 2^10 2^12 "large lu solve" test_lambda
-        # end
+        @testset "Random LU Solve Large" begin
+            tu.@run_random_N 1 2^8 2^10 "large lu solve" test_lambda
+        end
 
     end
 end
 
-function perf_tests()
-    n = 2^10
-
-    local A
-    local b
-
+function setup(n, A, b)
     A_vec = tu.alloc_aligned_vec(Cdouble, n * n)
     b_vec = tu.alloc_aligned_vec(Cdouble, n)
     ipiv = tu.alloc_aligned_vec(Cint, n)
-
-    while true
-        A = tu.sym_n(n)
-        b = rand(n)
-        tu.fill_c_vec(A, A_vec)
-        tu.fill_c_vec(b, b_vec)
-        # Generate random matrices until we find one with a solution
-        lu_solve(n, A_vec, ipiv, b_vec) != 0 || break
-    end
-
     tu.fill_c_vec(A, A_vec)
     tu.fill_c_vec(b, b_vec)
+    return (A_vec, b_vec, ipiv)
+end
 
+function valid(n, A, b)
+    (A_vec, b_vec, ipiv) = setup(n, A, b)
+    0 == lu_solve(n, A, ipiv, b)
+end
+
+function perf_tests(n, A, b)
+    (A_vec, b_vec, ipiv) = setup(n, A, b)
     tu.starting_test(@sprintf "LU perf comparison with A[%d, %d]x = b[%d]" n n n)
-
     # NOTE this preserve shouldn't be necessary because
     # a Ptr{Cdouble} Base.unsafe_convert already exists.
     GC.@preserve A_vec b_vec begin

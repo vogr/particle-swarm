@@ -17,5 +17,6 @@ int lu_solve(int N, double *A, int *ipiv, double *b);
 #ifdef TEST_PERF
 
 void register_functions_LU_SOLVE();
+void register_functions_MMM();
 
 #endif

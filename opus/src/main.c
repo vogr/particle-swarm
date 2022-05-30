@@ -18,12 +18,14 @@ int main(int argc, char **argv)
 {
   if (argc > 1)
   {
+    printf("Logging to %s\n", argv[1]);
     set_logging_directory(argv[1]);
   }
+  
+  uint64_t seed = time(NULL);
+  srand(seed);
 
-  srand(clock());
-
-  init_timings(100);
+  printf("Starting PSO with seed %" PRIu64 "\n", seed);
 
   double inertia = 0.7;
   double social = 1., cognition = 1.;
@@ -45,5 +47,4 @@ int main(int argc, char **argv)
 
   stop_logging();
 
-  print_timings();
 }

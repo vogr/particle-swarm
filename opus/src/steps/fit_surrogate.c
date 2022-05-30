@@ -8,17 +8,15 @@
 #include "../helpers.h"
 #include "../pso.h"
 
-#define QUOTE(x) #x
-#define STR(x) QUOTE(x)
 
-int fit_surrogate(struct pso_data_constant_inertia *pso)
-{
-  fit_surrogate_4(pso);
+
+
+int fit_surrogate(struct pso_data_constant_inertia *pso) {
+  FIT_SURROGATE_VERSION(pso);
 }
 
-int prealloc_fit_surrogate(size_t max_n_phi, size_t n_P)
-{
-  prealloc_fit_surrogate_4(max_n_phi, n_P);
+int prealloc_fit_surrogate(size_t max_n_phi, size_t n_P) {
+  FIT_SURROGATE_PREALLOC_VERSION(max_n_phi, n_P);
 }
 
 #define DEBUG_SURROGATE 0
