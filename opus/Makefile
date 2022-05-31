@@ -1,4 +1,3 @@
-
 ######
 # Makefile options
 ######
@@ -19,7 +18,7 @@ PSO_SHARED ?= 0
 # Debug flags: no optimisations, debug symbols, extra warnings
 # march=native to allow vectorisation
 DEBUG_FLAGS:= \
--march=native \
+-march=native -DNO_AVX512=1 \
 -O0 -g \
 -Wall -Wextra -Wpedantic -Wformat=2 -Wswitch-default -Wswitch-enum -Wfloat-equal \
 -pedantic-errors -Werror=format-security \
