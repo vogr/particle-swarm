@@ -28,7 +28,7 @@ end
 
 function perf_tests(m, n, k)
     (A, LDA, B, LDB, C, LDC) = setup(m, n, k)
-    tu.starting_test(@sprintf "LU perf comparison with A[%d, %d]x = b[%d]" n n n)
+    tu.starting_test(@sprintf "MMM perf comparison with A[%d, %d] B[%d %d] C[%d %d]" m k k n m n)
     # NOTE this preserve shouldn't be necessary because
     # a Ptr{Cdouble} Base.unsafe_convert already exists.
     GC.@preserve A B C begin

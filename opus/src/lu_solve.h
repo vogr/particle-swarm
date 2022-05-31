@@ -1,6 +1,10 @@
 #pragma once
 
+#include <math.h>
 #include <stdlib.h>
+
+#define ERR_THRESHOLD 1.0E-5 // FIXME is this small / big enough
+#define APPROX_EQUAL(l, r) (fabs((l) - (r)) <= ERR_THRESHOLD)
 
 /** @brief Solve linear systems using LU factorization method.
  *

@@ -9,7 +9,7 @@ include("TestUtils.jl")
 const tu = TestUtils
 
 function lu_solve(N, A, p, b)
-    GC.@preserve A b begin
+    GC.@preserve A p b begin
         retcode = ccall(
             (:lu_solve, :libpso),
             Cint,
@@ -53,7 +53,7 @@ function solve_tests()
         end
 
         test_lambda = (n) -> begin
-            M = rand(n, n)
+            M = tu.sym_n(n)
             b = rand(n)
             test_lu_solve(M, b)
         end
@@ -91,7 +91,7 @@ function perf_tests(n, A, b)
     tu.starting_test(@sprintf "LU perf comparison with A[%d, %d]x = b[%d]" n n n)
     # NOTE this preserve shouldn't be necessary because
     # a Ptr{Cdouble} Base.unsafe_convert already exists.
-    GC.@preserve A_vec b_vec begin
+    GC.@preserve A_vec ipiv b_vec begin
         retcode = ccall(
             (:perf_test_lu_solve, :libpso),
             Cint,                                             # return type

@@ -35,8 +35,8 @@ function solve_perf_tests_range(iterable)
 end
 
 solve_tests()
-MMM.perf_tests(512, 64, 32)
-solve_perf_tests_single(2^9)
+MMM.perf_tests(512, 64, 128)
+# solve_perf_tests_single(2^9)
 # solve_perf_tests_range(100:500:1024)
 
 
