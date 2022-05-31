@@ -18,7 +18,7 @@ build_debian:
   stage: build
   image: debian
   before_script:
-    - sudo apt install build-essential
+    - apt update && apt -y install build-essential make auto-conf
   script:
     - cd opus 
     - DEBUG=1 PSO_SHARED=0 INC_MKL=0 make
