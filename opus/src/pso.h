@@ -3,11 +3,11 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+typedef double (*blackbox_fun)(double const *const);
+
 #include "timing.h"
 
 #define USE_ROUNDING_BLOOM_FILTER 1
-
-typedef double (*blackbox_fun)(double const *const);
 
 // PSO_X : pso::pso, i:int -> x_i :double*
 #define PSO_X(pso, i) ((pso)->x + (i) * (pso)->dimensions)

@@ -19,6 +19,7 @@
 #include "logging.h"
 
 #if USE_ROUNDING_BLOOM_FILTER
+#include "perf_testers/tsc_x86.h"
 #include "rounding_bloom.h"
 #endif
 
