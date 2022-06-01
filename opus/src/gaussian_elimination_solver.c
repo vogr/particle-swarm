@@ -120,7 +120,7 @@ int gaussian_elimination_solve_0(int N, double *Ab, double *x)
 #endif
   }
 
-  if (fabs(MAT_Ab(N - 1, N - 1)) < 1e-3)
+  if (fabs(MAT_Ab(N - 1, N - 1)) < 1e-10)
   {
     // singular matrix
     fprintf(stderr, "ERROR: gaussian elimination failed: last pivot is 0\n");
@@ -370,7 +370,7 @@ int gaussian_elimination_solve_1(int N, double *Ab, double *x)
     } // Leftover i
   }
 
-  if (fabs(MAT_Ab(N - 1, N - 1)) < 1e-3)
+  if (fabs(MAT_Ab(N - 1, N - 1)) < 1e-10)
   {
     // singular matrix
     fprintf(stderr, "ERROR: gaussian elimination failed: last pivot is 0\n");
@@ -761,7 +761,7 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
     } // Leftover i
   }
 
-  if (fabs(MAT_Ab(N - 1, N - 1)) < 1e-3)
+  if (fabs(MAT_Ab(N - 1, N - 1)) < 1e-10)
   {
     // singular matrix
     fprintf(stderr, "ERROR: gaussian elimination failed: last pivot is 0\n");
