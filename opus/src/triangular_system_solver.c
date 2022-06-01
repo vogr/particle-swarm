@@ -212,10 +212,10 @@ int triangular_system_solve(int N, double *Ab, double *x, size_t d)
 
 // NOTE I bet we can put these in the templated perf framework and remove the
 // weirdness of compiling seperately and linking.
-void register_functions_GE_SOLVE()
+void register_functions_TRI_SYS_SOLVE()
 {
-  add_function_GE_SOLVE(&triangular_system_solve_0,
-                        "Triangular System Solve Base", 1);
+  /* add_function_GE_SOLVE(&triangular_system_solve_0, */
+  /*                       "Triangular System Solve Base", 1); */
 }
 
 #endif
