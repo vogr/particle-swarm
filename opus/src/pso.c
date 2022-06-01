@@ -13,15 +13,15 @@
 
 #include "steps/steps.h"
 
+#if DISTINCTIVENESS_CHECK_TYPE == 2
+#include "rounding_bloom.h"
+#endif
+
 #define DEBUG_TRIALS 0
 #define DEBUG_SURROGATE 0
 
 #include "logging.h"
 
-#if USE_ROUNDING_BLOOM_FILTER
-#include "perf_testers/tsc_x86.h"
-#include "rounding_bloom.h"
-#endif
 
 struct pso_data_constant_inertia *alloc_pso_data_constant_inertia()
 {
@@ -65,16 +65,16 @@ void random_number_generation(struct pso_data_constant_inertia *pso)
 void pso_constant_inertia_init(
     struct pso_data_constant_inertia *pso, blackbox_fun f, double inertia,
     double social, double cognition, double local_refinement_box_size,
-    double min_minimizer_distance, int dimensions, int population_size,
+    double min_dist, int dimensions, int population_size,
     int time_max, int n_trials, double *bounds_low, double *bounds_high,
-    double *vmin, double *vmax)
+    double *vmin, double *vmax, size_t sfd_size)
 {
   pso->f = f;
   pso->inertia = inertia;
   pso->dimensions = dimensions;
   pso->social = social, pso->cognition = cognition;
   pso->local_refinement_box_size = local_refinement_box_size;
-  pso->min_minimizer_distance = min_minimizer_distance;
+  pso->min_dist2 = min_dist * min_dist;
   pso->population_size = population_size;
   pso->time_max = time_max, pso->n_trials = n_trials;
 
@@ -118,7 +118,9 @@ void pso_constant_inertia_init(
     pso->vmax[j] = vmax[j];
   }
 
-  size_t x_distinct_max_nb = pso->time_max * pso->population_size;
+  // pso->population_size particles per iterations, and 1 for the local minimizer
+  // + initial space filling design
+  size_t x_distinct_max_nb = pso->time_max * (pso->population_size + 1) + sfd_size;
   pso->x_distinct =
       malloc(x_distinct_max_nb * pso->dimensions * sizeof(double));
   pso->x_distinct_idx_of_last_batch = 0;
@@ -126,17 +128,20 @@ void pso_constant_inertia_init(
 
   pso->x_distinct_eval = malloc(x_distinct_max_nb * sizeof(double));
 
-#if USE_ROUNDING_BLOOM_FILTER
+#if DISTINCTIVENESS_CHECK_TYPE == 0
+  // Unconditionnal accept ; nothing to allocate
+#elif DISTINCTIVENESS_CHECK_TYPE == 1
+  // Naive distance calculation ; nothing to allocate
+#elif DISTINCTIVENESS_CHECK_TYPE == 2
+  // Bloom filter
   pso->bloom = malloc(sizeof(struct rounding_bloom));
   int bloom_entries = pso->time_max * pso->population_size;
   if (bloom_entries < 1000)
     bloom_entries = 1000;
-  double bloom_false_pos_rate = 0.001;
-  double bloom_rounding_eps = 0.1;
+  double bloom_false_pos_rate = 0.01;
+  double bloom_rounding_eps = min_dist;
   rounding_bloom_init(pso->bloom, bloom_entries, bloom_false_pos_rate,
                       bloom_rounding_eps, dimensions, bounds_low);
-#else
-// No data structure needed for naive search
 #endif
 
   // the size of phi is the total number of _distinct_ points where
@@ -144,7 +149,7 @@ void pso_constant_inertia_init(
   // max: pop_size * time
   //  TODO: add the refinement points + 1 * time
   //        add the space filling design +?
-  size_t max_n_phi = pso->time_max * pso->population_size;
+  size_t max_n_phi = x_distinct_max_nb;
   size_t n_P = pso->dimensions + 1;
   prealloc_fit_surrogate(max_n_phi, n_P);
 
@@ -169,8 +174,6 @@ void pso_constant_inertia_init(
 
 void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso, size_t sfd_size, double * space_filling_design)
 {
-  myInt64 start, end;
-
   step1_2(pso, sfd_size, space_filling_design);
 
   step3_optimized(pso);
@@ -180,8 +183,6 @@ void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso, siz
 
 bool pso_constant_inertia_loop(struct pso_data_constant_inertia *pso)
 {
-  myInt64 start, end;
-
   step5_optimized(pso);
 
   step6_optimized(pso);
@@ -209,7 +210,7 @@ void run_pso(blackbox_fun f, double inertia, double social, double cognition,
   pso_constant_inertia_init(
       &pso, f, inertia, social, cognition, local_refinement_box_size,
       min_minimizer_distance, dimensions, population_size, time_max, n_trials,
-      bounds_low, bounds_high, vmin, vmax);
+      bounds_low, bounds_high, vmin, vmax, sfd_size);
 
   pso_constant_inertia_first_steps(&pso, sfd_size, space_filling_design);
 

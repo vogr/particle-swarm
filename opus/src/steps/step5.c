@@ -9,9 +9,7 @@
 
 #include "fit_surrogate.h"
 
-#if USE_ROUNDING_BLOOM_FILTER
-#include "../rounding_bloom.h"
-#endif
+#include "../distincts.h"
 
 #include "../logging.h"
 
@@ -24,23 +22,7 @@ void step5_base(struct pso_data_constant_inertia *pso)
   // Build set of distinct points: add latest x positions
   for (size_t i = 0; i < pso->population_size; i++)
   {
-#if USE_ROUNDING_BLOOM_FILTER
-    // add and check proximity to previous points
-    if (!rounding_bloom_check_add(pso->bloom, pso->dimensions, PSO_X(pso, i),
-                                  1))
-    {
-      // copy point and value to x_distinct
-      memcpy(PSO_XD(pso, pso->x_distinct_s), PSO_X(pso, i),
-             pso->dimensions * sizeof(double));
-      pso->x_distinct_eval[pso->x_distinct_s] = pso->x_eval[i];
-
-      pso->x_distinct_s++;
-    }
-#else
-    // naive implementation with distance computation
-    fprintf(stderr, "Not implemented.\n");
-    exit(1);
-#endif
+    add_to_distincts_if_distinct(pso, PSO_X(pso, i), pso->x_eval[i]);
   }
 
   TIMING_INIT();

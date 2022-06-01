@@ -64,7 +64,7 @@ int main(int argc, char **argv)
   double inertia = 0.3;
   double social = 0.2, cognition = 0.4;
   double local_refinement_box_size = 10.;
-  double min_minimizer_distance = 0.5;
+  double min_dist = 0.01;
   int dimensions = DIMENSION;
   int population_size = POPSIZE;
   int time_max = 100;
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
   print_rect_matrixd(space_filling_design, SPACE_FILLING_DESIGN_SIZE, DIMENSION, "space_filling_design");
 
   run_pso(&griewank_Nd, inertia, social, cognition, local_refinement_box_size,
-          min_minimizer_distance, dimensions, population_size, time_max,
+          min_dist, dimensions, population_size, time_max,
           n_trials, bounds_low, bounds_high, vmin, vmax, SPACE_FILLING_DESIGN_SIZE, space_filling_design);
 
   stop_logging();

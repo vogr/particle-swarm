@@ -38,7 +38,7 @@ int rounding_bloom_init(struct rounding_bloom * bloom, int entries, double error
 
 
 
-int rounding_bloom_check_add(struct rounding_bloom * bloom, int dims, double * const x, int add)
+int rounding_bloom_check_add(struct rounding_bloom * bloom, int dims, double const * const x, int add)
 {
     int ret = 0;
     uint64_t * bin_id = malloc(dims * sizeof(uint64_t));

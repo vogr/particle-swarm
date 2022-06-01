@@ -1,8 +1,7 @@
 #include "step1_2.h"
 
 
-
-#include "../rounding_bloom.h"
+#include "../distincts.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -45,15 +44,8 @@ void step1_2(struct pso_data_constant_inertia *pso, size_t sfd_size, double * sp
         // point is new, evaluate it
         double fz = pso->f(z);
 
-        if (!rounding_bloom_check_add(pso->bloom, pso->dimensions, z,
-                                        1))
-        {
-            // copy point and value to x_distinct
-            memcpy(PSO_XD(pso, pso->x_distinct_s), z,
-                    pso->dimensions * sizeof(double));
-            pso->x_distinct_eval[pso->x_distinct_s] = fz;
-            pso->x_distinct_s++;
-        }
+        // add to x_distinct
+        add_to_distincts_if_distinct(pso, z, fz);
 
 
         // add to initial positions if it beats fmax or if it is in the popsize first points

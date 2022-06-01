@@ -7,7 +7,19 @@ typedef double (*blackbox_fun)(double const *const);
 
 #include "timing.h"
 
-#define USE_ROUNDING_BLOOM_FILTER 1
+
+/*
+ * DISTINCTIVENESS_CHECK_TYPE:
+ * 0 -> no check
+ * 1 -> naive pairwise distance computations
+ * 2 -> rounding bloom filter
+ *
+ * In high dimension, the bloom filter becomes very slow.
+ * Without checks, if non-distinct particles make the 
+ * eliminitation fail (repeated lines).
+ * 
+ */
+#define DISTINCTIVENESS_CHECK_TYPE 1
 
 // PSO_X : pso::pso, i:int -> x_i :double*
 #define PSO_X(pso, i) ((pso)->x + (i) * (pso)->dimensions)
@@ -76,7 +88,7 @@ struct pso_data_constant_inertia
   // fonction evaluation at x_distinct[k]
   double *x_distinct_eval;
 
-#ifdef USE_ROUNDING_BLOOM_FILTER
+#if DISTINCTIVENESS_CHECK_TYPE == 2
   struct rounding_bloom *bloom;
 #endif
 
@@ -93,8 +105,10 @@ struct pso_data_constant_inertia
   double social;
   double cognition;
 
+  // Minimum distance for distinctiveness check (squared)
+  double min_dist2;
+
   double local_refinement_box_size;
-  double min_minimizer_distance;
 
   double y_hat_eval;
 
@@ -117,8 +131,8 @@ void run_pso(blackbox_fun f, double inertia, double social, double cognition,
 void pso_constant_inertia_init(
     struct pso_data_constant_inertia *pso, blackbox_fun f, double inertia,
     double social, double cognition, double local_refinement_box_size,
-    double min_minimizer_distance, int dimensions, int population_size,
+    double min_dist, int dimensions, int population_size,
     int time_max, int n_trials, double *bounds_low, double *bounds_high,
-    double *vmin, double *vmax);
+    double *vmin, double *vmax, size_t sfd_size);
 void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso, size_t sfd_size, double * space_filling_design);
 bool pso_constant_inertia_loop(struct pso_data_constant_inertia *pso);
