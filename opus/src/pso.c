@@ -93,8 +93,11 @@ void pso_constant_inertia_init(
   // yhat will be a pointer in another array
   pso->y_hat = NULL;
 
-  pso->v_trial = aligned_alloc(32,pso->dimensions * sizeof(double));
-  pso->x_trial = aligned_alloc(32,pso->dimensions * sizeof(double));
+  // size of one vector, rounded up to be 32B aligned
+  size_t size_of_one_vec_32 = (((pso->dimensions * sizeof(double) - 1) / 32) + 1) * 32;
+
+  pso->v_trial = aligned_alloc(32, size_of_one_vec_32);
+  pso->x_trial = aligned_alloc(32, size_of_one_vec_32);
 
   pso->v_trial_best = malloc(pso->dimensions * sizeof(double));
   pso->x_trial_best = malloc(pso->dimensions * sizeof(double));
@@ -102,12 +105,12 @@ void pso_constant_inertia_init(
   pso->x_local = malloc(pso->dimensions * sizeof(double));
 
   pso->bound_low =
-      (double *)aligned_alloc(32, pso->dimensions * sizeof(double));
+      (double *)aligned_alloc(32, size_of_one_vec_32);
   pso->bound_high =
-      (double *)aligned_alloc(32, pso->dimensions * sizeof(double));
+      (double *)aligned_alloc(32, size_of_one_vec_32);
 
-  pso->vmin = (double *)aligned_alloc(32, pso->dimensions * sizeof(double));
-  pso->vmax = (double *)aligned_alloc(32, pso->dimensions * sizeof(double));
+  pso->vmin = (double *)aligned_alloc(32, size_of_one_vec_32);
+  pso->vmax = (double *)aligned_alloc(32, size_of_one_vec_32);
 
   for (int j = 0; j < dimensions; j++)
   {
