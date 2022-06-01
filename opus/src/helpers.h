@@ -10,6 +10,7 @@ void print_vectord(double const *M, int N, char const *name);
 void print_vectori(int const *M, int N, char const *name);
 void print_vectoru64(uint64_t const *M, int N, char const *name);
 
+int randrange(int N);
 double rand_between(double a, double b);
 
 double dist2(size_t dim, double const *x, double const *y);

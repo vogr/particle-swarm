@@ -48,7 +48,7 @@ void pso_constant_inertia_init(
     double social, double cognition, double local_refinement_box_size,
     double min_minimizer_distance, int dimensions, int population_size,
     int time_max, int n_trials, double *bounds_low, double *bounds_high,
-    double *vmin, double *vmax, double *initial_positions)
+    double *vmin, double *vmax)
 {
   pso->f = f;
   pso->inertia = inertia;
@@ -128,16 +128,6 @@ void pso_constant_inertia_init(
   size_t lambda_p_s = max_n_phi + (pso->dimensions + 1);
   pso->lambda_p = malloc(lambda_p_s * sizeof(double));
 
-  // setup x
-  for (int i = 0; i < population_size; i++)
-  {
-    // add it to the point cloud
-    for (int j = 0; j < pso->dimensions; j++)
-    {
-      PSO_X(pso, i)[j] = initial_positions[i * pso->dimensions + j];
-    }
-  }
-
   // setup bounds in space
   for (int k = 0; k < pso->dimensions; k++)
     pso->bound_low[k] = bounds_low[k];
@@ -153,20 +143,11 @@ void pso_constant_inertia_init(
   random_number_generation(pso);
 }
 
-// TODO: step 1 and 2 "space-filling design"
-void step1(struct pso_data_constant_inertia *pso) {}
-
-void step2(struct pso_data_constant_inertia *pso) {}
-
-void step12(struct pso_data_constant_inertia *pso) {}
-
-void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso)
+void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso, size_t sfd_size, double * space_filling_design)
 {
   myInt64 start, end;
 
-  step1(pso);
-
-  step2(pso);
+  step1_2(pso, sfd_size, space_filling_design);
 
   step3_optimized(pso);
 
@@ -198,15 +179,15 @@ void run_pso(blackbox_fun f, double inertia, double social, double cognition,
              double local_refinement_box_size, double min_minimizer_distance,
              int dimensions, int population_size, int time_max, int n_trials,
              double *bounds_low, double *bounds_high, double *vmin,
-             double *vmax, double *initial_positions)
+             double *vmax, size_t sfd_size, double * space_filling_design)
 {
   struct pso_data_constant_inertia pso;
   pso_constant_inertia_init(
       &pso, f, inertia, social, cognition, local_refinement_box_size,
       min_minimizer_distance, dimensions, population_size, time_max, n_trials,
-      bounds_low, bounds_high, vmin, vmax, initial_positions);
+      bounds_low, bounds_high, vmin, vmax);
 
-  pso_constant_inertia_first_steps(&pso);
+  pso_constant_inertia_first_steps(&pso, sfd_size, space_filling_design);
 
   printf("t=%d  ŷ=[", pso.time);
   for (int j = 0; j < dimensions; j++)

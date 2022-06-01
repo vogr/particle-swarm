@@ -21,8 +21,8 @@ DEBUG_FLAGS:= \
 -march=native -DNO_AVX512=1 \
 -O0 -g \
 -Wall -Wextra -Wpedantic -Wformat=2 -Wswitch-default -Wswitch-enum -Wfloat-equal \
--pedantic-errors -Werror=format-security \
--Werror=vla
+-pedantic-errors -Werror=format-security
+#-Werror=vla
 
 
 # Release flags: optimisations, NDEBUG (disable assertions), disable hardening, disable PIE (only for executable)
@@ -50,11 +50,12 @@ LDLIBS+=-lm
 OBJ_COMMON := src/helpers.o src/local_refinement.o src/logging.o \
 		src/lu_solve.o src/pso.o src/bloom.o src/murmurhash.o \
 		src/rounding_bloom.o src/gaussian_elimination_solver.o \
+		src/steps/step1_2.o \
 		src/steps/step3.o src/steps/step4.o src/steps/step5.o \
 		src/steps/step6.o src/steps/step7.o src/steps/step8.o \
 		src/steps/step9.o src/steps/step10.o src/steps/step11.o \
 		src/steps/surrogate_eval.o src/steps/fit_surrogate.o \
-		src/triangular_system_solver.o 
+		src/triangular_system_solver.o src/latin_hypercube.o
 
 # Object files required for the the library
 OBJ_LIB := src/perf_testers/perf_ge_solve.o \
