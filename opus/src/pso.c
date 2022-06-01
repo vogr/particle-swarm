@@ -94,7 +94,7 @@ void pso_constant_inertia_init(
   pso->y_hat = NULL;
 
   // size of one vector, rounded up to be 32B aligned
-  size_t size_of_one_vec_32 = (((pso->dimensions * sizeof(double) - 1) / 32) + 1) * 32;
+  size_t size_of_one_vec_32 = (((pso->dimensions * sizeof(double)) + 31) & -32);
 
   pso->v_trial = aligned_alloc(32, size_of_one_vec_32);
   pso->x_trial = aligned_alloc(32, size_of_one_vec_32);
