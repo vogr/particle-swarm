@@ -28,6 +28,8 @@ typedef double (*blackbox_fun)(double const *const);
 // PSO_STEP3_RAND : pso::pso, i:int (population) k:int (dimension) ->
 // step3_rands_i:double*
 #define PSO_STEP3_RAND(pso, i) ((pso)->step3_rands + (i) * (pso)->dimensions)
+#define PSO_STEP6_RAND(pso, i, l)                                              \
+  ((pso)->step6_rands + (i) * (pso)->population_size + (l) * (pso)->n_trials)
 
 // for other inertia choices, see https://ieeexplore.ieee.org/document/6089659
 struct pso_data_constant_inertia

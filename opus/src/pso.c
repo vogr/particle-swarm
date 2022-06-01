@@ -41,6 +41,25 @@ void random_number_generation(struct pso_data_constant_inertia *pso)
       [k] = rand_between(pso->bound_low[k], pso->bound_high[k]);
     }
   }
+
+  // Step 6
+  pso->step6_rands = aligned_alloc(32, pso->population_size * pso->n_trials *
+                                           pso->dimensions * sizeof(double));
+
+  for (int i = 0; i < pso->population_size; i++)
+  {
+    for (int l = 0; l < pso->n_trials; l++)
+    {
+      double *row_ptr = PSO_STEP6_RAND(pso, i, l);
+      for (int j = 0; j < pso->dimensions; j++)
+      {
+        double w1 = (double)rand() / RAND_MAX;
+        double w2 = (double)rand() / RAND_MAX;
+        row_ptr[2 * j] = w1;
+        row_ptr[2 * j + 1] = w2;
+      }
+    }
+  }
 }
 
 void pso_constant_inertia_init(
@@ -82,8 +101,10 @@ void pso_constant_inertia_init(
 
   pso->x_local = malloc(pso->dimensions * sizeof(double));
 
-  pso->bound_low = (double *)malloc(pso->dimensions * sizeof(double));
-  pso->bound_high = (double *)malloc(pso->dimensions * sizeof(double));
+  pso->bound_low =
+      (double *)aligned_alloc(32, pso->dimensions * sizeof(double));
+  pso->bound_high =
+      (double *)aligned_alloc(32, pso->dimensions * sizeof(double));
 
   pso->vmin = (double *)malloc(pso->dimensions * sizeof(double));
   pso->vmax = (double *)malloc(pso->dimensions * sizeof(double));
