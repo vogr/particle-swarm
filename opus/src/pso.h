@@ -87,6 +87,7 @@ struct pso_data_constant_inertia
 
   // random numbers precomputed
   double *step3_rands; // population_size * dimensions
+  double *step6_rands; // 2 * population_size * n_trails * dimensions
 
   double inertia;
   double social;

@@ -51,8 +51,8 @@ int main(int argc, char **argv)
   double social = 1., cognition = 1.;
   double local_refinement_box_size = 3.;
   double min_minimizer_distance = 1.;
-  int dimensions = 2;
-  int population_size = 5;
+  int dimensions = 4; // 2
+  int population_size = 4;
   int time_max = 100;
   int n_trials = 4;
   double bounds_low[4] = {-10., -10., -10., -10.};

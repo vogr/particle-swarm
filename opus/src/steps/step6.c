@@ -1,4 +1,6 @@
 #include "step6.h"
+#include <immintrin.h>
+#include <string.h>
 
 #include "float.h"
 #include "stdlib.h"
