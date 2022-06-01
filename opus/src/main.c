@@ -15,7 +15,7 @@
 #include "timing.h"
 
 
-#define POPSIZE 10
+#define POPSIZE 20
 #define DIMENSION 20
 #define SPACE_FILLING_DESIGN_SIZE 25
 
@@ -30,19 +30,18 @@ static double griewank_Nd(double const *const x)
 {
   // see https://mathworld.wolfram.com/GriewankFunction.html
   double r = 0;
+  double t = 1;
 
   double d = 1. / 4000;
+
   for (size_t i = 0; i < DIMENSION; i++)
   {
     double v = x[i];
+    
     r += v * v;
+    t *= cos(v / sqrt((double)i + 1));
   }
 
-  double t = 1;
-  for (size_t i = 0; i < DIMENSION; i++)
-  {
-    t *= cos(x[i]) / sqrt((double)i + 1);
-  }
   return (1. + d * r - t);
 }
 
@@ -61,9 +60,9 @@ int main(int argc, char **argv)
 
   printf("Starting PSO with seed %" PRIu64 "\n", seed);
 
-  double inertia = 0.3;
-  double social = 0.2, cognition = 0.4;
-  double local_refinement_box_size = 10.;
+  double inertia = 0.8;
+  double social = 0.1, cognition = 0.2;
+  double local_refinement_box_size = 5.;
   double min_dist = 0.01;
   int dimensions = DIMENSION;
   int population_size = POPSIZE;
@@ -77,7 +76,7 @@ int main(int argc, char **argv)
   for(size_t k = 0; k < DIMENSION ; k++)
   {
     bounds_low[k] = -500, bounds_high[k] = 700;
-    vmin[k] = -20, vmax[k] = 20;
+    vmin[k] = -50, vmax[k] = 50;
   }
 
   
