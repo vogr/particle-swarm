@@ -46,7 +46,6 @@ void random_number_generation(struct pso_data_constant_inertia *pso)
                             pso->n_trials * pso->dimensions;
   size_t step6_rands_mem_size_a32 =
       (step6_rands_size * sizeof(double) + 31) & -32;
-  printf("%zu\n", step6_rands_mem_size_a32);
   pso->step6_rands_array_start = aligned_alloc(32, step6_rands_mem_size_a32);
 
   for (size_t i = 0; i < step6_rands_size; i++)
