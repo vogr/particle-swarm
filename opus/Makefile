@@ -18,7 +18,6 @@ PSO_SHARED ?= 0
 # Debug flags: no optimisations, debug symbols, extra warnings
 # march=native to allow vectorisation
 DEBUG_FLAGS:= \
--march=native \
 -O0 -g \
 -Wall -Wextra -Wpedantic -Wformat=2 -Wswitch-default -Wswitch-enum -Wfloat-equal \
 -pedantic-errors -Werror=format-security
@@ -26,10 +25,17 @@ DEBUG_FLAGS:= \
 
 
 # Release flags: optimisations, NDEBUG (disable assertions), disable hardening, disable PIE (only for executable)
-RELEASE_FLAGS:=-DNDEBUG -O2 -flto -march=native -fcf-protection=none -fno-stack-protector
+RELEASE_FLAGS:=-DNDEBUG -O2 -flto -fcf-protection=none -fno-stack-protector
 
 # Flags common to debug and release
 COMMON_FLAGS := -DNO_AVX512=1
+
+# Set arch target for CI
+ifeq ($(CI), true)
+	COMMON_FLAGS+=-march=skylake
+else
+	COMMON_FLAGS+=-march=native
+endif
 
 # Change these variables if setting the C/C++ standard is necessary
 # CFLAGS += -std=gnu17
