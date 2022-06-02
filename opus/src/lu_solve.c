@@ -21,16 +21,6 @@
 // XXX Assume 'A' is an NxN defined in scope
 #define AIX(ROW, COL) (A)[(N) * (ROW) + (COL)]
 #define IX(ROW, COL) ((N) * (ROW) + (COL))
-// NOTE When working with a matrix inset in another, you must
-// index into it using this macro. Explicitly specifying the
-// leading dimension which *must* be available.
-#define MIX(MAT, LDIM, ROW, COL) (MAT)[((LDIM) * (ROW) + (COL))]
-// Memory accesses for transposed layout
-#define TIX(MAT, LDIM, ROW, COL) MIX(MAT, LDIM, COL, ROW)
-
-#define ONE 1.E0
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 int lu_solve_0(int N, double *A, int *ipiv, double *b);
 int lu_solve_1(int N, double *A, int *ipiv, double *b);
@@ -40,6 +30,7 @@ int lu_solve_3(int N, double *A, int *ipiv, double *b);
 int lu_solve_4(int N, double *A, int *ipiv, double *b);
 #endif
 int lu_solve_5(int N, double *A, int *ipiv, double *b);
+int lu_solve_6(int N, double *A, int *ipiv, double *b);
 
 /** @brief Entry function to solve system A * x = b
  *         After exit b is overwritten with solution vector x.
@@ -51,7 +42,7 @@ int lu_solve_5(int N, double *A, int *ipiv, double *b);
  */
 int lu_solve(int N, double *A, int *ipiv, double *b)
 {
-  return lu_solve_5(N, A, ipiv, b);
+  return lu_solve_6(N, A, ipiv, b);
 }
 
 // -----------------
@@ -172,7 +163,7 @@ static void swapd(double *a, int i, int j)
 }
 
 // XXX FIXME
-static int ideal_block(int M, int N) { return 2048; }
+static int ideal_block(int M, int N) { return 256; }
 
 // ------------------------------------------------------------------
 // Implementation start
@@ -2848,7 +2839,7 @@ static void sgemm_5_mini(const int M, const int N, const int K,
       ;
 
   __m256d valpha = _mm256_set1_pd(-ONE); // broadcast alpha to a 256-bit vector
-  __m128d dvalpha = _mm_set1_pd(-ONE);   // broadcast alpha to a 256-bit vector
+  __m128d dvalpha = _mm_set1_pd(-ONE);   // broadcast alpha to a 128-bit vector
 
   __m128d       //
       da_i0_k0, //
@@ -2956,6 +2947,8 @@ static void sgemm_5_mini(const int M, const int N, const int K,
   /*   } */
   /* } */
 
+  // FIXME Julia throws a segfault from this function
+
   for (; i < M8_MOD; i += 8)
   {
 
@@ -3048,7 +3041,7 @@ static void pack_transpose(double *dst, double *src, int LDA, int M, int N)
       *s2, //
       *s3  //
       ;
-  for (j = 0; j < N; j += 4)
+  for (j = 0; j < N - 3; j += 4)
   {
     s0 = src + j * LDA;
     s1 = s0 + LDA;
@@ -3060,6 +3053,24 @@ static void pack_transpose(double *dst, double *src, int LDA, int M, int N)
       *dst++ = *s1++;
       *dst++ = *s2++;
       *dst++ = *s3++;
+    }
+  }
+  for (; j < N - 1; j += 2)
+  {
+    s0 = src + j * LDA;
+    s1 = s0 + LDA;
+    for (i = 0; i < M; ++i)
+    {
+      *dst++ = *s0++;
+      *dst++ = *s1++;
+    }
+  }
+  for (; j < N; ++j)
+  {
+    s0 = src + j * LDA;
+    for (i = 0; i < M; ++i)
+    {
+      *dst++ = *s0++;
     }
   }
 }
@@ -3387,6 +3398,475 @@ int lu_solve_5(int N, double *A, int *ipiv, double *b)
   return retcode;
 }
 
+/* -------------------------------------------------------------------
+ * Transposed memory layout operations
+ *
+ */
+static void sswap_6(int N, double *X, int incx, double *Y, int incy)
+{
+  // TODO special case when incx == incy == 1
+  // ^^^ This is our case actually (row-major iteration).
+
+  assert(0 < N);
+  assert(0 < incx);
+  assert(0 < incy);
+
+  double  //
+      t_0 //
+      ;
+
+  __m256d  //
+      x_0, //
+      x_4,
+
+      y_0, //
+      y_4;
+
+  int i, ix, iy;
+
+  if (incx == 1 && incy == 1)
+  {
+    for (i = 0; i < N - 7; i += 8)
+    {
+      x_0 = _mm256_loadu_pd(X + i + 0);
+      y_0 = _mm256_loadu_pd(Y + i + 0);
+      _mm256_storeu_pd(X + i + 0, y_0);
+      _mm256_storeu_pd(Y + i + 0, x_0);
+
+      x_4 = _mm256_loadu_pd(X + i + 4);
+      y_4 = _mm256_loadu_pd(Y + i + 4);
+      _mm256_storeu_pd(X + i + 4, y_4);
+      _mm256_storeu_pd(Y + i + 4, x_4);
+    }
+
+    for (; i < N; ++i)
+    {
+      t_0 = X[i + 0];
+      X[i + 0] = Y[i + 0];
+      Y[i + 0] = t_0;
+    }
+  }
+  else
+  {
+    for (i = 0, ix = 0, iy = 0; i < N; ++i, ix += incx, iy += incy)
+    {
+      t_0 = X[ix];
+      X[ix] = Y[iy];
+      Y[iy] = t_0;
+    }
+  }
+}
+
+static void slaswp_6(int N, double *A, int LDA, int k1, int k2, int *ipiv,
+                     int incx)
+{
+  // NOTE ipiv is layed out sequentially in memory so we can special case it
+  assert(0 < incx);  // Do not cover the negative case
+  assert(1 == incx); // Do not cover the negative case
+
+  int n32;
+  int i, j, k, p_i;
+
+  double tmp;
+  double        //
+      a__i_k_0, //
+      a__i_k_1, //
+      a__i_k_2, //
+      a__i_k_3, //
+      a__i_k_4, //
+      a__i_k_5, //
+      a__i_k_6, //
+      a__i_k_7, //
+
+      a_pi_k_0, //
+      a_pi_k_1, //
+      a_pi_k_2, //
+      a_pi_k_3, //
+      a_pi_k_4, //
+      a_pi_k_5, //
+      a_pi_k_6, //
+      a_pi_k_7  //
+      ;
+
+  n32 = (N / 32) * 32;
+
+  if (0 < n32)
+  {
+    for (j = 0; j < n32; j += 32)
+    {
+      for (i = k1; i < k2; ++i)
+      {
+        p_i = ipiv[i];
+        if (p_i != i)
+        {
+          for (k = j; k < j + 32 - 7; k += 8)
+          {
+            a__i_k_0 = TIX(A, LDA, i, k + 0);
+            a__i_k_1 = TIX(A, LDA, i, k + 1);
+            a__i_k_2 = TIX(A, LDA, i, k + 2);
+            a__i_k_3 = TIX(A, LDA, i, k + 3);
+            a__i_k_4 = TIX(A, LDA, i, k + 4);
+            a__i_k_5 = TIX(A, LDA, i, k + 5);
+            a__i_k_6 = TIX(A, LDA, i, k + 6);
+            a__i_k_7 = TIX(A, LDA, i, k + 7);
+
+            a_pi_k_0 = TIX(A, LDA, p_i, k + 0);
+            a_pi_k_1 = TIX(A, LDA, p_i, k + 1);
+            a_pi_k_2 = TIX(A, LDA, p_i, k + 2);
+            a_pi_k_3 = TIX(A, LDA, p_i, k + 3);
+            a_pi_k_4 = TIX(A, LDA, p_i, k + 4);
+            a_pi_k_5 = TIX(A, LDA, p_i, k + 5);
+            a_pi_k_6 = TIX(A, LDA, p_i, k + 6);
+            a_pi_k_7 = TIX(A, LDA, p_i, k + 7);
+
+            TIX(A, LDA, i, k + 0) = a_pi_k_0;
+            TIX(A, LDA, i, k + 1) = a_pi_k_1;
+            TIX(A, LDA, i, k + 2) = a_pi_k_2;
+            TIX(A, LDA, i, k + 3) = a_pi_k_3;
+            TIX(A, LDA, i, k + 4) = a_pi_k_4;
+            TIX(A, LDA, i, k + 5) = a_pi_k_5;
+            TIX(A, LDA, i, k + 6) = a_pi_k_6;
+            TIX(A, LDA, i, k + 7) = a_pi_k_7;
+
+            TIX(A, LDA, p_i, k + 0) = a__i_k_0;
+            TIX(A, LDA, p_i, k + 1) = a__i_k_1;
+            TIX(A, LDA, p_i, k + 2) = a__i_k_2;
+            TIX(A, LDA, p_i, k + 3) = a__i_k_3;
+            TIX(A, LDA, p_i, k + 4) = a__i_k_4;
+            TIX(A, LDA, p_i, k + 5) = a__i_k_5;
+            TIX(A, LDA, p_i, k + 6) = a__i_k_6;
+            TIX(A, LDA, p_i, k + 7) = a__i_k_7;
+          }
+        }
+      }
+    }
+  }
+
+  // Leftover cases from blocking by 32
+  if (n32 != N)
+  {
+    for (i = k1; i < k2; ++i)
+    {
+      p_i = ipiv[i];
+      if (i != p_i)
+      {
+        for (k = n32; k < N - 7; k += 8)
+        {
+          a__i_k_0 = TIX(A, LDA, i, k + 0);
+          a__i_k_1 = TIX(A, LDA, i, k + 1);
+          a__i_k_2 = TIX(A, LDA, i, k + 2);
+          a__i_k_3 = TIX(A, LDA, i, k + 3);
+          a__i_k_4 = TIX(A, LDA, i, k + 4);
+          a__i_k_5 = TIX(A, LDA, i, k + 5);
+          a__i_k_6 = TIX(A, LDA, i, k + 6);
+          a__i_k_7 = TIX(A, LDA, i, k + 7);
+
+          a_pi_k_0 = TIX(A, LDA, p_i, k + 0);
+          a_pi_k_1 = TIX(A, LDA, p_i, k + 1);
+          a_pi_k_2 = TIX(A, LDA, p_i, k + 2);
+          a_pi_k_3 = TIX(A, LDA, p_i, k + 3);
+          a_pi_k_4 = TIX(A, LDA, p_i, k + 4);
+          a_pi_k_5 = TIX(A, LDA, p_i, k + 5);
+          a_pi_k_6 = TIX(A, LDA, p_i, k + 6);
+          a_pi_k_7 = TIX(A, LDA, p_i, k + 7);
+
+          TIX(A, LDA, i, k + 0) = a_pi_k_0;
+          TIX(A, LDA, i, k + 1) = a_pi_k_1;
+          TIX(A, LDA, i, k + 2) = a_pi_k_2;
+          TIX(A, LDA, i, k + 3) = a_pi_k_3;
+          TIX(A, LDA, i, k + 4) = a_pi_k_4;
+          TIX(A, LDA, i, k + 5) = a_pi_k_5;
+          TIX(A, LDA, i, k + 6) = a_pi_k_6;
+          TIX(A, LDA, i, k + 7) = a_pi_k_7;
+
+          TIX(A, LDA, p_i, k + 0) = a__i_k_0;
+          TIX(A, LDA, p_i, k + 1) = a__i_k_1;
+          TIX(A, LDA, p_i, k + 2) = a__i_k_2;
+          TIX(A, LDA, p_i, k + 3) = a__i_k_3;
+          TIX(A, LDA, p_i, k + 4) = a__i_k_4;
+          TIX(A, LDA, p_i, k + 5) = a__i_k_5;
+          TIX(A, LDA, p_i, k + 6) = a__i_k_6;
+          TIX(A, LDA, p_i, k + 7) = a__i_k_7;
+        }
+
+        for (; k < N; ++k)
+        {
+          a__i_k_0 = TIX(A, LDA, i, k + 0);
+          a_pi_k_0 = TIX(A, LDA, p_i, k + 0);
+          TIX(A, LDA, p_i, k + 0) = a__i_k_0;
+          TIX(A, LDA, i, k + 0) = a_pi_k_0;
+        }
+      }
+    }
+  }
+}
+
+// A is a lower / left / unit / *transposed* matrix
+static void strsm_L_6(int M, int N, double *A, int LDA, double *B, int LDB)
+{
+  int i, j, k;
+
+  for (j = 0; j < N; ++j)
+    for (k = 0; k < M; ++k)
+      for (i = k + 1; i < M; ++i)
+        TIX(B, LDB, i, j) =
+            TIX(B, LDB, i, j) - TIX(B, LDB, k, j) * TIX(A, LDA, i, k);
+}
+
+// A is a upper / left / non-unit / *transposed* matrix
+static void strsm_U_6(int M, int N, double *A, int LDA, double *B, int LDB)
+{
+  // TODO
+  int i, j, k;
+
+  for (j = 0; j < N; ++j)
+    for (k = M - 1; k >= 0; --k)
+    {
+      TIX(B, LDB, k, j) = TIX(B, LDB, k, j) / TIX(A, LDA, k, k);
+      for (i = 0; i < k; ++i)
+        TIX(B, LDB, i, j) =
+            TIX(B, LDB, i, j) - TIX(B, LDB, k, j) * TIX(A, LDA, i, k);
+    }
+}
+
+static int sgetrs_6(int N, double *A, int *ipiv, double *b)
+{
+  // A now contains L (below diagonal)
+  //                U (above diagonal)
+  // Swap pivot rows in b
+  slaswp_6(1, b, 1, 0, N, ipiv, 1);
+#ifdef DEBUG_LU_SOLVER
+  printf("\nB Swapped\n");
+  for (int i = 0; i < N; ++i)
+    printf("%.4f\n", b[i]);
+#endif
+  // Forward substitution
+  strsm_L_6(N, 1, A, N, b, 1);
+#ifdef DEBUG_LU_SOLVER
+  printf("\nB Forward\n");
+  for (int i = 0; i < N; ++i)
+    printf("%.4f\n", b[i]);
+#endif
+  // Backward substitution
+  strsm_U_6(N, 1, A, N, b, 1);
+#ifdef DEBUG_LU_SOLVER
+  printf("\nB Solved\n");
+  for (int i = 0; i < N; ++i)
+    printf("%.4f\n", b[i]);
+#endif
+  return 0;
+}
+
+int sgetf2_6(int M, int N, double *A, int LDA, int *ipiv)
+{
+
+  int i, j, k, p_i;
+
+  double   //
+      p_v, //
+      m_0  //
+      ;
+
+  double      //
+      A_j_k0, //
+      A_j_k1, //
+      A_j_k2, //
+      A_j_k3, //
+      A_j_k4, //
+      A_j_k5, //
+      A_j_k6, //
+      A_j_k7, //
+
+      A_i_k0, //
+      A_i_k1, //
+      A_i_k2, //
+      A_i_k3, //
+      A_i_k4, //
+      A_i_k5, //
+      A_i_k6, //
+      A_i_k7  //
+      ;
+
+  __m256d     //
+      pm_0,   //
+      A_j0_i, //
+      A_j4_i  //
+      ;
+
+  // Quick return
+  if (!M || !N)
+    return 0;
+
+  // NOTE I have increased this to iterate *until* N however you could
+  // stop at < N - 1 if you cover the bounds case.
+  for (i = 0; i < MIN(M, N); ++i)
+  {
+
+    p_i = i + isamax_2(M - i, &TIX(A, LDA, i, i), 1);
+    p_v = TIX(A, LDA, p_i, i);
+
+    if (APPROX_EQUAL(p_v, 0.))
+    {
+      fprintf(stderr, "ERROR: LU Solve singular matrix\n");
+      fprintf(stderr, "LU Solving failed with A[%d x %d]", M, N);
+#ifdef DEBUG_LU_SOLVER
+#endif
+      return -1;
+    }
+
+    ipiv[i] = p_i;
+
+    if (i != p_i)
+    {
+#ifdef DEBUG_LU_SOLVER
+      printf("Switching rows: %d %d\n", i, p_i);
+#endif
+      sswap_6(N, &TIX(A, LDA, i, 0), LDA, &TIX(A, LDA, p_i, 0), LDA);
+    }
+
+    // BLAS 1 Scale vector ---
+    m_0 = 1 / TIX(A, LDA, i, i);
+    pm_0 = _mm256_set1_pd(m_0); // XXX sequence of instructions
+    for (j = i + 1; j <= M - 8; j += 8)
+    {
+      A_j0_i = _mm256_loadu_pd(&TIX(A, LDA, j + 0, i));
+      _mm256_storeu_pd(&TIX(A, LDA, j + 0, i), _mm256_mul_pd(pm_0, A_j0_i));
+      A_j0_i = _mm256_loadu_pd(&TIX(A, LDA, j + 4, i));
+      _mm256_storeu_pd(&TIX(A, LDA, j + 4, i), _mm256_mul_pd(pm_0, A_j0_i));
+    }
+    for (; j <= M - 4; j += 4)
+    {
+      A_j0_i = _mm256_loadu_pd(&TIX(A, LDA, j + 0, i));
+      _mm256_storeu_pd(&TIX(A, LDA, j + 0, i), _mm256_mul_pd(pm_0, A_j0_i));
+    }
+    for (; j < M; ++j)
+    {
+      TIX(A, LDA, j, i) = m_0 * TIX(A, LDA, j, i);
+    }
+    // --- BLAS 1 Scale Vector
+
+    if (i < MIN(M, N))
+    {
+
+      // BLAS 2 Rank 1 update ---
+      for (k = i + 1; k < N; ++k)
+      {
+        // XXX flip the loop order to get better locaility
+        for (j = i + 1; j < M; ++j)
+        {
+          // Negate to make computations look like FMA :)
+          m_0 = -TIX(A, LDA, j, i);
+          A_j_k0 = TIX(A, LDA, j, k + 0);
+          A_i_k0 = TIX(A, LDA, i, k + 0);
+          TIX(A, LDA, j, k + 0) = m_0 * A_i_k0 + A_j_k0;
+        }
+      }
+      // --- BLAS 2 Rank 1 update
+      //
+    }
+  }
+
+  return 0;
+}
+
+/**
+ * Same al lu_solve_2 except it uses the new sgemm_5
+ * and a transposed memory layout.
+ */
+int lu_solve_6(int N, double *A, int *ipiv, double *b)
+{
+  int retcode, ib, IB, k;
+
+  const int NB = ideal_block(N, N), //
+      M = N,                        //
+      LDA = N,                      //
+      MIN_MN = N                    //
+      ;
+
+  __m256i      //
+      ipiv_k0, //
+      ipiv_k4, //
+      pib;
+
+  // Use unblocked code
+  if (NB <= 1 || NB >= MIN_MN)
+  {
+    retcode = sgetf2_6(M, N, A, LDA, ipiv);
+    if (retcode != 0)
+      return retcode;
+  }
+
+  // BLocked factor A into [L \ U]
+  else
+  {
+    for (ib = 0; ib < MIN_MN; ib += NB)
+    {
+      IB = MIN(MIN_MN - ib, NB);
+
+      retcode = sgetf2_6(M - ib, IB, &TIX(A, LDA, ib, ib), LDA, ipiv + ib);
+
+      if (retcode != 0)
+        return retcode;
+
+      // Update the pivot indices
+      for (k = ib; k < MIN(M, ib + IB) - 31; k += 32)
+      {
+        pib = _mm256_set1_epi32(ib); // XXX sequence of instructions
+
+        ipiv_k0 = _mm256_loadu_si256((void *)(ipiv + k + 0));
+        _mm256_storeu_si256((void *)(ipiv + k + 0),
+                            _mm256_add_epi32(ipiv_k0, pib));
+
+        ipiv_k0 = _mm256_loadu_si256((void *)(ipiv + k + 16));
+        _mm256_storeu_si256((void *)(ipiv + k + 16),
+                            _mm256_add_epi32(ipiv_k0, pib));
+      }
+      // TODO unroll factor 16 ?
+      for (; k < MIN(M, ib + IB); ++k)
+      {
+        ipiv[k + 0] += ib;
+      }
+
+      // Apply interchanges to columns 0 : ib
+      slaswp_6(ib, A, LDA, ib, ib + IB, ipiv, 1);
+
+      if (ib + IB < N)
+      {
+        // Apply interchanges to columns ib + IB : N
+        slaswp_6(N - ib - IB, &TIX(A, LDA, 0, ib + IB), LDA, ib, ib + IB, ipiv,
+                 1);
+
+        // Compute the block row of U
+        strsm_L_6(IB, N - ib - IB, &TIX(A, LDA, ib, ib), LDA,
+                  &TIX(A, LDA, ib, ib + IB), LDA);
+
+        // Update trailing submatrix
+        sgemm_5(M - ib - IB, N - ib - IB, IB, -ONE, //
+                &TIX(A, LDA, ib + IB, ib), LDA,     //
+                &TIX(A, LDA, ib, ib + IB), LDA,     //
+                ONE,                                //
+                &TIX(A, LDA, ib + IB, ib + IB), LDA //
+        );
+      }
+    }
+  }
+
+#if DEBUG_LU_SOLVER
+  for (int i = 0; i < N; ++i)
+  {
+    for (int j = 0; j < N; ++j)
+      printf("%.4f  ", TIX(A, N, i, j));
+    printf("\n");
+  }
+  printf("\n");
+#endif
+
+  // Solve the system with A
+  retcode = sgetrs_6(N, A, ipiv, b);
+
+  return retcode;
+}
+
 #ifdef TEST_PERF
 
 void register_functions_LU_SOLVE()
@@ -3398,7 +3878,8 @@ void register_functions_LU_SOLVE()
   add_function_LU_SOLVE(&lu_solve_3, "LU Solve Intel DGEMM", 1);
   add_function_LU_SOLVE(&lu_solve_4, "Intel DGESV Row Major", 1);
 #endif
-  add_function_LU_SOLVE(&lu_solve_2, "LU Solve Transposed", 1);
+  add_function_LU_SOLVE(&lu_solve_5, "LU Solve Transposed", 1);
+  add_function_LU_SOLVE(&lu_solve_6, "LU Solve Transposed Vector", 1);
 }
 
 void register_functions_MMM()
