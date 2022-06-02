@@ -37,9 +37,9 @@ else
 	COMMON_FLAGS+=-march=native
 endif
 
-# Change these variables if setting the C/C++ standard is necessary
-# CFLAGS += -std=gnu17
-# CXXFLAGS += -std=gnu++17
+# Set the standard, necessary for Clang
+CFLAGS += -std=gnu17
+CXXFLAGS += -std=gnu++17
 
 # Libraries to link
 LDLIBS+=-lm
@@ -71,8 +71,6 @@ OBJ_LIB := src/perf_testers/perf_ge_solve.o \
 		src/pso_ffi.o
 # Object files required for the the executable
 OBJ_EXE := src/main.o
-# If Clang is your CXX then specifying the standard is required
-CXXFLAGS = -std=c++0x
 
 ######
 # Library vs executable compilation options
