@@ -5,9 +5,15 @@
 
 #include "lu_solve.h"
 // #include "perf_testers/perf_lu_solve.h"
+#include "perf_testers/perf_mmm.h"
 
-#define N 32768L
+#define M 1024L
+#define N 729
+#define K 512
 // #define N 8
+#define ALIGN_TO 32
+
+#define CLAMP(x) (((x) + (ALIGN_TO - 1)) & -ALIGN_TO)
 
 /* static double A0[N * N] = { */
 
@@ -43,12 +49,14 @@ static double drand()
 int main()
 {
 
-  printf("Solving\n");
-
   // FIXME change back to aligned_alloc for SIMD
-  double *A = (double *)aligned_alloc(32, N * N * sizeof(double));
-  double *b = (double *)aligned_alloc(32, N * sizeof(double));
-  int *ipiv = (int *)aligned_alloc(32, N * sizeof(int));
+  double *A = (double *)aligned_alloc(32, CLAMP(N * N) * sizeof(double));
+  double *b = (double *)aligned_alloc(32, CLAMP(N) * sizeof(double));
+  int *ipiv = (int *)aligned_alloc(32, CLAMP(N) * sizeof(int));
+
+  /* double *A0 = (double *)aligned_alloc(32, M * K * sizeof(double)); */
+  /* double *B0 = (double *)aligned_alloc(32, K * N * sizeof(double)); */
+  /* double *C0 = (double *)aligned_alloc(32, M * N * sizeof(double)); */
 
   for (int i = 0; i < N; ++i)
     for (int j = 0; j < N; ++j)
@@ -57,10 +65,26 @@ int main()
   for (int i = 0; i < N; ++i)
     b[i] = drand(); // b0[i];
 
+  printf("Solving\n");
+
   int ret = lu_solve(N, A, ipiv, b);
 
   /* for (int i = 0; i < N; ++i) */
   /*   assert(APPROX_EQUAL(b[i], x[i])); */
+
+  /* for (int j = 0; j < K; ++j) */
+  /*   for (int i = 0; i < M; ++i) */
+  /*     TIX(A0, M, i, j) = drand(); */
+
+  /* for (int j = 0; j < N; ++j) */
+  /*   for (int i = 0; i < K; ++i) */
+  /*     TIX(B0, K, i, j) = drand(); */
+
+  /* for (int j = 0; j < N; ++j) */
+  /*   for (int i = 0; i < M; ++i) */
+  /*     TIX(C0, M, i, j) = drand(); */
+
+  // int ret = perf_test_mmm(M, N, K, -ONE, A0, M, B0, K, ONE, C0, M);
 
   printf("Done\n");
   // perf_test_lu_solve(N, A, ipiv, b);
