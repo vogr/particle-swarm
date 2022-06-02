@@ -1,26 +1,21 @@
 
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cmath>
+#include <cstdio>
 
-#include "logging.h"
-#include "pso.h"
+#include "perf_testers/PerformanceTester.hpp"
 
+extern "C"
+{
 #include "helpers.h"
-
 #include "latin_hypercube.h"
-#include "timing.h"
+#include "pso.h"
+#include "steps/fit_surrogate.h"
+}
 
 #define POPSIZE 20
 #define DIMENSION 20
 #define SPACE_FILLING_DESIGN_SIZE 25
-
-static double my_f(double const *const x)
-{
-  return (x[0] - 2) * (x[0] - 2) + (x[1] - 5) * (x[1] - 5);
-}
 
 static double griewank_Nd(double const *const x)
 {
@@ -43,17 +38,10 @@ static double griewank_Nd(double const *const x)
 
 int main(int argc, char **argv)
 {
-  if (argc > 1)
-  {
-    printf("Logging to %s\n", argv[1]);
-    set_logging_directory(argv[1]);
-  }
-
-  //  uint64_t seed = time(NULL);
-  uint64_t seed = 42;
-  srand(seed);
-
-  printf("Starting PSO with seed %" PRIu64 "\n", seed);
+  /*
+   * Get a valid PSO object
+   */
+  srand(42);
 
   double inertia = 0.8;
   double social = 0.1, cognition = 0.2;
@@ -61,7 +49,7 @@ int main(int argc, char **argv)
   double min_dist = 0.01;
   int dimensions = DIMENSION;
   int population_size = POPSIZE;
-  int time_max = 50;
+  int time_max = 40;
   int n_trials = 10;
   double bounds_low[DIMENSION] = {0};
   double bounds_high[DIMENSION] = {0};
@@ -88,10 +76,25 @@ int main(int argc, char **argv)
     }
   }
 
-  run_pso(&griewank_Nd, inertia, social, cognition, local_refinement_box_size,
-          min_dist, dimensions, population_size, time_max, n_trials, bounds_low,
-          bounds_high, vmin, vmax, SPACE_FILLING_DESIGN_SIZE,
-          space_filling_design);
+  struct pso_data_constant_inertia pso;
+  pso_constant_inertia_init(&pso, &griewank_Nd, inertia, social, cognition,
+                            local_refinement_box_size, min_dist, dimensions,
+                            population_size, time_max, n_trials, bounds_low,
+                            bounds_high, vmin, vmax, SPACE_FILLING_DESIGN_SIZE);
 
-  stop_logging();
+  pso_constant_inertia_first_steps(&pso, SPACE_FILLING_DESIGN_SIZE,
+                                   space_filling_design);
+
+  while (pso.time < pso.time_max - 1)
+  {
+    pso_constant_inertia_loop(&pso);
+  }
+
+  PerformanceTester<fit_surrogate_fun_t> perf_tester;
+
+  auto arg_restorer = [&]()
+  { pso.x_distinct_idx_of_last_batch = pso.x_distinct_s - 10; };
+
+  perf_tester.add_function(fit_surrogate, "fit_surrogate", 1);
+  perf_tester.perf_test_all_registered(std::move(arg_restorer), &pso);
 }

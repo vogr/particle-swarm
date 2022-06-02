@@ -117,7 +117,8 @@ public:
 
     std::list<double> cyclesList;
 
-    std::cout << "Benchmarking over " << PERF_TESTER_REP << " * " << num_runs << " runs.\n";
+    std::cout << "Benchmarking over " << PERF_TESTER_REP << " * " << num_runs
+              << " runs.\n";
 
     // Actual performance measurements repeated REP times.
     // We simply store all results and compute medians during post-processing.

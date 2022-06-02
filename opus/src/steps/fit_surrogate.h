@@ -2,6 +2,8 @@
 
 #include "../pso.h"
 
+typedef int (*fit_surrogate_fun_t)(struct pso_data_constant_inertia *);
+
 #ifndef FIT_SURROGATE_VERSION
 #define FIT_SURROGATE_VERSION fit_surrogate_5
 #define FIT_SURROGATE_PREALLOC_VERSION prealloc_fit_surrogate_5
