@@ -3229,10 +3229,6 @@ int sgetf2_5(int M, int N, double *A, int LDA, int *ipiv)
       sswap_2(N, &TIX(A, LDA, i, 0), LDA, &TIX(A, LDA, p_i, 0), LDA);
     }
 
-    // TODO compute the minimum machine safe integer such that
-    // 1 / fmin doesn't overflow. This can be inlind because
-    // we are targeting SKYLAKE.
-
     m_0 = 1 / TIX(A, LDA, i, i);
 
     // BLAS 1 Scale vector ---
