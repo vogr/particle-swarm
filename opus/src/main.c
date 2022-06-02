@@ -88,8 +88,6 @@ int main(int argc, char **argv)
     }
   }
 
-  print_rect_matrixd(space_filling_design, SPACE_FILLING_DESIGN_SIZE, DIMENSION,
-                     "space_filling_design");
 
   run_pso(&griewank_Nd, inertia, social, cognition, local_refinement_box_size,
           min_dist, dimensions, population_size, time_max, n_trials, bounds_low,
