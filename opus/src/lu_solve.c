@@ -172,7 +172,7 @@ static void swapd(double *a, int i, int j)
 }
 
 // XXX FIXME
-static int ideal_block(int M, int N) { return 1024; }
+static int ideal_block(int M, int N) { return 2048; }
 
 // ------------------------------------------------------------------
 // Implementation start
@@ -2126,6 +2126,248 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
   for ((VAR) = (ST); (VAR) < B_SP(DIM, B); (VAR) += (B))
 #define for_b(VAR, DIM, B) for_bft(VAR, 0, DIM, B)
 
+#define INIT_24x4B                                                             \
+  c_i0_j0 = _mm256_setzero_pd();                                               \
+  c_i0_j1 = _mm256_setzero_pd();                                               \
+  c_i0_j2 = _mm256_setzero_pd();                                               \
+  c_i0_j3 = _mm256_setzero_pd();                                               \
+  c_i4_j0 = _mm256_setzero_pd();                                               \
+  c_i4_j1 = _mm256_setzero_pd();                                               \
+  c_i4_j2 = _mm256_setzero_pd();                                               \
+  c_i4_j3 = _mm256_setzero_pd();                                               \
+  c_i8_j0 = _mm256_setzero_pd();                                               \
+  c_i8_j1 = _mm256_setzero_pd();                                               \
+  c_i8_j2 = _mm256_setzero_pd();                                               \
+  c_i8_j3 = _mm256_setzero_pd();                                               \
+  c_i12_j0 = _mm256_setzero_pd();                                              \
+  c_i12_j1 = _mm256_setzero_pd();                                              \
+  c_i12_j2 = _mm256_setzero_pd();                                              \
+  c_i12_j3 = _mm256_setzero_pd();                                              \
+  c_i16_j0 = _mm256_setzero_pd();                                              \
+  c_i16_j1 = _mm256_setzero_pd();                                              \
+  c_i16_j2 = _mm256_setzero_pd();                                              \
+  c_i16_j3 = _mm256_setzero_pd();                                              \
+  c_i20_j0 = _mm256_setzero_pd();                                              \
+  c_i20_j1 = _mm256_setzero_pd();                                              \
+  c_i20_j2 = _mm256_setzero_pd();                                              \
+  c_i20_j3 = _mm256_setzero_pd();
+
+#define DO_24x4B                                                               \
+  a_i0_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 0));                 \
+  a_i4_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 4));                 \
+  a_i8_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 8));                 \
+  a_i12_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 12));               \
+  a_i16_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 16));               \
+  a_i20_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 20));               \
+                                                                               \
+  b_k0_j0 = _mm256_set1_pd(*(bbuff + 0));                                      \
+  b_k0_j1 = _mm256_set1_pd(*(bbuff + 1));                                      \
+  c_i0_j0 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j0);                        \
+  c_i4_j0 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j0);                        \
+  c_i8_j0 = _mm256_fmadd_pd(a_i8_k0, b_k0_j0, c_i8_j0);                        \
+  c_i12_j0 = _mm256_fmadd_pd(a_i12_k0, b_k0_j0, c_i12_j0);                     \
+  c_i16_j0 = _mm256_fmadd_pd(a_i16_k0, b_k0_j0, c_i16_j0);                     \
+  c_i20_j0 = _mm256_fmadd_pd(a_i20_k0, b_k0_j0, c_i20_j0);                     \
+  c_i0_j1 = _mm256_fmadd_pd(a_i0_k0, b_k0_j1, c_i0_j1);                        \
+  c_i4_j1 = _mm256_fmadd_pd(a_i4_k0, b_k0_j1, c_i4_j1);                        \
+  c_i8_j1 = _mm256_fmadd_pd(a_i8_k0, b_k0_j1, c_i8_j1);                        \
+  c_i12_j1 = _mm256_fmadd_pd(a_i12_k0, b_k0_j1, c_i12_j1);                     \
+  c_i16_j1 = _mm256_fmadd_pd(a_i16_k0, b_k0_j1, c_i16_j1);                     \
+  c_i20_j1 = _mm256_fmadd_pd(a_i20_k0, b_k0_j1, c_i20_j1);                     \
+                                                                               \
+  b_k0_j0 = _mm256_set1_pd(*(bbuff + 2));                                      \
+  b_k0_j1 = _mm256_set1_pd(*(bbuff + 3));                                      \
+  c_i0_j2 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j2);                        \
+  c_i4_j2 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j2);                        \
+  c_i8_j2 = _mm256_fmadd_pd(a_i8_k0, b_k0_j0, c_i8_j2);                        \
+  c_i12_j2 = _mm256_fmadd_pd(a_i12_k0, b_k0_j0, c_i12_j2);                     \
+  c_i16_j2 = _mm256_fmadd_pd(a_i16_k0, b_k0_j0, c_i16_j2);                     \
+  c_i20_j2 = _mm256_fmadd_pd(a_i20_k0, b_k0_j0, c_i20_j2);                     \
+  c_i0_j3 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j3);                        \
+  c_i4_j3 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j3);                        \
+  c_i8_j3 = _mm256_fmadd_pd(a_i8_k0, b_k0_j0, c_i8_j3);                        \
+  c_i12_j3 = _mm256_fmadd_pd(a_i12_k0, b_k0_j0, c_i12_j3);                     \
+  c_i16_j3 = _mm256_fmadd_pd(a_i16_k0, b_k0_j0, c_i16_j3);                     \
+  c_i20_j3 = _mm256_fmadd_pd(a_i20_k0, b_k0_j0, c_i20_j3);                     \
+  ++k, abuff += 8, bbuff += 4;
+
+// clang-format off
+#define STORE_24x4B                                                                                                   \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm256_add_pd(c_i0_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 1), _mm256_add_pd(c_i0_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 2), _mm256_add_pd(c_i0_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 2))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 3), _mm256_add_pd(c_i0_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 3))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 0), _mm256_add_pd(c_i4_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 1), _mm256_add_pd(c_i4_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 2), _mm256_add_pd(c_i4_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 2))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 3), _mm256_add_pd(c_i4_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 3))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 0), _mm256_add_pd(c_i8_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 1), _mm256_add_pd(c_i8_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 2), _mm256_add_pd(c_i8_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 2))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 3), _mm256_add_pd(c_i8_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 3))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 0), _mm256_add_pd(c_i12_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 1), _mm256_add_pd(c_i12_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 2), _mm256_add_pd(c_i12_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 2))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 3), _mm256_add_pd(c_i12_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 3))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 0), _mm256_add_pd(c_i16_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 1), _mm256_add_pd(c_i16_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 2), _mm256_add_pd(c_i16_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 2))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 3), _mm256_add_pd(c_i16_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 3))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 0), _mm256_add_pd(c_i20_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 1), _mm256_add_pd(c_i20_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 2), _mm256_add_pd(c_i20_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 2))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 3), _mm256_add_pd(c_i20_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 3))));
+// clang-format on
+
+#define MICRO_24x4_MMM                                                         \
+  abuff = A + i * K, bbuff = B + j * K;                                        \
+  INIT_24x4B;                                                                  \
+  for (k = 0; k < K4_MOD;)                                                     \
+  {                                                                            \
+    DO_24x4B;                                                                  \
+    DO_24x4B;                                                                  \
+    DO_24x4B;                                                                  \
+    DO_24x4B;                                                                  \
+  }                                                                            \
+  for (k = K4_MOD; k < K;)                                                     \
+  {                                                                            \
+    DO_24x4B;                                                                  \
+  }                                                                            \
+  STORE_24x4B;
+
+// ----
+
+#define INIT_24x2B                                                             \
+  c_i0_j0 = _mm256_setzero_pd();                                               \
+  c_i0_j1 = _mm256_setzero_pd();                                               \
+  c_i4_j0 = _mm256_setzero_pd();                                               \
+  c_i4_j1 = _mm256_setzero_pd();                                               \
+  c_i8_j0 = _mm256_setzero_pd();                                               \
+  c_i8_j1 = _mm256_setzero_pd();                                               \
+  c_i12_j0 = _mm256_setzero_pd();                                              \
+  c_i12_j1 = _mm256_setzero_pd();                                              \
+  c_i16_j0 = _mm256_setzero_pd();                                              \
+  c_i16_j1 = _mm256_setzero_pd();                                              \
+  c_i20_j0 = _mm256_setzero_pd();                                              \
+  c_i20_j1 = _mm256_setzero_pd();
+
+#define DO_24x2B                                                               \
+  a_i0_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 0));                 \
+  a_i4_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 4));                 \
+  a_i8_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 8));                 \
+  a_i12_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 12));               \
+  a_i16_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 16));               \
+  a_i20_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 20));               \
+                                                                               \
+  b_k0_j0 = _mm256_set1_pd(*(bbuff + 0));                                      \
+  b_k0_j1 = _mm256_set1_pd(*(bbuff + 1));                                      \
+  c_i0_j0 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j0);                        \
+  c_i4_j0 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j0);                        \
+  c_i8_j0 = _mm256_fmadd_pd(a_i8_k0, b_k0_j0, c_i8_j0);                        \
+  c_i12_j0 = _mm256_fmadd_pd(a_i12_k0, b_k0_j0, c_i12_j0);                     \
+  c_i16_j0 = _mm256_fmadd_pd(a_i16_k0, b_k0_j0, c_i16_j0);                     \
+  c_i20_j0 = _mm256_fmadd_pd(a_i20_k0, b_k0_j0, c_i20_j0);                     \
+  c_i0_j1 = _mm256_fmadd_pd(a_i0_k0, b_k0_j1, c_i0_j1);                        \
+  c_i4_j1 = _mm256_fmadd_pd(a_i4_k0, b_k0_j1, c_i4_j1);                        \
+  c_i8_j1 = _mm256_fmadd_pd(a_i8_k0, b_k0_j1, c_i8_j1);                        \
+  c_i12_j1 = _mm256_fmadd_pd(a_i12_k0, b_k0_j1, c_i12_j1);                     \
+  c_i16_j1 = _mm256_fmadd_pd(a_i16_k0, b_k0_j1, c_i16_j1);                     \
+  c_i20_j1 = _mm256_fmadd_pd(a_i20_k0, b_k0_j1, c_i20_j1);                     \
+  ++k, abuff += 8, bbuff += 2;
+
+// clang-format off
+#define STORE_24x2B                                                                                                   \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm256_add_pd(c_i0_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 1), _mm256_add_pd(c_i0_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 0), _mm256_add_pd(c_i4_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 1), _mm256_add_pd(c_i4_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 0), _mm256_add_pd(c_i8_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 1), _mm256_add_pd(c_i8_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 0), _mm256_add_pd(c_i12_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 1), _mm256_add_pd(c_i12_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 0), _mm256_add_pd(c_i16_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 1), _mm256_add_pd(c_i16_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 0), _mm256_add_pd(c_i20_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 1), _mm256_add_pd(c_i20_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 1))));  \
+// clang-format on
+
+#define MICRO_24x2_MMM                                                         \
+  abuff = A + i * K, bbuff = B + j * K;                                        \
+  INIT_24x2B;                                                                  \
+  for (k = 0; k < K4_MOD;)                                                     \
+  {                                                                            \
+    DO_24x2B;                                                                  \
+    DO_24x2B;                                                                  \
+    DO_24x2B;                                                                  \
+    DO_24x2B;                                                                  \
+  }                                                                            \
+  for (k = K4_MOD; k < K;)                                                     \
+  {                                                                            \
+    DO_24x2B;                                                                  \
+  }                                                                            \
+  STORE_24x2B;
+
+// ----
+
+#define INIT_24x1B                                                             \
+  c_i0_j0 = _mm256_setzero_pd();                                               \
+  c_i0_j1 = _mm256_setzero_pd();                                               \
+  c_i4_j0 = _mm256_setzero_pd();                                               \
+  c_i4_j1 = _mm256_setzero_pd();                                               \
+  c_i8_j0 = _mm256_setzero_pd();                                               \
+  c_i8_j1 = _mm256_setzero_pd();                                               \
+  c_i12_j0 = _mm256_setzero_pd();                                              \
+  c_i12_j1 = _mm256_setzero_pd();                                              \
+  c_i16_j0 = _mm256_setzero_pd();                                              \
+  c_i16_j1 = _mm256_setzero_pd();                                              \
+  c_i20_j0 = _mm256_setzero_pd();                                              \
+  c_i20_j1 = _mm256_setzero_pd();                                              \
+
+#define DO_24x1B                                                               \
+  a_i0_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 0));                 \
+  a_i4_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 4));                 \
+  a_i8_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 8));                 \
+  a_i12_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 12));               \
+  a_i16_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 16));               \
+  a_i20_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 20));               \
+                                                                               \
+  b_k0_j0 = _mm256_set1_pd(*(bbuff + 0));                                      \
+  c_i0_j0 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j0);                        \
+  c_i4_j0 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j0);                        \
+  c_i8_j0 = _mm256_fmadd_pd(a_i8_k0, b_k0_j0, c_i8_j0);                        \
+  c_i12_j0 = _mm256_fmadd_pd(a_i12_k0, b_k0_j0, c_i12_j0);                     \
+  c_i16_j0 = _mm256_fmadd_pd(a_i16_k0, b_k0_j0, c_i16_j0);                     \
+  c_i20_j0 = _mm256_fmadd_pd(a_i20_k0, b_k0_j0, c_i20_j0);                     \
+  ++k, abuff += 8, ++bbuff;
+
+// clang-format off
+#define STORE_24x1B                                                                                                   \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm256_add_pd(c_i0_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 0), _mm256_add_pd(c_i4_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 0), _mm256_add_pd(c_i8_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 0), _mm256_add_pd(c_i12_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 0), _mm256_add_pd(c_i16_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 0), _mm256_add_pd(c_i20_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 0))));  \
+// clang-format on
+
+#define MICRO_24x1_MMM                                                         \
+  abuff = A + i * K, bbuff = B + j * K;                                        \
+  INIT_24x1B;                                                                  \
+  for (k = 0; k < K4_MOD;)                                                     \
+  {                                                                            \
+    DO_24x1B;                                                                  \
+    DO_24x1B;                                                                  \
+    DO_24x1B;                                                                  \
+    DO_24x1B;                                                                  \
+  }                                                                            \
+  for (k = K4_MOD; k < K;)                                                     \
+  {                                                                            \
+    DO_24x1B;                                                                  \
+  }                                                                            \
+  STORE_24x1B;
+
+// ----
+
 #define INIT_8x4B                                                              \
   c_i0_j0 = _mm256_setzero_pd();                                               \
   c_i0_j1 = _mm256_setzero_pd();                                               \
@@ -2306,6 +2548,73 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 
 // ----
 
+#define INIT_4x2B                                                              \
+  c_i0_j0 = _mm256_setzero_pd();                                               \
+  c_i0_j1 = _mm256_setzero_pd();
+
+#define DO_4x2B                                                                \
+  a_i0_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 0));                 \
+  b_k0_j0 = _mm256_set1_pd(*(bbuff + 0));                                      \
+  b_k0_j1 = _mm256_set1_pd(*(bbuff + 1));                                      \
+  c_i0_j0 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j0);                        \
+  c_i0_j1 = _mm256_fmadd_pd(a_i0_k0, b_k0_j1, c_i0_j1);                        \
+  ++k, abuff += 4, bbuff += 2;
+
+// clang-format off
+#define STORE_4x2B                                                                                                    \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm256_add_pd(c_i0_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 1), _mm256_add_pd(c_i0_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 1))));
+// clang-format on
+
+#define MICRO_4x2_MMM                                                          \
+  abuff = A + i * K, bbuff = B + j * K;                                        \
+  INIT_4x2B;                                                                   \
+  for (k = 0; k < K4_MOD;)                                                     \
+  {                                                                            \
+    DO_4x2B;                                                                   \
+    DO_4x2B;                                                                   \
+    DO_4x2B;                                                                   \
+    DO_4x2B;                                                                   \
+  }                                                                            \
+  for (k = K4_MOD; k < K;)                                                     \
+  {                                                                            \
+    DO_4x2B;                                                                   \
+  }                                                                            \
+  STORE_4x2B;
+
+// ----
+
+#define INIT_4x1B c_i0_j0 = _mm256_setzero_pd();
+
+#define DO_4x1B                                                                \
+  a_i0_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 0));                 \
+  b_k0_j0 = _mm256_set1_pd(*(bbuff + 0));                                      \
+  c_i0_j0 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j0);                        \
+  ++k, abuff += 4, ++bbuff;
+
+// clang-format off
+#define STORE_4x1B                                                                                                    \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm256_add_pd(c_i0_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));
+// clang-format on
+
+#define MICRO_4x1_MMM                                                          \
+  abuff = A + i * K, bbuff = B + j * K;                                        \
+  INIT_4x1B;                                                                   \
+  for (k = 0; k < K4_MOD;)                                                     \
+  {                                                                            \
+    DO_4x1B;                                                                   \
+    DO_4x1B;                                                                   \
+    DO_4x1B;                                                                   \
+    DO_4x1B;                                                                   \
+  }                                                                            \
+  for (k = K4_MOD; k < K;)                                                     \
+  {                                                                            \
+    DO_4x1B;                                                                   \
+  }                                                                            \
+  STORE_4x1B;
+
+// ----
+
 #define INIT_2x4B                                                              \
   dc_i0_j0 = _mm_setzero_pd();                                                 \
   dc_i0_j1 = _mm_setzero_pd();                                                 \
@@ -2350,18 +2659,87 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 
 // ----
 
+#define INIT_2x2B                                                              \
+  dc_i0_j0 = _mm_setzero_pd();                                                 \
+  dc_i0_j1 = _mm_setzero_pd();
+
+#define DO_2x2B                                                                \
+  da_i0_k0 = _mm_mul_pd(dvalpha, _mm_load_pd(abuff + 0));                      \
+  db_k0_j0 = _mm_set1_pd(*(bbuff + 0));                                        \
+  db_k0_j1 = _mm_set1_pd(*(bbuff + 1));                                        \
+  dc_i0_j0 = _mm_fmadd_pd(da_i0_k0, db_k0_j0, dc_i0_j0);                       \
+  dc_i0_j1 = _mm_fmadd_pd(da_i0_k0, db_k0_j1, dc_i0_j1);                       \
+  ++k, abuff += 2, bbuff += 2;
+
+// clang-format off
+#define STORE_2x2B                                                                                            \
+  _mm_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm_add_pd(dc_i0_j0, _mm_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));  \
+  _mm_storeu_pd(&TIX(C, LDC, i + 0, j + 1), _mm_add_pd(dc_i0_j1, _mm_loadu_pd(&TIX(C, LDC, i + 0, j + 1))));
+// clang-format on
+
+#define MICRO_2x2_MMM                                                          \
+  abuff = A + i * K, bbuff = B + j * K;                                        \
+  INIT_2x2B;                                                                   \
+  for (k = 0; k < K4_MOD;)                                                     \
+  {                                                                            \
+    DO_2x2B;                                                                   \
+    DO_2x2B;                                                                   \
+    DO_2x2B;                                                                   \
+    DO_2x2B;                                                                   \
+  }                                                                            \
+  for (k = K4_MOD; k < K;)                                                     \
+  {                                                                            \
+    DO_2x2B;                                                                   \
+  }                                                                            \
+  STORE_2x2B;
+
+// ----
+
+#define INIT_2x1B                                                              \
+  dc_i0_j0 = _mm_setzero_pd();                                                 \
+  dc_i0_j1 = _mm_setzero_pd();
+
+#define DO_2x1B                                                                \
+  da_i0_k0 = _mm_mul_pd(dvalpha, _mm_load_pd(abuff + 0));                      \
+  db_k0_j0 = _mm_set1_pd(*(bbuff + 0));                                        \
+  dc_i0_j0 = _mm_fmadd_pd(da_i0_k0, db_k0_j0, dc_i0_j0);                       \
+  ++k, abuff += 2, ++bbuff;
+
+// clang-format off
+#define STORE_2x1B                                                                                            \
+  _mm_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm_add_pd(dc_i0_j0, _mm_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));
+// clang-format on
+
+#define MICRO_2x1_MMM                                                          \
+  abuff = A + i * K, bbuff = B + j * K;                                        \
+  INIT_2x1B;                                                                   \
+  for (k = 0; k < K4_MOD;)                                                     \
+  {                                                                            \
+    DO_2x1B;                                                                   \
+    DO_2x1B;                                                                   \
+    DO_2x1B;                                                                   \
+    DO_2x1B;                                                                   \
+  }                                                                            \
+  for (k = K4_MOD; k < K;)                                                     \
+  {                                                                            \
+    DO_2x1B;                                                                   \
+  }                                                                            \
+  STORE_2x1B;
+
+// -----
+
 #define INIT_1x4B s_c0 = s_c1 = s_c2 = s_c3 = 0.;
 
 #define DO_1x4B                                                                \
   s_a0 = -(*abuff);                                                            \
   s_b0 = *(bbuff + 0);                                                         \
   s_b1 = *(bbuff + 1);                                                         \
-  s_b2 = *(bbuff + 2);                                                         \
-  s_b3 = *(bbuff + 3);                                                         \
   s_c0 += s_a0 * s_b0;                                                         \
   s_c1 += s_a0 * s_b1;                                                         \
-  s_c2 += s_a0 * s_b2;                                                         \
-  s_c3 += s_a0 * s_b3;                                                         \
+  s_b0 = *(bbuff + 2);                                                         \
+  s_b1 = *(bbuff + 3);                                                         \
+  s_c2 += s_a0 * s_b0;                                                         \
+  s_c3 += s_a0 * s_b1;                                                         \
   ++k, ++abuff, bbuff += 4;
 
 #define STORE_1x4B                                                             \
@@ -2386,6 +2764,68 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
   }                                                                            \
   STORE_1x4B;
 
+// -----
+
+#define INIT_1x2B s_c0 = s_c1 = 0.;
+
+#define DO_1x2B                                                                \
+  s_a0 = -(*abuff);                                                            \
+  s_b0 = *(bbuff + 0);                                                         \
+  s_b1 = *(bbuff + 1);                                                         \
+  s_c0 += s_a0 * s_b0;                                                         \
+  s_c1 += s_a0 * s_b1;                                                         \
+  ++k, ++abuff, bbuff += 2;
+
+#define STORE_1x2B                                                             \
+  TIX(C, LDC, i + 0, j + 0) += s_c0;                                           \
+  TIX(C, LDC, i + 0, j + 1) += s_c1;
+
+#define MICRO_1x2_MMM                                                          \
+  abuff = A + i * K, bbuff = B + j * K;                                        \
+  INIT_1x2B;                                                                   \
+  for (k = 0; k < K4_MOD;)                                                     \
+  {                                                                            \
+    DO_1x2B;                                                                   \
+    DO_1x2B;                                                                   \
+    DO_1x2B;                                                                   \
+    DO_1x2B;                                                                   \
+  }                                                                            \
+  for (k = K4_MOD; k < K;)                                                     \
+  {                                                                            \
+    DO_1x2B;                                                                   \
+  }                                                                            \
+  STORE_1x2B;
+
+// -----
+
+#define INIT_1x1B s_c0 = 0.;
+
+#define DO_1x1B                                                                \
+  s_a0 = -(*abuff);                                                            \
+  s_b0 = *(bbuff + 0);                                                         \
+  s_c0 += s_a0 * s_b0;                                                         \
+  ++k, ++abuff, ++bbuff;
+
+#define STORE_1x1B TIX(C, LDC, i + 0, j + 0) += s_c0;
+
+#define MICRO_1x1_MMM                                                          \
+  abuff = A + i * K, bbuff = B + j * K;                                        \
+  INIT_1x1B;                                                                   \
+  for (k = 0; k < K4_MOD;)                                                     \
+  {                                                                            \
+    DO_1x1B;                                                                   \
+    DO_1x1B;                                                                   \
+    DO_1x1B;                                                                   \
+    DO_1x1B;                                                                   \
+  }                                                                            \
+  for (k = K4_MOD; k < K;)                                                     \
+  {                                                                            \
+    DO_1x1B;                                                                   \
+  }                                                                            \
+  STORE_1x1B;
+
+// -----
+
 // NOTE sgemm_5 assumes a TRANSPOSED memory layout
 static void sgemm_5_mini(const int M, const int N, const int K,
                          double *restrict A, const int LDA, double *restrict B,
@@ -2395,10 +2835,11 @@ static void sgemm_5_mini(const int M, const int N, const int K,
 
   double *abuff, *bbuff;
 
-  const int                //
-      M8_MOD = B_SP(M, 8), //
-      M4_MOD = B_SP(M, 4), //
-      M2_MOD = B_SP(M, 2), //
+  const int                  //
+      M24_MOD = B_SP(M, 24), //
+      M8_MOD = B_SP(M, 8),   //
+      M4_MOD = B_SP(M, 4),   //
+      M2_MOD = B_SP(M, 2),   //
 
       N4_MOD = B_SP(N, 4), //
       N2_MOD = B_SP(N, 2), //
@@ -2429,9 +2870,13 @@ static void sgemm_5_mini(const int M, const int N, const int K,
       dc_i4_j3  //
       ;
 
-  __m256d      //
-      a_i0_k0, //
-      a_i4_k0, //
+  __m256d       //
+      a_i0_k0,  //
+      a_i4_k0,  //
+      a_i8_k0,  //
+      a_i12_k0, //
+      a_i16_k0, //
+      a_i20_k0, //
 
       b_k0_j0, //
       b_k0_j1, //
@@ -2446,7 +2891,28 @@ static void sgemm_5_mini(const int M, const int N, const int K,
       c_i4_j0, //
       c_i4_j1, //
       c_i4_j2, //
-      c_i4_j3  //
+      c_i4_j3, //
+
+      c_i8_j0, //
+      c_i8_j1, //
+      c_i8_j2, //
+      c_i8_j3, //
+
+      c_i12_j0, //
+      c_i12_j1, //
+      c_i12_j2, //
+      c_i12_j3, //
+
+      c_i16_j0, //
+      c_i16_j1, //
+      c_i16_j2, //
+      c_i16_j3, //
+
+      c_i20_j0, //
+      c_i20_j1, //
+      c_i20_j2, //
+      c_i20_j3  //
+
       ;
 
   double    //
@@ -2463,7 +2929,34 @@ static void sgemm_5_mini(const int M, const int N, const int K,
       s_c3  //
       ;
 
-  for (i = 0; i < M8_MOD; i += 8)
+  i = 0;
+
+  // NOTE from personal tests I've seen that the
+  // size of 24 makes the multiplication much slower.
+  // Not sure if this will be the case in practice so
+  // we can try it out.
+  //
+  // TODO run tests with estimated sized matrices
+  // and dimensions.
+
+  /* for (; i < M24_MOD; i += 24) */
+  /* { */
+
+  /*   for (j = 0; j < N4_MOD; j += 4) */
+  /*   { */
+  /*     MICRO_24x4_MMM; */
+  /*   } */
+  /*   for (; j < N2_MOD; j += 2) */
+  /*   { */
+  /*     MICRO_24x2_MMM; */
+  /*   } */
+  /*   for (; j < N; ++j) */
+  /*   { */
+  /*     MICRO_24x1_MMM; */
+  /*   } */
+  /* } */
+
+  for (; i < M8_MOD; i += 8)
   {
 
     for (j = 0; j < N4_MOD; j += 4)
@@ -2476,7 +2969,7 @@ static void sgemm_5_mini(const int M, const int N, const int K,
     }
     for (; j < N; ++j)
     {
-      MICRO_8x2_MMM;
+      MICRO_8x1_MMM;
     }
   }
 
@@ -2486,9 +2979,14 @@ static void sgemm_5_mini(const int M, const int N, const int K,
     {
       MICRO_4x4_MMM;
     }
-
-    // N 2
-    // N 1
+    for (; j < N2_MOD; j += 2)
+    {
+      MICRO_4x2_MMM;
+    }
+    for (; j < N; ++j)
+    {
+      MICRO_4x1_MMM;
+    }
   }
 
   for (; i < M2_MOD; i += 2)
@@ -2497,9 +2995,14 @@ static void sgemm_5_mini(const int M, const int N, const int K,
     {
       MICRO_2x4_MMM;
     }
-
-    // N 2
-    // N 1
+    for (; j < N2_MOD; j += 2)
+    {
+      MICRO_2x2_MMM;
+    }
+    for (; j < N; ++j)
+    {
+      MICRO_2x1_MMM;
+    }
   }
 
   for (; i < M; ++i)
@@ -2508,9 +3011,14 @@ static void sgemm_5_mini(const int M, const int N, const int K,
     {
       MICRO_1x4_MMM;
     }
-
-    // N 2
-    // N 1
+    for (; j < N2_MOD; j += 2)
+    {
+      MICRO_1x2_MMM;
+    }
+    for (; j < N; ++j)
+    {
+      MICRO_1x1_MMM;
+    }
   }
 }
 
