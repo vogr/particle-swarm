@@ -7,6 +7,8 @@
 
 extern "C"
 {
+#include <getopt.h>
+
 #include "helpers.h"
 #include "latin_hypercube.h"
 #include "pso.h"
@@ -36,8 +38,39 @@ static double griewank_Nd(double const *const x)
   return (1. + d * r - t);
 }
 
+static struct option long_options[] = {{"max-time", required_argument, 0, 't'},
+                                       {"no-bench", no_argument, 0, 'B'},
+                                       {0, 0, 0, 0}};
+
 int main(int argc, char **argv)
 {
+  int time_max = 60;
+  bool do_bench = true;
+
+  while (1)
+  {
+    int option_index = 0;
+    int c = getopt_long(argc, argv, "tB", long_options, nullptr);
+    if (c == -1)
+      break;
+
+    switch (c)
+    {
+    case 't':
+      time_max = std::stoi(optarg);
+      break;
+    case 'B':
+      do_bench = false;
+      break;
+
+    case '?':
+      break;
+
+    default:
+      printf("?? getopt returned character code 0%o ??\n", c);
+    }
+  }
+
   /*
    * Get a valid PSO object
    */
@@ -49,7 +82,6 @@ int main(int argc, char **argv)
   double min_dist = 0.01;
   int dimensions = DIMENSION;
   int population_size = POPSIZE;
-  int time_max = 60;
   int n_trials = 10;
   double bounds_low[DIMENSION] = {0};
   double bounds_high[DIMENSION] = {0};
@@ -90,11 +122,15 @@ int main(int argc, char **argv)
     pso_constant_inertia_loop(&pso);
   }
 
-  PerformanceTester<fit_surrogate_fun_t> perf_tester;
+  if (do_bench)
+  {
 
-  auto arg_restorer = [&]()
-  { pso.x_distinct_idx_of_last_batch = pso.x_distinct_s - 10; };
+    PerformanceTester<fit_surrogate_fun_t> perf_tester;
 
-  perf_tester.add_function(fit_surrogate, "fit_surrogate", 1);
-  perf_tester.perf_test_all_registered(std::move(arg_restorer), &pso);
+    auto arg_restorer = [&]()
+    { pso.x_distinct_idx_of_last_batch = pso.x_distinct_s - 10; };
+
+    perf_tester.add_function(fit_surrogate, "fit_surrogate", 1);
+    perf_tester.perf_test_all_registered(std::move(arg_restorer), &pso);
+  }
 }

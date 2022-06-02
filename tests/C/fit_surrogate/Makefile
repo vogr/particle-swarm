@@ -3,7 +3,7 @@
 CPPFLAGS+=-I../../../opus/src
 
 # Release flags
-RELEASE_FLAGS:=-DNDEBUG -O2 -flto -fcf-protection=none -fno-stack-protector -ffast-math
+RELEASE_FLAGS:=-DNDEBUG -O2 -flto -fcf-protection=none -fno-stack-protector -ffast-math -g
 
 CFLAGS+= -std=gnu17 $(RELEASE_FLAGS) 
 CXXFLAGS+= -std=gnu++17 $(RELEASE_FLAGS) 
