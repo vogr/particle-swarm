@@ -10,20 +10,26 @@ extern "C"
 
 #include "PerformanceTester.hpp"
 
-template <> class ArgumentRestorer<fit_surrogate_fun_t>
-{
-public:
-  ArgumentRestorer<fit_surrogate_fun_t>(struct pso_data_constant_inertia *pso)
-  {
-  }
+namespace {
 
-  void restore_arguments(struct pso_data_constant_inertia *pso)
+class ArgumentRestorerFS
+{
+private:
+  struct pso_data_constant_inertia * pso;
+
+public:
+  ArgumentRestorerFS(struct pso_data_constant_inertia *pso)
+  : pso{pso}
+  { }
+
+
+  void operator()()
   {
     pso->x_distinct_idx_of_last_batch = pso->x_distinct_s - 1;
   }
-
-  ~ArgumentRestorer<fit_surrogate_fun_t>() {}
 };
+
+}
 
 static PerformanceTester<fit_surrogate_fun_t> perf_tester;
 
@@ -37,7 +43,8 @@ extern "C" void add_function_FIT_SURROGATE(fit_surrogate_fun_t f,
 extern "C" int perf_test_fit_surrogate(struct pso_data_constant_inertia *pso)
 {
   register_functions_FIT_SURROGATE();
-  return perf_tester.perf_test_all_registered(pso);
+  ArgumentRestorerFS arg_restorer {pso};
+  return perf_tester.perf_test_all_registered(std::move(arg_restorer), pso);
 }
 
 // NOTE I bet we can put these in the templated perf framework and remove the

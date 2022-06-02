@@ -34,6 +34,7 @@
 #include <list>
 #include <string>
 #include <vector>
+#include <functional>
 
 extern "C"
 {
@@ -48,38 +49,6 @@ extern "C"
 // destructuring function pointer template type
 // into return type and argument type:
 // see https://devblogs.microsoft.com/oldnewthing/20200713-00/?p=103978
-
-// Argument saver/restorer.
-// Need to provide a template specialization for your particular
-// function under test.
-template <typename F> class ArgumentRestorer;
-
-// eg.
-/*
-template <>
-class ArgumentRestorer<my_fun_to_test_ptr_t>
-{
-private:
-  // private storage
-  arg1 arg1_0;
-  arg2 arg2_0;
-public:
-  ArgumentRestorer<my_fun_to_test_ptr_t>(arg1, arg2)
-  {
-    // allocate private storage and save arg1 arg2
-  }
-
-  void restore_arguments(arg1, arg2)
-  {
-    // copy back arg1_0 and arg2_0 into the args
-  }
-
-  ~ArgumentRestorer<my_fun_to_test_ptr_t>(arg1, arg2, arg3)
-  {
-    // free private storage
-  }
-};
-*/
 
 // The PerformanceTester template parametrized by a function
 // pointer. To allow explicit type parametrization, needs an
@@ -117,16 +86,12 @@ public:
    * If valid, then computes and reports and returns the number of cycles
    * required per iteration
    */
-  double perf_test(fun_T f, std::string desc, int flops, Args_T... args)
+  double perf_test(fun_T f, std::string desc, int flops, std::function<void()> arg_restorer, Args_T... args)
   {
     double cycles = 0.;
     long num_runs = 10;
     double multiplier = 1;
     myInt64 start, end;
-
-    // TODO: save initial paramters with arg_saver and arg_restorer
-    // if saver == nulll; restorer == null
-    ArgumentRestorer<fun_T> arg_restorer(args...);
 
     // Warm-up phase: we determine a number of executions that allows
     // the code to be executed for at least CYCLES_REQUIRED cycles.
@@ -143,7 +108,7 @@ public:
 
       cycles = (double)end;
 
-      arg_restorer.restore_arguments(args...);
+      arg_restorer();
 
       multiplier = (PERF_TESTER_CYCLES_REQUIRED) / (cycles);
 
@@ -165,7 +130,7 @@ public:
         total_cycles += cycles;
         cyclesList.push_back(cycles); // XXX why have this
 
-        arg_restorer.restore_arguments(args...);
+        arg_restorer();
       }
     }
     total_cycles /= (PERF_TESTER_REP * num_runs);
@@ -174,7 +139,7 @@ public:
     return cycles;
   }
 
-  int perf_test_all_registered(Args_T... args)
+  int perf_test_all_registered(std::function<void()> arg_restorer, Args_T... args)
   {
     std::cout << "Starting performance tests.";
     double perf;
@@ -195,7 +160,7 @@ public:
 
     for (i = 0; i < numFuncs; i++)
     {
-      perf = perf_test(userFuncs[i], funcNames[i], 1, args...);
+      perf = perf_test(userFuncs[i], funcNames[i], 1, arg_restorer, args...);
       std::cout << std::endl << "Running: " << funcNames[i] << std::endl;
       std::cout << perf << " cycles" << std::endl;
     }
