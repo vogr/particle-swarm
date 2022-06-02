@@ -43,22 +43,15 @@ void random_number_generation(struct pso_data_constant_inertia *pso)
   }
 
   // Step 6
-  pso->step6_rands = aligned_alloc(32, pso->population_size * pso->n_trials *
-                                           pso->dimensions * sizeof(double));
+  size_t step6_rands_size = pso->time_max * 2 * pso->population_size * pso->n_trials *
+                                           pso->dimensions;
+  size_t step6_rands_mem_size_a32 = (step6_rands_size * sizeof(double) + 31) & -32;
+  printf("%zu\n", step6_rands_mem_size_a32);
+  pso->step6_rands_array_start = aligned_alloc(32, step6_rands_mem_size_a32 );
 
-  for (int i = 0; i < pso->population_size; i++)
+  for (size_t i = 0; i < step6_rands_size; i++)
   {
-    for (int l = 0; l < pso->n_trials; l++)
-    {
-      double *row_ptr = PSO_STEP6_RAND(pso, i, l);
-      for (int j = 0; j < pso->dimensions; j++)
-      {
-        double w1 = (double)rand() / RAND_MAX;
-        double w2 = (double)rand() / RAND_MAX;
-        row_ptr[2 * j] = w1;
-        row_ptr[2 * j + 1] = w2;
-      }
-    }
+    pso->step6_rands_array_start[i] = (double)rand() / RAND_MAX;
   }
 }
 
@@ -121,6 +114,7 @@ void pso_constant_inertia_init(
   // pso->population_size particles per iterations, and 1 for the local minimizer
   // + initial space filling design
   size_t x_distinct_max_nb = pso->time_max * (pso->population_size + 1) + sfd_size;
+  //printf("%zu\n", x_distinct_max_nb);
   pso->x_distinct =
       malloc(x_distinct_max_nb * pso->dimensions * sizeof(double));
   pso->x_distinct_idx_of_last_batch = 0;

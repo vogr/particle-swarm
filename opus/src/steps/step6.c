@@ -110,9 +110,14 @@ void step6_base(struct pso_data_constant_inertia *pso)
 void step6_opt1(struct pso_data_constant_inertia *pso)
 {
   // Determine new particle positions
+  int time = pso->time;
   int pop_size = pso->population_size;
   int dim = pso->dimensions;
   int n_trials = pso->n_trials;
+
+  size_t rand_pool_size = 2 * pop_size * n_trials * dim;
+  double const * rand_pool = pso->step6_rands_array_start + time * rand_pool_size;
+
 
   for (int i = 0; i < pop_size; i++)
   {
@@ -120,7 +125,7 @@ void step6_opt1(struct pso_data_constant_inertia *pso)
     for (int l = 0; l < n_trials; l++)
     {
 
-      double *row_ptr = PSO_STEP6_RAND(pso, i, l);
+      double const * row_ptr = rand_pool + (i * n_trials + l) * 2 * dim;
 
       for (int j = 0; j < dim; j++)
       {
@@ -174,9 +179,14 @@ void step6_opt1(struct pso_data_constant_inertia *pso)
 void step6_opt2(struct pso_data_constant_inertia *pso)
 {
   // Determine new particle positions
+  int time = pso->time;
   int pop_size = pso->population_size;
   int dim = pso->dimensions;
   int n_trials = pso->n_trials;
+
+  size_t rand_pool_size = 2 * pop_size * n_trials * dim;
+  double const * rand_pool = pso->step6_rands_array_start + time * rand_pool_size;
+
 
   for (int i = 0; i < pop_size; i++)
   {
@@ -184,7 +194,7 @@ void step6_opt2(struct pso_data_constant_inertia *pso)
     for (int l = 0; l < n_trials; l++)
     {
 
-      double *row_ptr = PSO_STEP6_RAND(pso, i, l);
+      double const * row_ptr = rand_pool + (i * n_trials + l) * 2 * dim;
 
       int j = 0;
       for (; j < dim; j += 4)
@@ -293,9 +303,13 @@ void step6_opt2(struct pso_data_constant_inertia *pso)
 void step6_opt3(struct pso_data_constant_inertia *pso)
 {
   // Determine new particle positions
+  int time = pso->time;
   int pop_size = pso->population_size;
   int dim = pso->dimensions;
   int n_trials = pso->n_trials;
+
+  size_t rand_pool_size = 2 * pop_size * n_trials * dim;
+  double const * rand_pool = pso->step6_rands_array_start + time * rand_pool_size;
 
   for (int i = 0; i < pop_size; i++)
   {
@@ -303,7 +317,7 @@ void step6_opt3(struct pso_data_constant_inertia *pso)
     for (int l = 0; l < n_trials; l++)
     {
 
-      double *row_ptr = PSO_STEP6_RAND(pso, i, l);
+      double const * row_ptr = rand_pool + (i * n_trials + l) * 2 * dim;
 
       int j = 0;
       for (; j < dim - 3; j += 4)
