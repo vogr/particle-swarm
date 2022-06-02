@@ -8,7 +8,8 @@ extern "C"
 #include "../gaussian_elimination_solver.h"
 #include "PerformanceTester.hpp"
 
-namespace {
+namespace
+{
 
 class ArgumentRestorerGE
 {
@@ -23,13 +24,12 @@ private:
   double *x = nullptr;
 
 public:
-  ArgumentRestorerGE(int N, double *Ab, double *x)
-  : N{N}, Ab{Ab}, x{x}
+  ArgumentRestorerGE(int N, double *Ab, double *x) : N{N}, Ab{Ab}, x{x}
   {
     size_t Ab_s = N * (N + 1);
 
     Ab0.assign(Ab, Ab + Ab_s);
-    x0.assign(x, x+ N);
+    x0.assign(x, x + N);
   }
 
   void operator()()
@@ -40,7 +40,7 @@ public:
   }
 };
 
-}
+} // namespace
 
 static PerformanceTester<ge_solve_fun_t> perf_tester;
 
@@ -54,6 +54,7 @@ extern "C" void add_function_GE_SOLVE(ge_solve_fun_t f, char *name, int flop)
 extern "C" int perf_test_ge_solve(int N, double *Ab, double *x)
 {
   register_functions_GE_SOLVE();
-  ArgumentRestorerGE arg_restorer {N, Ab, x};
-  return perf_tester.perf_test_all_registered(std::move(arg_restorer), N, Ab, x);
+  ArgumentRestorerGE arg_restorer{N, Ab, x};
+  return perf_tester.perf_test_all_registered(std::move(arg_restorer), N, Ab,
+                                              x);
 }

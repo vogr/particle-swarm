@@ -8,7 +8,8 @@ extern "C"
 #include "../lu_solve.h"
 #include "PerformanceTester.hpp"
 
-namespace {
+namespace
+{
 class ArgumentRestorerLU
 {
 private:
@@ -22,8 +23,7 @@ private:
   double *b = nullptr;
 
 public:
-  ArgumentRestorerLU(int N, double *A, int *ipiv, double *b)
-  : N{N}, A{A}, b{b}
+  ArgumentRestorerLU(int N, double *A, int *ipiv, double *b) : N{N}, A{A}, b{b}
   {
     size_t A_s = N * N;
 
@@ -31,7 +31,7 @@ public:
     b0.assign(b, b + N);
   }
 
-  // copy back original arguments into 
+  // copy back original arguments into
   void operator()()
   {
     size_t A_s = N * N;
@@ -40,7 +40,7 @@ public:
   }
 };
 
-}
+} // namespace
 
 static PerformanceTester<lu_solve_fun_t> perf_tester;
 
@@ -56,5 +56,6 @@ extern "C" int perf_test_lu_solve(int N, double *A, int *ipiv, double *b)
   register_functions_LU_SOLVE();
 
   ArgumentRestorerLU arg_restorer{N, A, ipiv, b};
-  return perf_tester.perf_test_all_registered(std::move(arg_restorer), N, A, ipiv, b);
+  return perf_tester.perf_test_all_registered(std::move(arg_restorer), N, A,
+                                              ipiv, b);
 }

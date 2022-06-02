@@ -11,8 +11,8 @@ extern "C"
 typedef void (*mmm_fun_t)(int M, int N, int K, double alpha, double *A, int LDA,
                           double *B, int LDB, double beta, double *C, int LDC);
 
-namespace {
-
+namespace
+{
 
 class ArgumentRestorerMMM
 {
@@ -33,15 +33,14 @@ private:
   std::vector<double> C0;
 
   // unmanaged memory: the arguments to restore
-  double * A = nullptr;
-  double * B = nullptr;
-  double * C = nullptr;
+  double *A = nullptr;
+  double *B = nullptr;
+  double *C = nullptr;
 
 public:
-  ArgumentRestorerMMM(int M, int N, int K, double alpha, double *A,
-                              int LDA, double *B, int LDB, double beta,
-                              double *C, int LDC)
-  : A{A}, B{B}, C{C}         
+  ArgumentRestorerMMM(int M, int N, int K, double alpha, double *A, int LDA,
+                      double *B, int LDB, double beta, double *C, int LDC)
+      : A{A}, B{B}, C{C}
   {
 
     M0 = M;
@@ -67,7 +66,7 @@ public:
   }
 };
 
-}
+} // namespace
 
 static PerformanceTester<mmm_fun_t> perf_tester;
 
@@ -83,8 +82,8 @@ extern "C" int perf_test_mmm(int M, int N, int K, double alpha, double *A,
                              double *C, int LDC)
 {
   register_functions_MMM();
-  ArgumentRestorerMMM arg_restorer {M, N, K, alpha, A, LDA, B, LDB, beta, C, LDC};
-  return perf_tester.perf_test_all_registered(std::move(arg_restorer),
-                                              M, N, K, alpha, A, LDA, B, LDB,
-                                              beta, C, LDC);
+  ArgumentRestorerMMM arg_restorer{M, N,   K,    alpha, A,  LDA,
+                                   B, LDB, beta, C,     LDC};
+  return perf_tester.perf_test_all_registered(
+      std::move(arg_restorer), M, N, K, alpha, A, LDA, B, LDB, beta, C, LDC);
 }

@@ -30,11 +30,11 @@
  */
 
 #include <algorithm>
+#include <functional>
 #include <iostream>
 #include <list>
 #include <string>
 #include <vector>
-#include <functional>
 
 extern "C"
 {
@@ -86,7 +86,8 @@ public:
    * If valid, then computes and reports and returns the number of cycles
    * required per iteration
    */
-  double perf_test(fun_T f, std::string desc, int flops, std::function<void()> arg_restorer, Args_T... args)
+  double perf_test(fun_T f, std::string desc, int flops,
+                   std::function<void()> arg_restorer, Args_T... args)
   {
     double cycles = 0.;
     long num_runs = 10;
@@ -139,7 +140,8 @@ public:
     return cycles;
   }
 
-  int perf_test_all_registered(std::function<void()> arg_restorer, Args_T... args)
+  int perf_test_all_registered(std::function<void()> arg_restorer,
+                               Args_T... args)
   {
     std::cout << "Starting performance tests.";
     double perf;

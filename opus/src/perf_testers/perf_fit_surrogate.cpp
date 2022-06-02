@@ -10,18 +10,16 @@ extern "C"
 
 #include "PerformanceTester.hpp"
 
-namespace {
+namespace
+{
 
 class ArgumentRestorerFS
 {
 private:
-  struct pso_data_constant_inertia * pso;
+  struct pso_data_constant_inertia *pso;
 
 public:
-  ArgumentRestorerFS(struct pso_data_constant_inertia *pso)
-  : pso{pso}
-  { }
-
+  ArgumentRestorerFS(struct pso_data_constant_inertia *pso) : pso{pso} {}
 
   void operator()()
   {
@@ -29,7 +27,7 @@ public:
   }
 };
 
-}
+} // namespace
 
 static PerformanceTester<fit_surrogate_fun_t> perf_tester;
 
@@ -43,7 +41,7 @@ extern "C" void add_function_FIT_SURROGATE(fit_surrogate_fun_t f,
 extern "C" int perf_test_fit_surrogate(struct pso_data_constant_inertia *pso)
 {
   register_functions_FIT_SURROGATE();
-  ArgumentRestorerFS arg_restorer {pso};
+  ArgumentRestorerFS arg_restorer{pso};
   return perf_tester.perf_test_all_registered(std::move(arg_restorer), pso);
 }
 
