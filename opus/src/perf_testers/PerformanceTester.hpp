@@ -90,7 +90,7 @@ public:
                    std::function<void()> arg_restorer, Args_T... args)
   {
     double cycles = 0.;
-    long num_runs = 10;
+    long num_runs = 2;
     double multiplier = 1;
     myInt64 start, end;
 
@@ -116,6 +116,8 @@ public:
     } while (multiplier > 2);
 
     std::list<double> cyclesList;
+
+    std::cout << "Benchmarking over " << PERF_TESTER_REP << " * " << num_runs << " runs.\n";
 
     // Actual performance measurements repeated REP times.
     // We simply store all results and compute medians during post-processing.
@@ -158,7 +160,7 @@ public:
       return -1;
     }
 
-    std::cout << numFuncs << " functions registered." << std::endl;
+    std::cout << " " << numFuncs << " functions registered." << std::endl;
 
     for (i = 0; i < numFuncs; i++)
     {
