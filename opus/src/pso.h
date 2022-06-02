@@ -5,9 +5,6 @@
 
 typedef double (*blackbox_fun)(double const *const);
 
-#include "timing.h"
-
-
 /*
  * DISTINCTIVENESS_CHECK_TYPE:
  * 0 -> no check
@@ -15,9 +12,9 @@ typedef double (*blackbox_fun)(double const *const);
  * 2 -> rounding bloom filter
  *
  * In high dimension, the bloom filter becomes very slow.
- * Without checks, if non-distinct particles make the 
+ * Without checks, if non-distinct particles make the
  * eliminitation fail (repeated lines).
- * 
+ *
  */
 #define DISTINCTIVENESS_CHECK_TYPE 1
 
@@ -96,9 +93,11 @@ struct pso_data_constant_inertia
   double *lambda_p;
 
   // random numbers precomputed
-  double *step3_rands; // population_size * dimensions
-  double *step6_rands_array_start; // 2 * time_max * population_size * n_trails * dimensions
-  double *step6_rands; // current batch of 2 * population_size * n_trails * dimensions
+  double *step3_rands;             // population_size * dimensions
+  double *step6_rands_array_start; // 2 * time_max * population_size * n_trails
+                                   // * dimensions
+  double *step6_rands; // current batch of 2 * population_size * n_trails *
+                       // dimensions
 
   double inertia;
   double social;
@@ -125,13 +124,17 @@ void run_pso(blackbox_fun f, double inertia, double social, double cognition,
              double local_refinement_box_size, double min_minimizer_distance,
              int dimensions, int population_size, int time_max, int n_trials,
              double *bounds_low, double *bounds_high, double *vmin,
-             double *vmax, size_t sfd_size, double * space_filling_design);
+             double *vmax, size_t sfd_size, double *space_filling_design);
 
-void pso_constant_inertia_init(
-    struct pso_data_constant_inertia *pso, blackbox_fun f, double inertia,
-    double social, double cognition, double local_refinement_box_size,
-    double min_dist, int dimensions, int population_size,
-    int time_max, int n_trials, double *bounds_low, double *bounds_high,
-    double *vmin, double *vmax, size_t sfd_size);
-void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso, size_t sfd_size, double * space_filling_design);
+void pso_constant_inertia_init(struct pso_data_constant_inertia *pso,
+                               blackbox_fun f, double inertia, double social,
+                               double cognition,
+                               double local_refinement_box_size,
+                               double min_dist, int dimensions,
+                               int population_size, int time_max, int n_trials,
+                               double *bounds_low, double *bounds_high,
+                               double *vmin, double *vmax, size_t sfd_size);
+void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso,
+                                      size_t sfd_size,
+                                      double *space_filling_design);
 bool pso_constant_inertia_loop(struct pso_data_constant_inertia *pso);

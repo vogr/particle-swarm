@@ -1,10 +1,10 @@
+#include "timing_params.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
 #include "math.h"
-
-#include "timing_params.h"
 
 double randdouble_between(double a, double b)
 {

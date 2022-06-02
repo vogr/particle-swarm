@@ -2,21 +2,22 @@
 
 #include "step4.h"
 
+void step4(struct pso_data_constant_inertia *pso) { STEP4_VERSION(pso); }
+
 // Step 4. Initialise y, y_eval, and x_eval for each particle
 // with distinct position
 void step4_base(struct pso_data_constant_inertia *pso)
 {
   for (int i = 0; i < pso->population_size; i++)
   {
-//    for (int k = 0; k < pso->dimensions; k++)
-//    {
-//      PSO_Y(pso, i)[k] = PSO_X(pso, i)[k]; // fix "aliasing issue"
-//      // unroll
-//      // get pointer just one time, and inline the macro
-//    }
+    //    for (int k = 0; k < pso->dimensions; k++)
+    //    {
+    //      PSO_Y(pso, i)[k] = PSO_X(pso, i)[k]; // fix "aliasing issue"
+    //      // unroll
+    //      // get pointer just one time, and inline the macro
+    //    }
 
     memcpy(PSO_Y(pso, i), PSO_X(pso, i), pso->dimensions * sizeof(double));
-
 
     double x_eval = pso->f(PSO_X(pso, i));
     pso->y_eval[i] = x_eval;
@@ -274,11 +275,4 @@ void step4_opt1_memcpy(struct pso_data_constant_inertia *pso)
     pso->y_hat = min3_4;
     pso->y_hat_eval = min3_4_eval;
   }
-}
-
-void step4_optimized(struct pso_data_constant_inertia *pso)
-{
-    step4_base(pso);
-//  step4_opt1(pso);
-//  step4_opt1_memcpy(pso);
 }

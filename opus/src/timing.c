@@ -1,3 +1,5 @@
+#include "timing.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -11,7 +13,6 @@
 
 // #define DEBUG_TIMING
 
-#include "timing.h"
 #include "tsc_x86.h"
 
 double perf_counter(enum profiled_function_t profiled_function,

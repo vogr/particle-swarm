@@ -4,6 +4,8 @@
 
 #include "../helpers.h"
 
+void step3(struct pso_data_constant_inertia *pso) { STEP3_VERSION(pso); }
+
 void step3_base(struct pso_data_constant_inertia *pso)
 {
   // Step 3. Initialize particle velocities
@@ -145,5 +147,3 @@ void step3_opt4(struct pso_data_constant_inertia *pso)
     }
   }
 }
-
-void step3_optimized(struct pso_data_constant_inertia *pso) { step3_base(pso); }

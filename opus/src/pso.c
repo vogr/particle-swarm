@@ -22,7 +22,6 @@
 
 #include "logging.h"
 
-
 struct pso_data_constant_inertia *alloc_pso_data_constant_inertia()
 {
   return malloc(sizeof(struct pso_data_constant_inertia));
@@ -43,11 +42,12 @@ void random_number_generation(struct pso_data_constant_inertia *pso)
   }
 
   // Step 6
-  size_t step6_rands_size = pso->time_max * 2 * pso->population_size * pso->n_trials *
-                                           pso->dimensions;
-  size_t step6_rands_mem_size_a32 = (step6_rands_size * sizeof(double) + 31) & -32;
+  size_t step6_rands_size = pso->time_max * 2 * pso->population_size *
+                            pso->n_trials * pso->dimensions;
+  size_t step6_rands_mem_size_a32 =
+      (step6_rands_size * sizeof(double) + 31) & -32;
   printf("%zu\n", step6_rands_mem_size_a32);
-  pso->step6_rands_array_start = aligned_alloc(32, step6_rands_mem_size_a32 );
+  pso->step6_rands_array_start = aligned_alloc(32, step6_rands_mem_size_a32);
 
   for (size_t i = 0; i < step6_rands_size; i++)
   {
@@ -55,12 +55,14 @@ void random_number_generation(struct pso_data_constant_inertia *pso)
   }
 }
 
-void pso_constant_inertia_init(
-    struct pso_data_constant_inertia *pso, blackbox_fun f, double inertia,
-    double social, double cognition, double local_refinement_box_size,
-    double min_dist, int dimensions, int population_size,
-    int time_max, int n_trials, double *bounds_low, double *bounds_high,
-    double *vmin, double *vmax, size_t sfd_size)
+void pso_constant_inertia_init(struct pso_data_constant_inertia *pso,
+                               blackbox_fun f, double inertia, double social,
+                               double cognition,
+                               double local_refinement_box_size,
+                               double min_dist, int dimensions,
+                               int population_size, int time_max, int n_trials,
+                               double *bounds_low, double *bounds_high,
+                               double *vmin, double *vmax, size_t sfd_size)
 {
   pso->f = f;
   pso->inertia = inertia;
@@ -97,10 +99,8 @@ void pso_constant_inertia_init(
 
   pso->x_local = malloc(pso->dimensions * sizeof(double));
 
-  pso->bound_low =
-      (double *)aligned_alloc(32, size_of_one_vec_32);
-  pso->bound_high =
-      (double *)aligned_alloc(32, size_of_one_vec_32);
+  pso->bound_low = (double *)aligned_alloc(32, size_of_one_vec_32);
+  pso->bound_high = (double *)aligned_alloc(32, size_of_one_vec_32);
 
   pso->vmin = (double *)aligned_alloc(32, size_of_one_vec_32);
   pso->vmax = (double *)aligned_alloc(32, size_of_one_vec_32);
@@ -111,10 +111,12 @@ void pso_constant_inertia_init(
     pso->vmax[j] = vmax[j];
   }
 
-  // pso->population_size particles per iterations, and 1 for the local minimizer
+  // pso->population_size particles per iterations, and 1 for the local
+  // minimizer
   // + initial space filling design
-  size_t x_distinct_max_nb = pso->time_max * (pso->population_size + 1) + sfd_size;
-  //printf("%zu\n", x_distinct_max_nb);
+  size_t x_distinct_max_nb =
+      pso->time_max * (pso->population_size + 1) + sfd_size;
+  // printf("x_ds_max = %zu\n", x_distinct_max_nb);
   pso->x_distinct =
       malloc(x_distinct_max_nb * pso->dimensions * sizeof(double));
   pso->x_distinct_idx_of_last_batch = 0;
@@ -166,13 +168,15 @@ void pso_constant_inertia_init(
   random_number_generation(pso);
 }
 
-void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso, size_t sfd_size, double * space_filling_design)
+void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso,
+                                      size_t sfd_size,
+                                      double *space_filling_design)
 {
   step1_2(pso, sfd_size, space_filling_design);
 
-  step3_optimized(pso);
+  step3(pso);
 
-  step4_optimized(pso);
+  step4(pso);
 }
 
 bool pso_constant_inertia_loop(struct pso_data_constant_inertia *pso)
@@ -198,13 +202,13 @@ void run_pso(blackbox_fun f, double inertia, double social, double cognition,
              double local_refinement_box_size, double min_minimizer_distance,
              int dimensions, int population_size, int time_max, int n_trials,
              double *bounds_low, double *bounds_high, double *vmin,
-             double *vmax, size_t sfd_size, double * space_filling_design)
+             double *vmax, size_t sfd_size, double *space_filling_design)
 {
   struct pso_data_constant_inertia pso;
-  pso_constant_inertia_init(
-      &pso, f, inertia, social, cognition, local_refinement_box_size,
-      min_minimizer_distance, dimensions, population_size, time_max, n_trials,
-      bounds_low, bounds_high, vmin, vmax, sfd_size);
+  pso_constant_inertia_init(&pso, f, inertia, social, cognition,
+                            local_refinement_box_size, min_minimizer_distance,
+                            dimensions, population_size, time_max, n_trials,
+                            bounds_low, bounds_high, vmin, vmax, sfd_size);
 
   pso_constant_inertia_first_steps(&pso, sfd_size, space_filling_design);
 

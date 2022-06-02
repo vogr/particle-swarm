@@ -8,14 +8,13 @@
 #include "../helpers.h"
 #include "../pso.h"
 
-
-
-
-int fit_surrogate(struct pso_data_constant_inertia *pso) {
+int fit_surrogate(struct pso_data_constant_inertia *pso)
+{
   FIT_SURROGATE_VERSION(pso);
 }
 
-int prealloc_fit_surrogate(size_t max_n_phi, size_t n_P) {
+int prealloc_fit_surrogate(size_t max_n_phi, size_t n_P)
+{
   FIT_SURROGATE_PREALLOC_VERSION(max_n_phi, n_P);
 }
 
@@ -762,13 +761,10 @@ int fit_surrogate_4(struct pso_data_constant_inertia *pso)
   return 0;
 }
 
-
-
-
 /*
  * Make cache more dense:
  * phi(0,1) phi(0,2) phi(1,2) phi(0,3) phi(1,3) phi(2,3) phi(0,4) ...
- * 
+ *
  * phi(i,j) with i<j stored at (j * (j-1) + i)
  */
 int prealloc_fit_surrogate_5(size_t max_n_phi, size_t n_P)
@@ -846,8 +842,8 @@ int fit_surrogate_5(struct pso_data_constant_inertia *pso)
   for (size_t j = id_new_points; j < n_phi; j++)
   {
     double *u_j = x_distincts + j * dimensions;
-    double * d3_to_u_j_cached = phi_cache + j * (j - 1) / 2;
-    for (size_t i = 0; i < j ; i++)
+    double *d3_to_u_j_cached = phi_cache + j * (j - 1) / 2;
+    for (size_t i = 0; i < j; i++)
     {
       double *u_i = x_distincts + i * dimensions;
       double d2 = dist2(dimensions, u_j, u_i);
@@ -863,9 +859,9 @@ int fit_surrogate_5(struct pso_data_constant_inertia *pso)
   // Copy the distances from phi_cache to the phi block in A
   for (size_t j = 0; j < n_phi; j++)
   {
-    double * d3_to_u_j_cached = phi_cache + j * (j - 1) / 2;
+    double *d3_to_u_j_cached = phi_cache + j * (j - 1) / 2;
 
-    for (size_t i = 0 ; i < j ; i++)
+    for (size_t i = 0; i < j; i++)
     {
       double phi_i_j = d3_to_u_j_cached[i];
       Ab[i * n_Ab + j] = phi_i_j;
