@@ -19,7 +19,7 @@ int prealloc_fit_surrogate(size_t max_n_phi, size_t n_P) {
   FIT_SURROGATE_PREALLOC_VERSION(max_n_phi, n_P);
 }
 
-#define DEBUG_SURROGATE 1
+#define DEBUG_SURROGATE 0
 
 // TODO: include past_refinement_points in phi !!!
 
@@ -775,10 +775,12 @@ int prealloc_fit_surrogate_5(size_t max_n_phi, size_t n_P)
 {
   size_t max_n_A = max_n_phi + n_P;
   // Ab size: n x n for A and n x 1 for b
-  size_t Ab_size = max_n_A * max_n_A + max_n_A;
+  size_t Ab_size = max_n_A * (max_n_A + 1);
+  size_t phi_cache_size = max_n_phi * (max_n_phi - 1) / 2;
 
   fit_surrogate_max_N_phi = max_n_phi;
-  fit_surrogate_phi_cache = malloc(max_n_phi * (max_n_phi - 1) / 2 * sizeof(double));
+
+  fit_surrogate_phi_cache = malloc(phi_cache_size * sizeof(double));
 
   fit_surrogate_Ab = malloc(Ab_size * sizeof(double));
   fit_surrogate_x = malloc(max_n_A * sizeof(double));
@@ -844,7 +846,7 @@ int fit_surrogate_5(struct pso_data_constant_inertia *pso)
   for (size_t j = id_new_points; j < n_phi; j++)
   {
     double *u_j = x_distincts + j * dimensions;
-    double * d3_to_u_j_cached = phi_cache + j * (j - 1);
+    double * d3_to_u_j_cached = phi_cache + j * (j - 1) / 2;
     for (size_t i = 0; i < j ; i++)
     {
       double *u_i = x_distincts + i * dimensions;
@@ -861,7 +863,7 @@ int fit_surrogate_5(struct pso_data_constant_inertia *pso)
   // Copy the distances from phi_cache to the phi block in A
   for (size_t j = 0; j < n_phi; j++)
   {
-    double * d3_to_u_j_cached = phi_cache + j * (j - 1);
+    double * d3_to_u_j_cached = phi_cache + j * (j - 1) / 2;
 
     for (size_t i = 0 ; i < j ; i++)
     {
