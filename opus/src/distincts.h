@@ -3,7 +3,7 @@
 #include "pso.h"
 
 #ifndef CHECK_IF_DISTINCT_VERSION
-#define CHECK_IF_DISTINCT_VERSION check_if_distinct_0
+#define CHECK_IF_DISTINCT_VERSION check_if_distinct_1
 #endif
 
 double *add_to_distincts_unconditionnaly(struct pso_data_constant_inertia *pso,

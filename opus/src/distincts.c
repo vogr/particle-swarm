@@ -78,22 +78,40 @@ int check_if_distinct_0(struct pso_data_constant_inertia *pso,
  * ONLY COMPATIBLE (and required) WITH fit_surrogate version >= 6
  * AND WITH THE NAIVE DISTANCE COMPUTATION
  */
+
+extern size_t fit_surrogate_max_N_phi;
+extern double *fit_surrogate_phi_cache;
+
 int check_if_distinct_1(struct pso_data_constant_inertia *pso,
                         double const *const x, int add_to_cache)
 {
 #if DISTINCTIVENESS_CHECK_TYPE == 1
 
+  size_t x_distinct_s = pso->x_distinct_s;
+  double * chache_dest = fit_surrogate_phi_cache + x_distinct_s * (x_distinct_s - 1) / 2;
+
   for (int i = 0; i < pso->x_distinct_s; i++)
   {
     double d2 = dist2(pso->dimensions, x, PSO_XD(pso, i));
-    double d1 = sqrt(d2);
-    double d3 = d1 * d2;
+
+    if (add_to_cache)
+    {
+      double d1 = sqrt(d2);
+      double d3 = d1 * d2;
+      chache_dest[i] = d3;
+    }
 
     if (d2 < pso->min_dist2)
     {
+      // we leave the invalid values in the cache, they will be 
+      // overwritten
       return 0;
     }
   }
+
+  // UGLY:
+  // the addition of the distances to the cache will be concretized
+  // when x is added to x_distinct and x_distinct_s gets incremented
   return 1;
 
 #else
