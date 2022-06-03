@@ -39,11 +39,12 @@ static double griewank_Nd(double const *const x)
   return (1. + d * r - t);
 }
 
-static struct option long_options[] = {{"max-time", required_argument, 0, 't'},
-                                       {"print", no_argument, 0, 'P'},
-                                       {"bench-fit-surrogate", no_argument, 0, 'f'},
-                                       {"bench-surrogate-eval", no_argument, 0, 'e'},
-                                       {0, 0, 0, 0}};
+static struct option long_options[] = {
+    {"max-time", required_argument, 0, 't'},
+    {"print", no_argument, 0, 'P'},
+    {"bench-fit-surrogate", no_argument, 0, 'f'},
+    {"bench-surrogate-eval", no_argument, 0, 'e'},
+    {0, 0, 0, 0}};
 
 int main(int argc, char **argv)
 {
@@ -134,13 +135,12 @@ int main(int argc, char **argv)
 
   if (do_print_outputs)
   {
-    size_t lambda_p_s= pso.x_distinct_s + (pso.dimensions + 1);
+    size_t lambda_p_s = pso.x_distinct_s + (pso.dimensions + 1);
     print_vectord(pso.lambda_p, lambda_p_s, "lamdbda_p");
-    
+
     double x[DIMENSION] = {0};
     printf("s(0) = %f\n", surrogate_eval(&pso, x));
   }
-
 
   if (do_bench_fit_surrogate)
   {
@@ -152,20 +152,17 @@ int main(int argc, char **argv)
 
     perf_tester.add_function(&fit_surrogate, "fit_surrogate", 1);
     perf_tester.perf_test_all_registered(std::move(arg_restorer), &pso);
-
   }
-
 
   if (do_bench_surrogate_eval)
   {
     PerformanceTester<surrogate_eval_fun_t> perf_tester;
 
     // nothing to restore, surrogate eval doesn't modify the pso
-    auto arg_restorer = [&](){  };
+    auto arg_restorer = [&]() {};
 
     double x[DIMENSION] = {0};
     perf_tester.add_function(&surrogate_eval, "surrogate_eval", 1);
     perf_tester.perf_test_all_registered(std::move(arg_restorer), &pso, x);
   }
-
 }
