@@ -8,6 +8,14 @@
 #include "../pso.h"
 #include "linear_system_solver.h"
 
+int fit_surrogate_6_GE(struct pso_data_constant_inertia *pso);
+int fit_surrogate_6_LU(struct pso_data_constant_inertia *pso);
+int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso);
+
+int prealloc_fit_surrogate_6_GE(size_t max_n_phi, size_t n_P);
+int prealloc_fit_surrogate_6_LU(size_t max_n_phi, size_t n_P);
+int prealloc_fit_surrogate_6_BLOCK_TRI(size_t max_n_phi, size_t n_P);
+
 int fit_surrogate(struct pso_data_constant_inertia *pso)
 {
   FIT_SURROGATE_VERSION(pso);
@@ -1117,6 +1125,8 @@ int prealloc_fit_surrogate_6_LU(size_t max_n_phi, size_t n_P)
   fit_surrogate_Ab = malloc(Ab_size * sizeof(double));
   fit_surrogate_P = malloc(max_n_phi * n_P * sizeof(double));
   fit_surrogate_b = malloc(b_size * sizeof(double));
+
+  lu_initialize_memory(n_P + max_n_phi);
   return 0;
 }
 
@@ -1271,11 +1281,13 @@ int prealloc_fit_surrogate_6_BLOCK_TRI(size_t max_n_phi, size_t n_P)
 // assumes Ab, n_Ab, n_phi, n_P are in scope.
 // P_{i,j} := A_{i, j} = A[i * n_Ab + j]
 // (P^t)_{i,j} := A_{n_phi + i, n_P + j} = A[(n_phi + i) * n_Ab + n_P + j]
-#define BLOCK_TRI_Ab_P(i, j) (Ab[(i)*n_Ab + (j)])
-#define BLOCK_TRI_Ab_Pt(i, j) (Ab[((i) + n_phi) * n_Ab + (j) + n_P])
+#define BLOCK_TRI_P(i, j) (Ab[(i)*n_Ab + (j)])
+#define BLOCK_TRI_Pt(i, j) (Ab[((i) + n_phi) * n_Ab + (j) + n_P])
 
-#define BLOCK_TRI_Ab_Phi(i, j) (Ab[(i)*n_Ab + (j) + n_P])
-#define BLOCK_TRI_Ab_Zeros(i, j) (Ab[((i) + n_phi) * n_Ab + (j)])
+#define BLOCK_TRI_Phi(i, j) (Ab[(i)*n_Ab + (j) + n_P])
+#define BLOCK_TRI_Zeros(i, j) (Ab[((i) + n_phi) * n_Ab + (j)])
+
+#define BLOCK_TRI_b(i) (Ab[(i) * n_Ab + n_Ab])
 
 int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
 {
@@ -1334,10 +1346,10 @@ int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
     for (size_t i = 0; i < j; i++)
     {
       double phi_i_j = d3_to_u_j_cached[i];
-      BLOCK_TRI_Ab_Phi(i, j) = phi_i_j;
-      BLOCK_TRI_Ab_Phi(j, i) = phi_i_j;
+      BLOCK_TRI_Phi(i, j) = phi_i_j;
+      BLOCK_TRI_Phi(j, i) = phi_i_j;
     }
-    BLOCK_TRI_Ab_Phi(j, j) = 0.;
+    BLOCK_TRI_Phi(j, j) = 0.;
   }
 
   /********
@@ -1351,16 +1363,16 @@ int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
     double *u = x_distincts + k * dimensions;
 
     // P(p,0) = 1;
-    BLOCK_TRI_Ab_P(k, 0) = 1;
+    BLOCK_TRI_P(k, 0) = 1;
     // tP(0,p) = 1;
-    BLOCK_TRI_Ab_Pt(0, k) = 1;
+    BLOCK_TRI_Pt(0, k) = 1;
 
     for (int j = 0; j < dimensions; j++)
     {
       // P(p,1+j) = u[j];
-      BLOCK_TRI_Ab_P(k, 1 + j) = u[j];
+      BLOCK_TRI_P(k, 1 + j) = u[j];
       // tP(1+j,p) = u[j];
-      BLOCK_TRI_Ab_Pt(1 + j, k) = u[j];
+      BLOCK_TRI_Pt(1 + j, k) = u[j];
     }
   }
 
@@ -1372,7 +1384,7 @@ int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
   {
     for (size_t j = 0; j < n_P; j++)
     {
-      BLOCK_TRI_Ab_Zeros(i, j) = 0;
+      BLOCK_TRI_Zeros(i, j) = 0;
     }
   }
 
@@ -1382,13 +1394,13 @@ int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
   for (size_t k = 0; k < n_phi; k++)
   {
     // set b_k
-    Ab[k * n_Ab + n_A] = fxd[k];
+    BLOCK_TRI_b(k) = fxd[k];
   }
 
   for (size_t k = n_phi; k < n_A; k++)
   {
     // set b_k
-    Ab[k * n_Ab + n_A] = 0;
+    BLOCK_TRI_b(k) = 0;
   }
 
 #if DEBUG_SURROGATE
