@@ -371,11 +371,11 @@ double surrogate_eval_5(struct pso_data_constant_inertia const *pso,
 
     for (; i < pso->dimensions; i++)
     {
-      double xi = x_ptr[i];
-      __attribute__((aligned(16))) double v[2] = {u0_ptr[i] - xi,
-                                                  u1_ptr[i] - xi};
+      __attribute__((aligned(16))) double v[2] = {u0_ptr[i], u1_ptr[i]};
       __m128d vv = _mm_load_pd(v);
-      d2 = _mm_add_pd(d2, vv);
+      __m128d xi = _mm_load1_pd(&x_ptr[i]);
+      __m128d diff = _mm_sub_pd(vv, xi);
+      d2 = _mm_fmadd_pd(d2, diff, diff);
     }
 
     __m128d d = _mm_sqrt_pd(d2);
