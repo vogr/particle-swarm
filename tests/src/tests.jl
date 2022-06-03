@@ -40,7 +40,8 @@ function solve_perf_tests_block_tri_single(n)
   local d
   local d
   while true
-    d = n ÷ 3
+    # d = n ÷ 3
+    d = 30
     c = n - d
     A = tu.build_block_triangular_matrix(c, d)
     b = rand(n)
@@ -48,8 +49,8 @@ function solve_perf_tests_block_tri_single(n)
       !PSO_GE.valid(n, A, b)) ||
         break
   end
-  PSO_GE.perf_tests(n, A, b)
   PSO_TRI_SYS.perf_tests(n, d, A, b)
+  PSO_GE.perf_tests(n, A, b)
 end
 
 function solve_perf_tests_block_tri_range(iterable)
@@ -71,7 +72,7 @@ end
 # PSO_GE.solve_tests()
 
 # PSO_TRI_SYS.solve_tests()
-solve_perf_tests_block_tri_single(9)
+solve_perf_tests_block_tri_single(512)
 
 # LU.teardown()
 

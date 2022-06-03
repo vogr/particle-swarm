@@ -87,7 +87,7 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
       // singular matrix
       fprintf(
           stderr,
-          "ERROR: gaussian elimination failed: cannot find non-zero pivot for "
+          "ERROR: block tri GE failed: cannot find non-zero pivot for "
           "sub-matrix %d\n",
           k);
       return -1;
@@ -131,7 +131,7 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
     // singular matrix
     fprintf(
         stderr,
-        "ERROR: gaussian elimination failed: pivot after first block is 0\n");
+        "ERROR: block tri GE failed: pivot after first block is 0\n");
     return -1;
   }
 
@@ -161,7 +161,7 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
   //     {
   //       // singular matrix
   //       fprintf(stderr,
-  //               "ERROR: gaussian elimination failed: cannot find non-zero "
+  //               "ERROR: block tri GE failed: cannot find non-zero "
   //               "pivot for "
   //               "sub-matrix %d\n",
   //               k);
@@ -207,7 +207,7 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
   // if (fabs(MAT_Ab(N - 1, N - 1)) < 1e-3)
   // {
   //   // singular matrix
-  //   fprintf(stderr, "ERROR: gaussian elimination failed: pivot after middle
+  //   fprintf(stderr, "ERROR: block tri GE failed: pivot after middle
   //   block is 0\n"); return -1;
   // }
 
@@ -237,7 +237,7 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
     {
       // singular matrix
       fprintf(stderr,
-              "ERROR: gaussian elimination failed: cannot find non-zero "
+              "ERROR: block tri GE failed: cannot find non-zero "
               "pivot for "
               "sub-matrix %d\n",
               k);
@@ -283,7 +283,7 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
   if (fabs(MAT_Ab(N - 1, N - 1)) < 1e-3)
   {
     // singular matrix
-    fprintf(stderr, "ERROR: gaussian elimination failed: last pivot is 0\n");
+    fprintf(stderr, "ERROR: block tri GE failed: last pivot is 0\n");
     return -1;
   }
 

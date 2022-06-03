@@ -19,6 +19,10 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso);
 int fit_surrogate_4(struct pso_data_constant_inertia *pso);
 int fit_surrogate_5(struct pso_data_constant_inertia *pso);
 int fit_surrogate_6(struct pso_data_constant_inertia *pso);
+// we don't even have to expose these.
+int fit_surrogate_6_GE(struct pso_data_constant_inertia *pso);
+int fit_surrogate_6_LU(struct pso_data_constant_inertia *pso);
+int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso);
 
 int prealloc_fit_surrogate_0(size_t max_n_phi, size_t n_P);
 int prealloc_fit_surrogate_1(size_t max_n_phi, size_t n_P);
@@ -27,3 +31,7 @@ int prealloc_fit_surrogate_3(size_t max_n_phi, size_t n_P);
 int prealloc_fit_surrogate_4(size_t max_n_phi, size_t n_P);
 int prealloc_fit_surrogate_5(size_t max_n_phi, size_t n_P);
 int prealloc_fit_surrogate_6(size_t max_n_phi, size_t n_P);
+// we don't even have to expose these.
+int prealloc_fit_surrogate_6_GE(size_t max_n_phi, size_t n_P);
+int prealloc_fit_surrogate_6_LU(size_t max_n_phi, size_t n_P);
+int prealloc_fit_surrogate_6_BLOCK_TRI(size_t max_n_phi, size_t n_P);
