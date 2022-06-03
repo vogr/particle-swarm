@@ -319,7 +319,6 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
   return res;
 }
 
-
 /*
  * use hadd sum inside the avx2 vectors
  */
@@ -327,7 +326,6 @@ double surrogate_eval_5(struct pso_data_constant_inertia const *pso,
                         double const *x_ptr)
 {
   size_t dim = pso->dimensions;
-
 
   double *lambda_p = pso->lambda_p;
   // lambda_p is the concatenation (lambda_0 ... lambda_i || p_0 ... p_(d+1))
@@ -344,7 +342,6 @@ double surrogate_eval_5(struct pso_data_constant_inertia const *pso,
     double *u1_ptr = pso->x_distinct + (k + 1) * dim;
     //    double *u2 = pso->x_distinct + (k+2)*dim;
     //    double *u3 = pso->x_distinct + (k+3)*dim;
-
 
     __m256d s0 = _mm256_set1_pd(0);
     __m256d s1 = _mm256_set1_pd(0);
@@ -372,15 +369,15 @@ double surrogate_eval_5(struct pso_data_constant_inertia const *pso,
     __m128d d2 = _mm_add_pd(tlow, thigh);
     // t2 = (a1 + .. + a4) (b1 + .. + b4)
 
-
     for (; i < pso->dimensions; i++)
     {
       double xi = x_ptr[i];
-      __attribute__ ((aligned (16))) double v[2] = {u0_ptr[i] - xi, u1_ptr[i] - xi};
+      __attribute__((aligned(16))) double v[2] = {u0_ptr[i] - xi,
+                                                  u1_ptr[i] - xi};
       __m128d vv = _mm_load_pd(v);
       d2 = _mm_add_pd(d2, vv);
     }
-    
+
     __m128d d = _mm_sqrt_pd(d2);
     __m128d d3 = _mm_mul_pd(d, d2);
 
