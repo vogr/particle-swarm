@@ -3,9 +3,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "triangular_system_solver.h"
 #include "helpers.h"
 #include "perf_testers/perf_block_tri_solve.h"
+#include "triangular_system_solver.h"
 
 // TODO @vogier had mentioned using a macro system to
 // compile the code in different ways for performance
@@ -41,6 +41,10 @@ static void swapd(double *a, int i, int j)
 
     We assume that Ab is written in such form.
     Also, parameter d is the side length of the 0 matrix.
+
+    The dimensions are therefeore:
+    | (N - d) x d | (N - d) x (N - d) | * | N - d |  =  | N - d |
+    |    d x d    |    d x (N - d)    |   |   d   |     |   d   |
 */
 int triangular_system_solve_0(int N, int d, double *Ab, double *x)
 {
@@ -214,7 +218,8 @@ int triangular_system_solve(int N, int d, double *Ab, double *x)
 // weirdness of compiling seperately and linking.
 void register_functions_TRI_SYS_SOLVE()
 {
-  add_function_TRI_SYS_SOLVE(&triangular_system_solve_0, "Triangular System Solve Base", 1);
+  add_function_TRI_SYS_SOLVE(&triangular_system_solve_0,
+                             "Triangular System Solve Base", 1);
 }
 
 #endif

@@ -5,6 +5,7 @@ include("ffi_lu_solve.jl")
 include("ffi_gaussian_elimination.jl")
 include("ffi_mmm.jl")
 include("TestUtils.jl")
+include("ffi_tri_sys_solve.jl")
 
 const tu = TestUtils
 
@@ -34,10 +35,12 @@ function solve_perf_tests_range(iterable)
     end
 end
 
-solve_tests()
+# solve_tests()
 # MMM.perf_tests(1024, 256, 256 * 2)
-solve_perf_tests_single(2^9)
+# solve_perf_tests_single(2^9)
 # solve_perf_tests_range(100:500:1024)
+# PSO_GE.solve_tests()
+PSO_TRI_SYS.solve_tests()
 
 
 end # module

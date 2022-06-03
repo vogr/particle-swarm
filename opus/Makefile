@@ -95,7 +95,7 @@ endif # MKL
 	COMMON_FLAGS += -DTEST_PERF
 
 	# 
-	DEBUG_FLAGS+=-fsanitize=undefined -fsanitize=address
+	# DEBUG_FLAGS+=-fsanitize=undefined -fsanitize=address
 
 	ifeq ($(UNAME_S),Darwin)
 	target := libpso.dylib
