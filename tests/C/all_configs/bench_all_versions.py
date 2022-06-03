@@ -63,7 +63,10 @@ CONFIGURATIONS[14] = {
         "bench-flags": ["--bench-surrogate-eval"],
         "CPPFLAGS": "-DSURROGATE_EVAL_VERSION=surrogate_eval_4",
 }
-
+CONFIGURATIONS[15] = {
+        "bench-flags": ["--bench-surrogate-eval"],
+        "CPPFLAGS": "-DSURROGATE_EVAL_VERSION=surrogate_eval_5",
+}
 parser = argparse.ArgumentParser(description='Benchmark under several compile-time configurations.')
 parser.add_argument('config_nbs', metavar='N', type=int, nargs='*',
                     help='the configs to build/benchmark/profile [defaults to all]')
