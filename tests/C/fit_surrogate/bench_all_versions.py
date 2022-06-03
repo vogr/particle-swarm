@@ -78,8 +78,8 @@ def main(argv):
             env = {"PATH": os.environ["PATH"], "LD_LIBRARY_PATH": str(libpso_destdir)}
             subprocess.run(["perf", "record", "--call-graph", "dwarf", "-F", "99", "./test", "--no-bench"], env=env, cwd=curdir)
 
-            this_config_perf_folded = flame_dir / "out_{i}.perf-folded"
-            this_config_fg = flame_dir / "flamegraph_{i}.svg"
+            this_config_perf_folded = flame_dir / f"out_{i}.perf-folded"
+            this_config_fg = flame_dir / f"flamegraph_{i}.svg"
 
             perf_script = subprocess.run(["perf", "script"], capture_output=True, env=env, cwd=curdir)
             stackcollapse = subprocess.run(["stackcollapse-perf.pl"], capture_output=True, env=env, cwd=curdir, input=perf_script.stdout)
