@@ -3,17 +3,19 @@
 CPPFLAGS+=-I../../../opus/src
 
 # Release flags
-CFLAGS:=-fno-PIE -DNDEBUG -O2 -flto -march=native -fcf-protection=none -fno-stack-protector
-LDFLAGS+=-no-pie $(CFLAGS)
+RELEASE_FLAGS:=-DNDEBUG -O2 -flto -fcf-protection=none -fno-stack-protector -ffast-math -g
+
+CFLAGS+= -std=gnu17 $(RELEASE_FLAGS) 
+CXXFLAGS+= -std=gnu++17 $(RELEASE_FLAGS) 
+LDFLAGS+=-no-pie $(RELEASE_FLAGS)
 
 
 LDLIBS+=-lpso -L../../../opus
 
-CFILES := src/main.c
-OBJFILES := $(CFILES:.c=.o)
+OBJFILES := src/main.o
 
 # Optionnal sanitizers
-#CFLAGS += -fsanitize=undefined -fsanitize=address
+# CFLAGS += -fsanitize=undefined -fsanitize=address
 #LDFLAGS += -fsanitize=undefined -fsanitize=address
 
 test: $(OBJFILES)

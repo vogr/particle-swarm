@@ -61,7 +61,7 @@ struct rounding_bloom {
 };
 
 int rounding_bloom_init(struct rounding_bloom * bloom, int entries, double error, double epsilon, int dims, double const * lower_bound);
-int rounding_bloom_check_add(struct rounding_bloom * bloom, int dims, double * const x, int add);
+int rounding_bloom_check_add(struct rounding_bloom * bloom, int dims, double const * const x, int add);
 
 void rounding_bloom_print(struct rounding_bloom * bloom);
 

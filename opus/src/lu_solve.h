@@ -1,6 +1,19 @@
 #pragma once
 
+#include <math.h>
 #include <stdlib.h>
+
+// NOTE When working with a matrix inset in another, you must
+// index into it using this macro. Explicitly specifying the
+// leading dimension which *must* be available.
+#define MIX(MAT, LDIM, ROW, COL) (MAT)[((LDIM) * (ROW) + (COL))]
+// Memory accesses for transposed layout
+#define TIX(MAT, LDIM, ROW, COL) MIX(MAT, LDIM, COL, ROW)
+#define ONE 1.E0
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define ERR_THRESHOLD 1.0E-5
+#define APPROX_EQUAL(l, r) (fabs((l) - (r)) <= ERR_THRESHOLD)
 
 /** @brief Solve linear systems using LU factorization method.
  *

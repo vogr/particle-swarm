@@ -1,4 +1,3 @@
-
 ######
 # Makefile options
 ######
@@ -19,23 +18,28 @@ PSO_SHARED ?= 0
 # Debug flags: no optimisations, debug symbols, extra warnings
 # march=native to allow vectorisation
 DEBUG_FLAGS:= \
--march=native \
 -O0 -g \
 -Wall -Wextra -Wpedantic -Wformat=2 -Wswitch-default -Wswitch-enum -Wfloat-equal \
--pedantic-errors -Werror=format-security \
--Werror=vla
+-pedantic-errors -Werror=format-security
+#-Werror=vla
 
 
 # Release flags: optimisations, NDEBUG (disable assertions), disable hardening, disable PIE (only for executable)
-RELEASE_FLAGS:=-DNDEBUG -O2 -flto -march=native -fcf-protection=none -fno-stack-protector
+RELEASE_FLAGS:=-DNDEBUG -O2 -flto -fcf-protection=none -fno-stack-protector -ffast-math
 
 # Flags common to debug and release
-# Currently starts empty
-# COMMON_FLAGS := 
+COMMON_FLAGS := -DNO_AVX512=1
 
-# Change these variables if setting the C/C++ standard is necessary
-# CFLAGS += -std=gnu17
-# CXXFLAGS += -std=gnu++17
+# Set arch target for CI
+ifeq ($(CI), true)
+	COMMON_FLAGS+=-march=skylake
+else
+	COMMON_FLAGS+=-march=native
+endif
+
+# Set the standard, necessary for Clang
+CFLAGS += -std=gnu17
+CXXFLAGS += -std=gnu++17
 
 # Libraries to link
 LDLIBS+=-lm
@@ -50,12 +54,14 @@ LDLIBS+=-lm
 # source file extension)
 OBJ_COMMON := src/helpers.o src/local_refinement.o src/logging.o \
 		src/lu_solve.o src/pso.o src/bloom.o src/murmurhash.o \
+		src/distincts.o \
 		src/rounding_bloom.o src/gaussian_elimination_solver.o \
+		src/steps/step1_2.o \
 		src/steps/step3.o src/steps/step4.o src/steps/step5.o \
 		src/steps/step6.o src/steps/step7.o src/steps/step8.o \
 		src/steps/step9.o src/steps/step10.o src/steps/step11.o \
-		src/steps/surrogate_eval.o src/steps/fit_surrogate.o \ 
-		src/triangular_system_solver.o 
+		src/steps/surrogate_eval.o src/steps/fit_surrogate.o \
+		src/triangular_system_solver.o src/latin_hypercube.o
 
 # Object files required for the the library
 OBJ_LIB := src/perf_testers/perf_ge_solve.o \
@@ -65,8 +71,6 @@ OBJ_LIB := src/perf_testers/perf_ge_solve.o \
 		src/pso_ffi.o
 # Object files required for the the executable
 OBJ_EXE := src/main.o
-# If Clang is your CXX then specifying the standard is required
-CXXFLAGS = -std=c++0x
 
 ######
 # Library vs executable compilation options

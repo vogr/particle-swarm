@@ -11,7 +11,10 @@ extern "C"
 typedef void (*mmm_fun_t)(int M, int N, int K, double alpha, double *A, int LDA,
                           double *B, int LDB, double beta, double *C, int LDC);
 
-template <> class ArgumentRestorer<mmm_fun_t>
+namespace
+{
+
+class ArgumentRestorerMMM
 {
 private:
   int M0 = 0;
@@ -21,17 +24,23 @@ private:
   int LDB0 = 0;
   int LDC0 = 0;
 
-  double *A0 = nullptr;
-  double *B0 = nullptr;
-  double *C0 = nullptr;
-
   double alpha0 = 0.;
   double beta0 = 0.;
 
+  // managed memory: copy of the original arguments
+  std::vector<double> A0;
+  std::vector<double> B0;
+  std::vector<double> C0;
+
+  // unmanaged memory: the arguments to restore
+  double *A = nullptr;
+  double *B = nullptr;
+  double *C = nullptr;
+
 public:
-  ArgumentRestorer<mmm_fun_t>(int M, int N, int K, double alpha, double *A,
-                              int LDA, double *B, int LDB, double beta,
-                              double *C, int LDC)
+  ArgumentRestorerMMM(int M, int N, int K, double alpha, double *A, int LDA,
+                      double *B, int LDB, double beta, double *C, int LDC)
+      : A{A}, B{B}, C{C}
   {
 
     M0 = M;
@@ -41,33 +50,23 @@ public:
     LDB0 = LDB;
     LDC0 = LDC;
 
-    A0 = (double *)std::malloc(M * K * sizeof(double));
-    B0 = (double *)std::malloc(K * N * sizeof(double));
-    C0 = (double *)std::malloc(M * N * sizeof(double));
+    A0.assign(A, A + M * K);
+    B0.assign(B, B + M * K);
+    C0.assign(C, C + M * K);
 
     alpha0 = alpha;
     beta0 = beta;
-
-    std::memcpy(A0, A, M * K * sizeof(double));
-    std::memcpy(B0, B, K * N * sizeof(double));
-    std::memcpy(C0, C, M * N * sizeof(double));
   }
 
-  void restore_arguments(int M, int N, int K, double alpha, double *A, int LDA,
-                         double *B, int LDB, double beta, double *C, int LDC)
+  void operator()()
   {
-    std::memcpy(A, A0, M0 * K0 * sizeof(double));
-    std::memcpy(B, B0, K0 * N0 * sizeof(double));
-    std::memcpy(C, C0, M0 * N0 * sizeof(double));
-  }
-
-  ~ArgumentRestorer<mmm_fun_t>()
-  {
-    free(A0);
-    free(B0);
-    free(C0);
+    std::memcpy(A, A0.data(), M0 * K0 * sizeof(double));
+    std::memcpy(B, B0.data(), K0 * N0 * sizeof(double));
+    std::memcpy(C, C0.data(), M0 * N0 * sizeof(double));
   }
 };
+
+} // namespace
 
 static PerformanceTester<mmm_fun_t> perf_tester;
 
@@ -83,6 +82,8 @@ extern "C" int perf_test_mmm(int M, int N, int K, double alpha, double *A,
                              double *C, int LDC)
 {
   register_functions_MMM();
-  return perf_tester.perf_test_all_registered(M, N, K, alpha, A, LDA, B, LDB,
-                                              beta, C, LDC);
+  ArgumentRestorerMMM arg_restorer{M, N,   K,    alpha, A,  LDA,
+                                   B, LDB, beta, C,     LDC};
+  return perf_tester.perf_test_all_registered(
+      std::move(arg_restorer), M, N, K, alpha, A, LDA, B, LDB, beta, C, LDC);
 }

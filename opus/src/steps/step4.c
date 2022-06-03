@@ -2,18 +2,22 @@
 
 #include "step4.h"
 
+void step4(struct pso_data_constant_inertia *pso) { STEP4_VERSION(pso); }
+
 // Step 4. Initialise y, y_eval, and x_eval for each particle
 // with distinct position
 void step4_base(struct pso_data_constant_inertia *pso)
 {
   for (int i = 0; i < pso->population_size; i++)
   {
-    for (int k = 0; k < pso->dimensions; k++)
-    {
-      PSO_Y(pso, i)[k] = PSO_X(pso, i)[k]; // fix "aliasing issue"
-      // unroll
-      // get pointer just one time, and inline the macro
-    }
+    //    for (int k = 0; k < pso->dimensions; k++)
+    //    {
+    //      PSO_Y(pso, i)[k] = PSO_X(pso, i)[k]; // fix "aliasing issue"
+    //      // unroll
+    //      // get pointer just one time, and inline the macro
+    //    }
+
+    memcpy(PSO_Y(pso, i), PSO_X(pso, i), pso->dimensions * sizeof(double));
 
     double x_eval = pso->f(PSO_X(pso, i));
     pso->y_eval[i] = x_eval;
@@ -60,7 +64,7 @@ void step4_opt1(struct pso_data_constant_inertia *pso)
     for (; k < dim - 3; k += 4)
     {
       int k1 = k + 1, k2 = k + 2, k3 = k + 3;
-      // serpate loads and stores
+      // separate loads and stores
       // vec?
       // => memcpy
       double t0 = pso_x_i_dim[k];  // t = PSO_X(pso, 0, i)[k];
@@ -168,7 +172,7 @@ void step4_opt1(struct pso_data_constant_inertia *pso)
 /*
  * Use memcpy
  */
-void step4_opt2(struct pso_data_constant_inertia *pso)
+void step4_opt1_memcpy(struct pso_data_constant_inertia *pso)
 {
   int pop_size = pso->population_size;
   int dim = pso->dimensions;
@@ -184,7 +188,7 @@ void step4_opt2(struct pso_data_constant_inertia *pso)
     double *pso_x_i_dim = pso_x + i_dim; // PSO_X(pso, 0, i)
     double *pso_y_i_dim = pso_y + i_dim;
 
-    memcpy(PSO_Y(pso, i), PSO_X(pso, i), dim * sizeof(double));
+    memcpy(pso_y_i_dim, pso_x_i_dim, dim * sizeof(double));
 
     double x_eval = pso_f(pso_x_i_dim);
     pso_y_eval[i] = x_eval; // pso->y_eval[i] = x_eval;
@@ -271,10 +275,4 @@ void step4_opt2(struct pso_data_constant_inertia *pso)
     pso->y_hat = min3_4;
     pso->y_hat_eval = min3_4_eval;
   }
-}
-
-void step4_optimized(struct pso_data_constant_inertia *pso)
-{
-  //  step4_base(pso);
-  step4_opt2(pso);
 }

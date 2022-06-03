@@ -30,12 +30,6 @@ static void swapd(double *a, int i, int j)
 // NOTE predefine functions here and put them in increasing level
 // of optimization below. Please list the optimizations performed
 // in the preceding function comment.
-int triangular_system_solve(int N, double *Ab, double *x, size_t d);
-
-int triangular_system_solve(int N, double *Ab, double *x, size_t d)
-{
-  return triangular_system_solve_0(N, Ab, x, d);
-}
 
 /*
     The system is actually equivalent to
@@ -45,10 +39,8 @@ int triangular_system_solve(int N, double *Ab, double *x, size_t d)
 
     Which is an upper-triangular block matrix system.
 
-    We assume that Ab is written in such form. (Need to modify how
-    matrices are formed in fit_surrogate, and how the res in recovered)
-
-    Parameter d is the side length of the 0 matrix.
+    We assume that Ab is written in such form.
+    Also, parameter d is the side length of the 0 matrix.
 */
 int triangular_system_solve_0(int N, double *Ab, double *x, size_t d)
 {
@@ -209,15 +201,21 @@ int triangular_system_solve_0(int N, double *Ab, double *x, size_t d)
 
     return 0;
   }
+}
+
+int triangular_system_solve(int N, double *Ab, double *x, size_t d)
+{
+  return triangular_system_solve_0(N, Ab, x, d);
+}
 
 #ifdef TEST_PERF
 
-  // NOTE I bet we can put these in the templated perf framework and remove the
-  // weirdness of compiling seperately and linking.
-  void register_functions_GE_SOLVE()
-  {
-    add_function_GE_SOLVE(&triangular_system_solve_0,
-                          "Triangular System Solve Base", 1);
-  }
+// NOTE I bet we can put these in the templated perf framework and remove the
+// weirdness of compiling seperately and linking.
+void register_functions_TRI_SYS_SOLVE()
+{
+  /* add_function_GE_SOLVE(&triangular_system_solve_0, */
+  /*                       "Triangular System Solve Base", 1); */
+}
 
 #endif

@@ -65,6 +65,11 @@ void print_vectoru64(uint64_t const *M, int N, char const *name)
   printf("]\n");
 }
 
+int randrange(int N)
+{
+  return (int)((double)rand() / ((double)RAND_MAX + 1) * N);
+}
+
 double rand_between(double a, double b)
 {
   // see http://c-faq.com/lib/randrange.html
