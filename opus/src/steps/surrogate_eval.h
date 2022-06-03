@@ -21,3 +21,6 @@ double surrogate_eval_2(struct pso_data_constant_inertia const *pso,
 
 double surrogate_eval_3(struct pso_data_constant_inertia const *pso,
                         double const *x);
+
+double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
+                        double const *x);
