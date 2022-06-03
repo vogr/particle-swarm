@@ -22,15 +22,24 @@
 #define AIX(ROW, COL) (A)[(N) * (ROW) + (COL)]
 #define IX(ROW, COL) ((N) * (ROW) + (COL))
 
-int lu_solve_0(int N, double *A, int *ipiv, double *b);
-int lu_solve_1(int N, double *A, int *ipiv, double *b);
-int lu_solve_2(int N, double *A, int *ipiv, double *b);
+int lu_solve_0(int N, double *A, double *b);
+int lu_solve_1(int N, double *A, double *b);
+int lu_solve_2(int N, double *A, double *b);
 #ifdef TEST_MKL
-int lu_solve_3(int N, double *A, int *ipiv, double *b);
-int lu_solve_4(int N, double *A, int *ipiv, double *b);
+int lu_solve_3(int N, double *A, double *b);
+int lu_solve_4(int N, double *A, double *b);
 #endif
-int lu_solve_5(int N, double *A, int *ipiv, double *b);
-int lu_solve_6(int N, double *A, int *ipiv, double *b);
+int lu_solve_5(int N, double *A, double *b);
+int lu_solve_6(int N, double *A, double *b);
+
+// M N K block sizes for scratch buffers
+#define M_BLOCK 192
+#define N_BLOCK 2048
+#define K_BLOCK 384
+
+static double *scratch_a;
+static double *scratch_b;
+static int *scratch_ipiv;
 
 /** @brief Entry function to solve system A * x = b
  *         After exit b is overwritten with solution vector x.
@@ -40,9 +49,22 @@ int lu_solve_6(int N, double *A, int *ipiv, double *b);
  * @param ipiv Buffer for internal usage when pivoting.
  * @param b Real valued Nx1 vector b.
  */
-int lu_solve(int N, double *A, int *ipiv, double *b)
+int lu_solve(int N, double *A, double *b) { return lu_solve_5(N, A, b); }
+
+void lu_initialize_memory(int max_n)
 {
-  return lu_solve_6(N, A, ipiv, b);
+  // XXX align the scratch buffers to the page size to avoid any potential
+  // page misses.
+  scratch_a = (double *)aligned_alloc(4096, M_BLOCK * K_BLOCK * sizeof(double));
+  scratch_b = (double *)aligned_alloc(4096, K_BLOCK * N_BLOCK * sizeof(double));
+  scratch_ipiv = (int *)aligned_alloc(32, max_n * sizeof(int));
+}
+
+void lu_free_memory()
+{
+  free(scratch_a);
+  free(scratch_b);
+  free(scratch_ipiv);
 }
 
 // -----------------
@@ -127,7 +149,7 @@ void strsm_U(int M, int N, double *A, int LDA, double *B, int LDB);
  * @param Leading dimension of C.
  */
 void sgemm(int M, int N, int K, double alpha, double *A, int LDA, double *B,
-            int LDB, double beta, double *C, int LDC);
+           int LDB, double beta, double *C, int LDC);
 
 /** @brief Factor A = P * L * U in place using BLAS1 / BLAS2 functions
  *
@@ -163,7 +185,7 @@ static void swapd(double *a, int i, int j)
 }
 
 // XXX FIXME
-static int ideal_block(int M, int N) { return 256; }
+static int ideal_block(int M, int N) { return 32; }
 
 // ------------------------------------------------------------------
 // Implementation start
@@ -175,9 +197,10 @@ static int ideal_block(int M, int N) { return 256; }
 /** ------------------------------------------------------------------
  * Base implementation
  */
-int lu_solve_0(int N, double *A, int *ipiv, double *b)
+int lu_solve_0(int N, double *A, double *b)
 {
   int i, j, k;
+  int *ipiv = scratch_ipiv;
 
   for (i = 0; i < N; ++i)
   {
@@ -427,8 +450,8 @@ static void sgemm_1(int M, int N, int K, double alpha, double *A, int LDA,
     }
 }
 
-static void sgemm_1T(int M, int N, int K, double alpha, double *A, int LDA,
-                     double *B, int LDB, double beta, double *C, int LDC)
+void sgemm_1T(int M, int N, int K, double alpha, double *A, int LDA, double *B,
+              int LDB, double beta, double *C, int LDC)
 {
 
   // NOTE as written below, we specialize to alpha = -1 beta = 1
@@ -529,13 +552,14 @@ static int sgetrs_1(int N, double *A, int *ipiv, double *b)
   return 0;
 }
 
-int lu_solve_1(int N, double *A, int *ipiv, double *b)
+int lu_solve_1(int N, double *A, double *b)
 {
   /**
    * FIXME for simplicity we will choose a block size of 32.
    * In the real system we can choose a dynamic block (better), or we can
    * always choose a fixed block and handle clean-up cases afterward (worse).
    */
+  int *ipiv = scratch_ipiv;
 
   int NB = 32, retcode;
 
@@ -1759,9 +1783,10 @@ static int sgetrs_2(int N, double *A, int *ipiv, double *b)
 }
 
 // Skylake has L1 cache of 32 KB
-int lu_solve_2(int N, double *A, int *ipiv, double *b)
+int lu_solve_2(int N, double *A, double *b)
 {
   int retcode, ib, IB, k;
+  int *ipiv = scratch_ipiv;
 
   const int NB = ideal_block(N, N), //
       M = N,                        //
@@ -1859,9 +1884,10 @@ void sgemm_intel(int M, int N, int K, double alpha, double *A, int LDA,
  * This implementation should remain /equal/ to the previous, however,
  * it uses the Intel OneAPI MKL instead of the handrolled LAPACK routines.
  */
-int lu_solve_3(int N, double *A, int *ipiv, double *b)
+int lu_solve_3(int N, double *A, double *b)
 {
   int retcode, ib, IB, k;
+  int *ipiv = scratch_ipiv;
 
   const int //
       NB = ideal_block(N, N),
@@ -1947,8 +1973,9 @@ int lu_solve_3(int N, double *A, int *ipiv, double *b)
 /**
  * Solve system only with the Intel OneAPI routine.
  */
-int lu_solve_4(int N, double *A, int *ipiv, double *b)
+int lu_solve_4(int N, double *A, double *b)
 {
+  int *ipiv = scratch_ipiv;
   return LAPACKE_dgesv(LAPACK_ROW_MAJOR,
                        N,    // Number of equations
                        1,    // Number of rhs equations
@@ -2117,246 +2144,6 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
   for ((VAR) = (ST); (VAR) < B_SP(DIM, B); (VAR) += (B))
 #define for_b(VAR, DIM, B) for_bft(VAR, 0, DIM, B)
 
-#define INIT_24x4B                                                             \
-  c_i0_j0 = _mm256_setzero_pd();                                               \
-  c_i0_j1 = _mm256_setzero_pd();                                               \
-  c_i0_j2 = _mm256_setzero_pd();                                               \
-  c_i0_j3 = _mm256_setzero_pd();                                               \
-  c_i4_j0 = _mm256_setzero_pd();                                               \
-  c_i4_j1 = _mm256_setzero_pd();                                               \
-  c_i4_j2 = _mm256_setzero_pd();                                               \
-  c_i4_j3 = _mm256_setzero_pd();                                               \
-  c_i8_j0 = _mm256_setzero_pd();                                               \
-  c_i8_j1 = _mm256_setzero_pd();                                               \
-  c_i8_j2 = _mm256_setzero_pd();                                               \
-  c_i8_j3 = _mm256_setzero_pd();                                               \
-  c_i12_j0 = _mm256_setzero_pd();                                              \
-  c_i12_j1 = _mm256_setzero_pd();                                              \
-  c_i12_j2 = _mm256_setzero_pd();                                              \
-  c_i12_j3 = _mm256_setzero_pd();                                              \
-  c_i16_j0 = _mm256_setzero_pd();                                              \
-  c_i16_j1 = _mm256_setzero_pd();                                              \
-  c_i16_j2 = _mm256_setzero_pd();                                              \
-  c_i16_j3 = _mm256_setzero_pd();                                              \
-  c_i20_j0 = _mm256_setzero_pd();                                              \
-  c_i20_j1 = _mm256_setzero_pd();                                              \
-  c_i20_j2 = _mm256_setzero_pd();                                              \
-  c_i20_j3 = _mm256_setzero_pd();
-
-#define DO_24x4B                                                               \
-  a_i0_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 0));                 \
-  a_i4_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 4));                 \
-  a_i8_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 8));                 \
-  a_i12_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 12));               \
-  a_i16_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 16));               \
-  a_i20_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 20));               \
-                                                                               \
-  b_k0_j0 = _mm256_set1_pd(*(bbuff + 0));                                      \
-  b_k0_j1 = _mm256_set1_pd(*(bbuff + 1));                                      \
-  c_i0_j0 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j0);                        \
-  c_i4_j0 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j0);                        \
-  c_i8_j0 = _mm256_fmadd_pd(a_i8_k0, b_k0_j0, c_i8_j0);                        \
-  c_i12_j0 = _mm256_fmadd_pd(a_i12_k0, b_k0_j0, c_i12_j0);                     \
-  c_i16_j0 = _mm256_fmadd_pd(a_i16_k0, b_k0_j0, c_i16_j0);                     \
-  c_i20_j0 = _mm256_fmadd_pd(a_i20_k0, b_k0_j0, c_i20_j0);                     \
-  c_i0_j1 = _mm256_fmadd_pd(a_i0_k0, b_k0_j1, c_i0_j1);                        \
-  c_i4_j1 = _mm256_fmadd_pd(a_i4_k0, b_k0_j1, c_i4_j1);                        \
-  c_i8_j1 = _mm256_fmadd_pd(a_i8_k0, b_k0_j1, c_i8_j1);                        \
-  c_i12_j1 = _mm256_fmadd_pd(a_i12_k0, b_k0_j1, c_i12_j1);                     \
-  c_i16_j1 = _mm256_fmadd_pd(a_i16_k0, b_k0_j1, c_i16_j1);                     \
-  c_i20_j1 = _mm256_fmadd_pd(a_i20_k0, b_k0_j1, c_i20_j1);                     \
-                                                                               \
-  b_k0_j0 = _mm256_set1_pd(*(bbuff + 2));                                      \
-  b_k0_j1 = _mm256_set1_pd(*(bbuff + 3));                                      \
-  c_i0_j2 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j2);                        \
-  c_i4_j2 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j2);                        \
-  c_i8_j2 = _mm256_fmadd_pd(a_i8_k0, b_k0_j0, c_i8_j2);                        \
-  c_i12_j2 = _mm256_fmadd_pd(a_i12_k0, b_k0_j0, c_i12_j2);                     \
-  c_i16_j2 = _mm256_fmadd_pd(a_i16_k0, b_k0_j0, c_i16_j2);                     \
-  c_i20_j2 = _mm256_fmadd_pd(a_i20_k0, b_k0_j0, c_i20_j2);                     \
-  c_i0_j3 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j3);                        \
-  c_i4_j3 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j3);                        \
-  c_i8_j3 = _mm256_fmadd_pd(a_i8_k0, b_k0_j0, c_i8_j3);                        \
-  c_i12_j3 = _mm256_fmadd_pd(a_i12_k0, b_k0_j0, c_i12_j3);                     \
-  c_i16_j3 = _mm256_fmadd_pd(a_i16_k0, b_k0_j0, c_i16_j3);                     \
-  c_i20_j3 = _mm256_fmadd_pd(a_i20_k0, b_k0_j0, c_i20_j3);                     \
-  ++k, abuff += 8, bbuff += 4;
-
-// clang-format off
-#define STORE_24x4B                                                                                                   \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm256_add_pd(c_i0_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 1), _mm256_add_pd(c_i0_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 2), _mm256_add_pd(c_i0_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 2))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 3), _mm256_add_pd(c_i0_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 3))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 0), _mm256_add_pd(c_i4_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 1), _mm256_add_pd(c_i4_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 2), _mm256_add_pd(c_i4_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 2))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 3), _mm256_add_pd(c_i4_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 3))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 0), _mm256_add_pd(c_i8_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 1), _mm256_add_pd(c_i8_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 2), _mm256_add_pd(c_i8_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 2))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 3), _mm256_add_pd(c_i8_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 3))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 0), _mm256_add_pd(c_i12_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 1), _mm256_add_pd(c_i12_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 2), _mm256_add_pd(c_i12_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 2))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 3), _mm256_add_pd(c_i12_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 3))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 0), _mm256_add_pd(c_i16_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 1), _mm256_add_pd(c_i16_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 2), _mm256_add_pd(c_i16_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 2))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 3), _mm256_add_pd(c_i16_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 3))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 0), _mm256_add_pd(c_i20_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 1), _mm256_add_pd(c_i20_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 2), _mm256_add_pd(c_i20_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 2))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 3), _mm256_add_pd(c_i20_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 3))));
-// clang-format on
-
-#define MICRO_24x4_MMM                                                         \
-  abuff = A + i * K, bbuff = B + j * K;                                        \
-  INIT_24x4B;                                                                  \
-  for (k = 0; k < K4_MOD;)                                                     \
-  {                                                                            \
-    DO_24x4B;                                                                  \
-    DO_24x4B;                                                                  \
-    DO_24x4B;                                                                  \
-    DO_24x4B;                                                                  \
-  }                                                                            \
-  for (k = K4_MOD; k < K;)                                                     \
-  {                                                                            \
-    DO_24x4B;                                                                  \
-  }                                                                            \
-  STORE_24x4B;
-
-// ----
-
-#define INIT_24x2B                                                             \
-  c_i0_j0 = _mm256_setzero_pd();                                               \
-  c_i0_j1 = _mm256_setzero_pd();                                               \
-  c_i4_j0 = _mm256_setzero_pd();                                               \
-  c_i4_j1 = _mm256_setzero_pd();                                               \
-  c_i8_j0 = _mm256_setzero_pd();                                               \
-  c_i8_j1 = _mm256_setzero_pd();                                               \
-  c_i12_j0 = _mm256_setzero_pd();                                              \
-  c_i12_j1 = _mm256_setzero_pd();                                              \
-  c_i16_j0 = _mm256_setzero_pd();                                              \
-  c_i16_j1 = _mm256_setzero_pd();                                              \
-  c_i20_j0 = _mm256_setzero_pd();                                              \
-  c_i20_j1 = _mm256_setzero_pd();
-
-#define DO_24x2B                                                               \
-  a_i0_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 0));                 \
-  a_i4_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 4));                 \
-  a_i8_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 8));                 \
-  a_i12_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 12));               \
-  a_i16_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 16));               \
-  a_i20_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 20));               \
-                                                                               \
-  b_k0_j0 = _mm256_set1_pd(*(bbuff + 0));                                      \
-  b_k0_j1 = _mm256_set1_pd(*(bbuff + 1));                                      \
-  c_i0_j0 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j0);                        \
-  c_i4_j0 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j0);                        \
-  c_i8_j0 = _mm256_fmadd_pd(a_i8_k0, b_k0_j0, c_i8_j0);                        \
-  c_i12_j0 = _mm256_fmadd_pd(a_i12_k0, b_k0_j0, c_i12_j0);                     \
-  c_i16_j0 = _mm256_fmadd_pd(a_i16_k0, b_k0_j0, c_i16_j0);                     \
-  c_i20_j0 = _mm256_fmadd_pd(a_i20_k0, b_k0_j0, c_i20_j0);                     \
-  c_i0_j1 = _mm256_fmadd_pd(a_i0_k0, b_k0_j1, c_i0_j1);                        \
-  c_i4_j1 = _mm256_fmadd_pd(a_i4_k0, b_k0_j1, c_i4_j1);                        \
-  c_i8_j1 = _mm256_fmadd_pd(a_i8_k0, b_k0_j1, c_i8_j1);                        \
-  c_i12_j1 = _mm256_fmadd_pd(a_i12_k0, b_k0_j1, c_i12_j1);                     \
-  c_i16_j1 = _mm256_fmadd_pd(a_i16_k0, b_k0_j1, c_i16_j1);                     \
-  c_i20_j1 = _mm256_fmadd_pd(a_i20_k0, b_k0_j1, c_i20_j1);                     \
-  ++k, abuff += 8, bbuff += 2;
-
-// clang-format off
-#define STORE_24x2B                                                                                                   \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm256_add_pd(c_i0_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 1), _mm256_add_pd(c_i0_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 0), _mm256_add_pd(c_i4_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 1), _mm256_add_pd(c_i4_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 0), _mm256_add_pd(c_i8_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 1), _mm256_add_pd(c_i8_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 0), _mm256_add_pd(c_i12_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 1), _mm256_add_pd(c_i12_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 0), _mm256_add_pd(c_i16_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 1), _mm256_add_pd(c_i16_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 0), _mm256_add_pd(c_i20_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 1), _mm256_add_pd(c_i20_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 1))));  \
-// clang-format on
-
-#define MICRO_24x2_MMM                                                         \
-  abuff = A + i * K, bbuff = B + j * K;                                        \
-  INIT_24x2B;                                                                  \
-  for (k = 0; k < K4_MOD;)                                                     \
-  {                                                                            \
-    DO_24x2B;                                                                  \
-    DO_24x2B;                                                                  \
-    DO_24x2B;                                                                  \
-    DO_24x2B;                                                                  \
-  }                                                                            \
-  for (k = K4_MOD; k < K;)                                                     \
-  {                                                                            \
-    DO_24x2B;                                                                  \
-  }                                                                            \
-  STORE_24x2B;
-
-// ----
-
-#define INIT_24x1B                                                             \
-  c_i0_j0 = _mm256_setzero_pd();                                               \
-  c_i0_j1 = _mm256_setzero_pd();                                               \
-  c_i4_j0 = _mm256_setzero_pd();                                               \
-  c_i4_j1 = _mm256_setzero_pd();                                               \
-  c_i8_j0 = _mm256_setzero_pd();                                               \
-  c_i8_j1 = _mm256_setzero_pd();                                               \
-  c_i12_j0 = _mm256_setzero_pd();                                              \
-  c_i12_j1 = _mm256_setzero_pd();                                              \
-  c_i16_j0 = _mm256_setzero_pd();                                              \
-  c_i16_j1 = _mm256_setzero_pd();                                              \
-  c_i20_j0 = _mm256_setzero_pd();                                              \
-  c_i20_j1 = _mm256_setzero_pd();                                              \
-
-#define DO_24x1B                                                               \
-  a_i0_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 0));                 \
-  a_i4_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 4));                 \
-  a_i8_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 8));                 \
-  a_i12_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 12));               \
-  a_i16_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 16));               \
-  a_i20_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 20));               \
-                                                                               \
-  b_k0_j0 = _mm256_set1_pd(*(bbuff + 0));                                      \
-  c_i0_j0 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j0);                        \
-  c_i4_j0 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j0);                        \
-  c_i8_j0 = _mm256_fmadd_pd(a_i8_k0, b_k0_j0, c_i8_j0);                        \
-  c_i12_j0 = _mm256_fmadd_pd(a_i12_k0, b_k0_j0, c_i12_j0);                     \
-  c_i16_j0 = _mm256_fmadd_pd(a_i16_k0, b_k0_j0, c_i16_j0);                     \
-  c_i20_j0 = _mm256_fmadd_pd(a_i20_k0, b_k0_j0, c_i20_j0);                     \
-  ++k, abuff += 8, ++bbuff;
-
-// clang-format off
-#define STORE_24x1B                                                                                                   \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm256_add_pd(c_i0_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 0), _mm256_add_pd(c_i4_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 8, j + 0), _mm256_add_pd(c_i8_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 8, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 12, j + 0), _mm256_add_pd(c_i12_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 12, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 16, j + 0), _mm256_add_pd(c_i16_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 16, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 20, j + 0), _mm256_add_pd(c_i20_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 20, j + 0))));  \
-// clang-format on
-
-#define MICRO_24x1_MMM                                                         \
-  abuff = A + i * K, bbuff = B + j * K;                                        \
-  INIT_24x1B;                                                                  \
-  for (k = 0; k < K4_MOD;)                                                     \
-  {                                                                            \
-    DO_24x1B;                                                                  \
-    DO_24x1B;                                                                  \
-    DO_24x1B;                                                                  \
-    DO_24x1B;                                                                  \
-  }                                                                            \
-  for (k = K4_MOD; k < K;)                                                     \
-  {                                                                            \
-    DO_24x1B;                                                                  \
-  }                                                                            \
-  STORE_24x1B;
-
 // ----
 
 #define INIT_8x4B                                                              \
@@ -2408,7 +2195,7 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
     DO_8x4B;                                                                   \
     DO_8x4B;                                                                   \
   }                                                                            \
-  for (k = K4_MOD; k < K;)                                                     \
+  for (; k < K;)                                                               \
   {                                                                            \
     DO_8x4B;                                                                   \
   }                                                                            \
@@ -2419,8 +2206,8 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 #define INIT_8x2B                                                              \
   c_i0_j0 = _mm256_setzero_pd();                                               \
   c_i4_j0 = _mm256_setzero_pd();                                               \
-  c_i0_j2 = _mm256_setzero_pd();                                               \
-  c_i4_j2 = _mm256_setzero_pd();
+  c_i0_j1 = _mm256_setzero_pd();                                               \
+  c_i4_j1 = _mm256_setzero_pd();
 
 #define DO_8x2B                                                                \
   a_i0_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 0));                 \
@@ -2428,17 +2215,17 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
   b_k0_j0 = _mm256_set1_pd(*(bbuff + 0));                                      \
   c_i0_j0 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j0);                        \
   c_i4_j0 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j0);                        \
-  b_k0_j0 = _mm256_set1_pd(*(bbuff + 2));                                      \
-  c_i0_j2 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j2);                        \
-  c_i4_j2 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j2);                        \
+  b_k0_j0 = _mm256_set1_pd(*(bbuff + 1));                                      \
+  c_i0_j1 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j1);                        \
+  c_i4_j1 = _mm256_fmadd_pd(a_i4_k0, b_k0_j0, c_i4_j1);                        \
   ++k, abuff += 8, bbuff += 2;
 
 // clang-format off
 #define STORE_8x2B                                                                                                    \
   _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm256_add_pd(c_i0_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 2), _mm256_add_pd(c_i0_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 2))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 1), _mm256_add_pd(c_i0_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 1))));  \
   _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 0), _mm256_add_pd(c_i4_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 2), _mm256_add_pd(c_i4_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 2))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 1), _mm256_add_pd(c_i4_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 1))));  \
 // clang-format on
 
 #define MICRO_8x2_MMM                                                          \
@@ -2451,7 +2238,7 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
     DO_8x2B;                                                                   \
     DO_8x2B;                                                                   \
   }                                                                            \
-  for (k = K4_MOD; k < K;)                                                     \
+  for (; k < K;)                                                     \
   {                                                                            \
     DO_8x2B;                                                                   \
   }                                                                            \
@@ -2503,10 +2290,12 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 
 #define DO_4x4B                                                                \
   a_i0_k0 = _mm256_mul_pd(valpha, _mm256_loadu_pd(abuff + 0));                 \
+                                                                               \
   b_k0_j0 = _mm256_set1_pd(*(bbuff + 0));                                      \
   b_k0_j1 = _mm256_set1_pd(*(bbuff + 1));                                      \
   c_i0_j0 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j0);                        \
   c_i0_j1 = _mm256_fmadd_pd(a_i0_k0, b_k0_j1, c_i0_j1);                        \
+                                                                               \
   b_k0_j0 = _mm256_set1_pd(*(bbuff + 2));                                      \
   b_k0_j1 = _mm256_set1_pd(*(bbuff + 3));                                      \
   c_i0_j2 = _mm256_fmadd_pd(a_i0_k0, b_k0_j0, c_i0_j2);                        \
@@ -2802,20 +2591,51 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 #define MICRO_1x1_MMM                                                          \
   abuff = A + i * K, bbuff = B + j * K;                                        \
   INIT_1x1B;                                                                   \
-  for (k = 0; k < K4_MOD;)                                                     \
+  for (k = 0; 0 && k < K4_MOD;)                                                \
   {                                                                            \
     DO_1x1B;                                                                   \
     DO_1x1B;                                                                   \
     DO_1x1B;                                                                   \
     DO_1x1B;                                                                   \
   }                                                                            \
-  for (k = K4_MOD; k < K;)                                                     \
+  for (; k < K;)                                                               \
   {                                                                            \
     DO_1x1B;                                                                   \
   }                                                                            \
   STORE_1x1B;
 
 // -----
+
+/* #define KERNEL_K1_2x4_avx512_intrinsics_packing\ */
+/*     da0 = _mm_mul_pd(dvalpha, _mm_load_pd(ptr_packing_a));\ */
+/*     db0 = _mm_set1_pd(*ptr_packing_b);\ */
+/*     db1 = _mm_set1_pd(*(ptr_packing_b+1));\ */
+/*     dc00 = _mm_fmadd_pd(da0,db0,dc00);\ */
+/*     dc10 = _mm_fmadd_pd(da0,db1,dc10);\ */
+/*     db0 = _mm_set1_pd(*(ptr_packing_b+2));\ */
+/*     db1 = _mm_set1_pd(*(ptr_packing_b+3));\ */
+/*     dc20 = _mm_fmadd_pd(da0,db0,dc20);\ */
+/*     dc30 = _mm_fmadd_pd(da0,db1,dc30);\ */
+/*     ptr_packing_a+=2;ptr_packing_b+=4;k++; */
+
+/* #define macro_kernel_2xkx4_packing_avx512_v1\ */
+/*     dc00 = _mm_setzero_pd();\ */
+/*     dc10 = _mm_setzero_pd();\ */
+/*     dc20 = _mm_setzero_pd();\ */
+/*     dc30 = _mm_setzero_pd();\ */
+/*     for (k=k_start;k<K4;){\ */
+/*         KERNEL_K1_2x4_avx512_intrinsics_packing\ */
+/*         KERNEL_K1_2x4_avx512_intrinsics_packing\ */
+/*         KERNEL_K1_2x4_avx512_intrinsics_packing\ */
+/*         KERNEL_K1_2x4_avx512_intrinsics_packing\ */
+/*     }\ */
+/*     for (k=K4;k<k_end;){\ */
+/*         KERNEL_K1_2x4_avx512_intrinsics_packing\ */
+/*     }\ */
+/*     _mm_storeu_pd(&C(i,j), _mm_add_pd(dc00,_mm_loadu_pd(&C(i,j))));\ */
+/*     _mm_storeu_pd(&C(i,j+1), _mm_add_pd(dc10,_mm_loadu_pd(&C(i,j+1))));\ */
+/*     _mm_storeu_pd(&C(i,j+2), _mm_add_pd(dc20,_mm_loadu_pd(&C(i,j+2))));\ */
+/*     _mm_storeu_pd(&C(i,j+3), _mm_add_pd(dc30,_mm_loadu_pd(&C(i,j+3)))); */
 
 // NOTE sgemm_5 assumes a TRANSPOSED memory layout
 static void sgemm_5_mini(const int M, const int N, const int K,
@@ -2825,6 +2645,9 @@ static void sgemm_5_mini(const int M, const int N, const int K,
   int i, j, k;
 
   double *abuff, *bbuff;
+
+  // TODO REMOVE
+  double *ptr_packing_a, *ptr_packing_b;
 
   const int                  //
       M24_MOD = B_SP(M, 24), //
@@ -2871,8 +2694,6 @@ static void sgemm_5_mini(const int M, const int N, const int K,
 
       b_k0_j0, //
       b_k0_j1, //
-      b_k0_j2, //
-      b_k0_j3, //
 
       c_i0_j0, //
       c_i0_j1, //
@@ -2882,27 +2703,7 @@ static void sgemm_5_mini(const int M, const int N, const int K,
       c_i4_j0, //
       c_i4_j1, //
       c_i4_j2, //
-      c_i4_j3, //
-
-      c_i8_j0, //
-      c_i8_j1, //
-      c_i8_j2, //
-      c_i8_j3, //
-
-      c_i12_j0, //
-      c_i12_j1, //
-      c_i12_j2, //
-      c_i12_j3, //
-
-      c_i16_j0, //
-      c_i16_j1, //
-      c_i16_j2, //
-      c_i16_j3, //
-
-      c_i20_j0, //
-      c_i20_j1, //
-      c_i20_j2, //
-      c_i20_j3  //
+      c_i4_j3  //
 
       ;
 
@@ -2930,118 +2731,138 @@ static void sgemm_5_mini(const int M, const int N, const int K,
   // TODO run tests with estimated sized matrices
   // and dimensions.
 
-  /* for (; i < M24_MOD; i += 24) */
-  /* { */
+  j = 0;
 
-  /*   for (j = 0; j < N4_MOD; j += 4) */
-  /*   { */
-  /*     MICRO_24x4_MMM; */
-  /*   } */
-  /*   for (; j < N2_MOD; j += 2) */
-  /*   { */
-  /*     MICRO_24x2_MMM; */
-  /*   } */
-  /*   for (; j < N; ++j) */
-  /*   { */
-  /*     MICRO_24x1_MMM; */
-  /*   } */
-  /* } */
-
-  // FIXME Julia throws a segfault from this function
-
-  for (; i < M8_MOD; i += 8)
+  for (; j < N4_MOD; j += 4)
   {
-
-    for (j = 0; j < N4_MOD; j += 4)
+    for (i = 0; i < M8_MOD; i += 8)
     {
       MICRO_8x4_MMM;
     }
-    for (; j < N2_MOD; j += 2)
-    {
-      MICRO_8x2_MMM;
-    }
-    for (; j < N; ++j)
-    {
-      MICRO_8x1_MMM;
-    }
-  }
-
-  for (; i < M4_MOD; i += 4)
-  {
-    for (j = 0; j < N4_MOD; j += 4)
+    for (; i < M4_MOD; i += 4)
     {
       MICRO_4x4_MMM;
     }
-    for (; j < N2_MOD; j += 2)
-    {
-      MICRO_4x2_MMM;
-    }
-    for (; j < N; ++j)
-    {
-      MICRO_4x1_MMM;
-    }
-  }
-
-  for (; i < M2_MOD; i += 2)
-  {
-    for (j = 0; j < N4_MOD; j += 4)
+    for (; i < M2_MOD; i += 2)
     {
       MICRO_2x4_MMM;
     }
-    for (; j < N2_MOD; j += 2)
-    {
-      MICRO_2x2_MMM;
-    }
-    for (; j < N; ++j)
-    {
-      MICRO_2x1_MMM;
-    }
-  }
-
-  for (; i < M; ++i)
-  {
-    for (j = 0; j < N4_MOD; j += 4)
+    for (; i < M; ++i)
     {
       MICRO_1x4_MMM;
     }
-    for (; j < N2_MOD; j += 2)
+  }
+
+  for (; j < N2_MOD; j += 2)
+  {
+    for (i = 0; i < M8_MOD; i += 8)
+    {
+      MICRO_8x2_MMM;
+    }
+    for (; i < M4_MOD; i += 4)
+    {
+      MICRO_4x2_MMM;
+    }
+    for (; i < M2_MOD; i += 2)
+    {
+      MICRO_2x2_MMM;
+    }
+    for (; i < M; ++i)
     {
       MICRO_1x2_MMM;
     }
-    for (; j < N; ++j)
+  }
+
+  for (; j < N; ++j)
+  {
+    for (i = 0; i < M8_MOD; i += 8)
+    {
+      MICRO_8x1_MMM;
+    }
+    for (; i < M4_MOD; i += 4)
+    {
+      MICRO_4x1_MMM;
+    }
+    for (; i < M2_MOD; i += 2)
+    {
+      MICRO_2x1_MMM;
+    }
+    for (; i < M; ++i)
     {
       MICRO_1x1_MMM;
     }
   }
 }
 
-static void pack(double *dst, double *src, int LDA, int M, int N)
+static void pack_a(double *dst, double *src, int LDA, int M, int N)
 {
   int i, j;
-  double   //
-      *s0, //
-      *s1, //
-      *s2, //
-      *s3  //
-      ;
-  for (i = 0; i < M; ++i)
+  double *s0, *d0 = dst;
+  i = 0;
+
+  for (; i < M - 7; i += 8)
   {
-    s0 = src + i * LDA;
-    for (j = 0; j < N; ++j)
-      *dst++ = *s0++;
+    s0 = src + i;
+    for (j = 0; j < N; ++j, dst += 8, s0 += LDA)
+    {
+      *(dst + 0) = *(s0 + 0);
+      *(dst + 1) = *(s0 + 1);
+      *(dst + 2) = *(s0 + 2);
+      *(dst + 3) = *(s0 + 3);
+      *(dst + 4) = *(s0 + 4);
+      *(dst + 5) = *(s0 + 5);
+      *(dst + 6) = *(s0 + 6);
+      *(dst + 7) = *(s0 + 7);
+    }
+  }
+
+  for (; i < M - 3; i += 4)
+  {
+    s0 = src + i;
+    for (j = 0; j < N; ++j, dst += 4, s0 += LDA)
+    {
+      *(dst + 0) = *(s0 + 0);
+      *(dst + 1) = *(s0 + 1);
+      *(dst + 2) = *(s0 + 2);
+      *(dst + 3) = *(s0 + 3);
+    }
+  }
+
+  for (; i < M - 1; i += 2)
+  {
+    s0 = src + i;
+    for (j = 0; j < N; ++j, dst += 2, s0 += LDA)
+    {
+      *dst = *s0;
+      *(dst + 1) = *(s0 + 1);
+    }
+  }
+
+  for (; i < M; ++i)
+  {
+    s0 = src + i;
+    for (j = 0; j < N; ++j, s0 += LDA, dst++)
+      *dst = *s0;
   }
 }
 
-static void pack_transpose(double *dst, double *src, int LDA, int M, int N)
+static void pack_b(double *dst, double *src, int LDA, int M, int N)
 {
   int i, j;
   double   //
       *s0, //
       *s1, //
       *s2, //
-      *s3  //
+      *s3, //
+      *s4, //
+      *s5, //
+      *s6, //
+      *s7  //
       ;
-  for (j = 0; j < N - 3; j += 4)
+
+  j = 0;
+
+  for (; j < N - 3; j += 4)
   {
     s0 = src + j * LDA;
     s1 = s0 + LDA;
@@ -3055,6 +2876,7 @@ static void pack_transpose(double *dst, double *src, int LDA, int M, int N)
       *dst++ = *s3++;
     }
   }
+
   for (; j < N - 1; j += 2)
   {
     s0 = src + j * LDA;
@@ -3065,33 +2887,38 @@ static void pack_transpose(double *dst, double *src, int LDA, int M, int N)
       *dst++ = *s1++;
     }
   }
+
   for (; j < N; ++j)
   {
     s0 = src + j * LDA;
-    for (i = 0; i < M; ++i)
+    for (i = 0; i < M; ++i, dst++, s0++)
     {
-      *dst++ = *s0++;
+      *dst = *s0;
     }
   }
 }
 
-static void sgemm_5(int M, int N, int K, double alpha, double *restrict A,
-                    int LDA, double *restrict B, int LDB, double beta,
-                    double *restrict C, int LDC)
+static void print_m(double *A, int m, int n)
 {
-  // NOTE left in a macro for autotuning
+  for (int i = 0; i < m; ++i)
+  {
+    for (int j = 0; j < n; ++j)
+      printf("%f ", MIX(A, n, i, j));
+    printf("\n");
+  }
+  printf("\n");
+}
 
-#define M_BLOCK 192
-#define N_BLOCK 2048
-#define K_BLOCK 384
-
-  double __attribute__((aligned(64))) AL[M_BLOCK * K_BLOCK];
-  double __attribute__((aligned(64))) BL[K_BLOCK * N_BLOCK];
+void sgemm_5(int M, int N, int K, double alpha, double *restrict A, int LDA,
+             double *restrict B, int LDB, double beta, double *restrict C,
+             int LDC)
+{
+  double *AL = scratch_a;
+  double *BL = scratch_b;
 
   // Deltas for blocking
-  int i, j, k,    //
-      ii, jj, kk, //
-      d_i = 0, d_j = 0, d_k = 0;
+  int i, j, k, //
+      d_i, d_j, d_k;
 
   // A[M, K] B[K, N] C[M, N]
   for (j = 0; j < N; j += d_j)
@@ -3100,14 +2927,14 @@ static void sgemm_5(int M, int N, int K, double alpha, double *restrict A,
     for (k = 0; k < K; k += d_k)
     {
       d_k = MIN(K - k, K_BLOCK);
-      pack_transpose((double *)&BL, B + k + j * LDB, LDB, d_k, d_j);
+      pack_b(BL, &TIX(B, LDB, k, j), LDB, d_k, d_j);
       for (i = 0; i < M; i += d_i)
       {
         d_i = MIN(M - i, M_BLOCK);
-        pack((double *)&AL, A + i + k * LDA, LDA, d_i, d_k);
-        sgemm_5_mini(d_i, d_j, d_k,      //
-                     (double *)&AL, d_i, //
-                     (double *)&BL, d_k, //
+        pack_a(AL, &TIX(A, LDA, i, k), LDA, d_i, d_k);
+        sgemm_5_mini(d_i, d_j, d_k, //
+                     AL, -10E5,     //
+                     BL, -10E5,     //
                      &TIX(C, LDC, i, j), LDC);
       }
     }
@@ -3310,9 +3137,10 @@ int sgetf2_5(int M, int N, double *A, int LDA, int *ipiv)
  * Same al lu_solve_2 except it uses the new sgemm_5
  * and a transposed memory layout.
  */
-int lu_solve_5(int N, double *A, int *ipiv, double *b)
+int lu_solve_5(int N, double *A, double *b)
 {
   int retcode, ib, IB, k;
+  int *ipiv = scratch_ipiv;
 
   const int NB = ideal_block(N, N), //
       M = N,                        //
@@ -3773,9 +3601,10 @@ int sgetf2_6(int M, int N, double *A, int LDA, int *ipiv)
  * Same al lu_solve_2 except it uses the new sgemm_5
  * and a transposed memory layout.
  */
-int lu_solve_6(int N, double *A, int *ipiv, double *b)
+int lu_solve_6(int N, double *A, double *b)
 {
   int retcode, ib, IB, k;
+  int *ipiv = scratch_ipiv;
 
   const int NB = ideal_block(N, N), //
       M = N,                        //
@@ -3841,10 +3670,10 @@ int lu_solve_6(int N, double *A, int *ipiv, double *b)
                   &TIX(A, LDA, ib, ib + IB), LDA);
 
         // Update trailing submatrix
-        sgemm_5(M - ib - IB, N - ib - IB, IB, -ONE, //
+        sgemm_5(M - ib - IB, N - ib - IB, IB, -1.,  //
                 &TIX(A, LDA, ib + IB, ib), LDA,     //
                 &TIX(A, LDA, ib, ib + IB), LDA,     //
-                ONE,                                //
+                1.,                                 //
                 &TIX(A, LDA, ib + IB, ib + IB), LDA //
         );
       }

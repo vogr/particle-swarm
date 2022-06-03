@@ -26,6 +26,22 @@ function setup(m, n, k)
     return (A_vec, k, B_vec, n, C_vec, n)
 end
 
+# function mul_tests(m, n, k)
+#     (A, LDA, B, LDB, C, LDC) = setup(m, n, k)
+#     tu.starting_test(@sprintf "MMM multiply tests with A[%d, %d] B[%d %d] C[%d %d]" m k k n m n)
+#     GC.@preserve A, B, C begin
+#         ccall(
+#             (:sgemm, :libpso),
+#             Cvoid,
+#             (Cint, Cint, Cint, Cdouble,
+#                 Ptr{Cdouble}, Cint,
+#                 Ptr{Cdouble}, Cint,
+#                 Cdouble, Ptr{Cdouble}, Cint),
+#             m, n, k, -1.0, A, LDA, B, LDB, 1.0, C, LDC
+#         )
+#     end
+# end
+
 function perf_tests(m, n, k)
     (A, LDA, B, LDB, C, LDC) = setup(m, n, k)
     tu.starting_test(@sprintf "MMM perf comparison with A[%d, %d] B[%d %d] C[%d %d]" m k k n m n)

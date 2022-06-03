@@ -23,7 +23,7 @@ private:
   double *b = nullptr;
 
 public:
-  ArgumentRestorerLU(int N, double *A, int *ipiv, double *b) : N{N}, A{A}, b{b}
+  ArgumentRestorerLU(int N, double *A, double *b) : N{N}, A{A}, b{b}
   {
     size_t A_s = N * N;
 
@@ -51,11 +51,14 @@ extern "C" void add_function_LU_SOLVE(lu_solve_fun_t f, char *name, int flop)
   perf_tester.add_function(f, nm, flop);
 }
 
-extern "C" int perf_test_lu_solve(int N, double *A, int *ipiv, double *b)
+extern "C" int perf_test_lu_solve(int N, double *A, double *b)
 {
   register_functions_LU_SOLVE();
 
-  ArgumentRestorerLU arg_restorer{N, A, ipiv, b};
-  return perf_tester.perf_test_all_registered(std::move(arg_restorer), N, A,
-                                              ipiv, b);
+  ArgumentRestorerLU arg_restorer{N, A, b};
+  lu_initialize_memory(N);
+  int ret =
+      perf_tester.perf_test_all_registered(std::move(arg_restorer), N, A, b);
+  lu_free_memory();
+  return ret;
 }

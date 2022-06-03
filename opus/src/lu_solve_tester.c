@@ -2,18 +2,52 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "lu_solve.h"
 // #include "perf_testers/perf_lu_solve.h"
-#include "perf_testers/perf_mmm.h"
+// #include "perf_testers/perf_mmm.h"
 
-#define M 1024L
-#define N 729
-#define K 512
-// #define N 8
+#define M 8
+#define N 8
+#define K 8
+
 #define ALIGN_TO 32
 
 #define CLAMP(x) (((x) + (ALIGN_TO - 1)) & -ALIGN_TO)
+
+static void print_m(double *A, int m, int n)
+{
+  for (int i = 0; i < m; ++i)
+  {
+    for (int j = 0; j < n; ++j)
+      printf("%f ", MIX(A, n, i, j));
+    printf("\n");
+  }
+  printf("\n");
+}
+
+static void assert_equal(double *A, double *B, int m, int n)
+{
+  long wrong = 0L;
+
+  for (int i = 0; i < m; ++i)
+    for (int j = 0; j < n; ++j)
+    {
+      if (!APPROX_EQUAL(MIX(A, n, i, j), MIX(B, n, i, j)))
+      {
+        printf("Positions %d %d differ\nExpected %.5f Got %.5f\n", i, j,
+               MIX(A, n, i, j), MIX(B, n, i, j));
+        wrong++;
+      }
+    }
+
+  if (0L < wrong)
+  {
+    printf("%ld wrong\n", wrong);
+  }
+  printf("\n");
+}
 
 /* static double A0[N * N] = { */
 
@@ -49,45 +83,64 @@ static double drand()
 int main()
 {
 
-  // FIXME change back to aligned_alloc for SIMD
-  double *A = (double *)aligned_alloc(32, CLAMP(N * N) * sizeof(double));
-  double *b = (double *)aligned_alloc(32, CLAMP(N) * sizeof(double));
-  int *ipiv = (int *)aligned_alloc(32, CLAMP(N) * sizeof(int));
+  lu_initialize_memory(N);
 
-  /* double *A0 = (double *)aligned_alloc(32, M * K * sizeof(double)); */
-  /* double *B0 = (double *)aligned_alloc(32, K * N * sizeof(double)); */
-  /* double *C0 = (double *)aligned_alloc(32, M * N * sizeof(double)); */
+  /* double *A = (double *)aligned_alloc(32, CLAMP(N * N) * sizeof(double)); */
+  /* double *b = (double *)aligned_alloc(32, CLAMP(N) * sizeof(double)); */
 
-  for (int i = 0; i < N; ++i)
+  double *A0 = (double *)aligned_alloc(ALIGN_TO, CLAMP(M * K * sizeof(double)));
+  double *B0 = (double *)aligned_alloc(ALIGN_TO, CLAMP(K * N * sizeof(double)));
+  double *C0 = (double *)aligned_alloc(ALIGN_TO, CLAMP(M * N * sizeof(double)));
+
+  double *A1 = (double *)aligned_alloc(ALIGN_TO, CLAMP(M * K * sizeof(double)));
+  double *B1 = (double *)aligned_alloc(ALIGN_TO, CLAMP(K * N * sizeof(double)));
+  double *C1 = (double *)aligned_alloc(ALIGN_TO, CLAMP(M * N * sizeof(double)));
+
+  /* for (int i = 0; i < N; ++i) */
+  /*   for (int j = 0; j < N; ++j) */
+  /*     A[i * N + j] = drand(); // A0[i * N + j]; */
+  /* for (int i = 0; i < N; ++i) */
+  /*   b[i] = drand(); // b0[i]; */
+
+  for (int i = 0; i < M; ++i)
+    for (int j = 0; j < K; ++j)
+      MIX(A0, K, i, j) = drand();
+  for (int i = 0; i < K; ++i)
     for (int j = 0; j < N; ++j)
-      A[i * N + j] = drand(); // A0[i * N + j];
+      MIX(B0, N, i, j) = drand();
+  for (int i = 0; i < M; ++i)
+    for (int j = 0; j < N; ++j)
+      MIX(C0, N, i, j) = drand();
 
-  for (int i = 0; i < N; ++i)
-    b[i] = drand(); // b0[i];
+  memcpy(A1, A0, M * K * sizeof(double));
+  memcpy(B1, B0, N * K * sizeof(double));
+  memcpy(C1, C0, M * N * sizeof(double));
 
   printf("Solving\n");
 
-  int ret = lu_solve(N, A, ipiv, b);
+  print_m(A0, M, K);
+  print_m(B0, K, N);
 
+  /* int ret = lu_solve(N, A, b); */
   /* for (int i = 0; i < N; ++i) */
   /*   assert(APPROX_EQUAL(b[i], x[i])); */
 
-  /* for (int j = 0; j < K; ++j) */
-  /*   for (int i = 0; i < M; ++i) */
-  /*     TIX(A0, M, i, j) = drand(); */
+  sgemm_5(M, N, K, -ONE, A0, M, B0, K, ONE, C0, M);
+  sgemm_1T(M, N, K, -ONE, A1, M, B1, K, ONE, C1, M);
 
-  /* for (int j = 0; j < N; ++j) */
-  /*   for (int i = 0; i < K; ++i) */
-  /*     TIX(B0, K, i, j) = drand(); */
+  assert_equal(C0, C1, M, N);
 
-  /* for (int j = 0; j < N; ++j) */
-  /*   for (int i = 0; i < M; ++i) */
-  /*     TIX(C0, M, i, j) = drand(); */
+  print_m(C0, M, N);
+  print_m(C1, M, N);
 
   // int ret = perf_test_mmm(M, N, K, -ONE, A0, M, B0, K, ONE, C0, M);
 
   printf("Done\n");
-  // perf_test_lu_solve(N, A, ipiv, b);
+
+  /* assert_equal(C0, C1, M, N); */
+  /* perf_test_lu_solve(N, A, ipiv, b); */
+
+  lu_free_memory();
 
   return 0;
 }

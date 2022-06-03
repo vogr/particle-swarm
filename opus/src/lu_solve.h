@@ -25,7 +25,14 @@
  * @param N: The length of one side.
  * @return: 0 on success. <0 for matrix singularity.
  */
-int lu_solve(int N, double *A, int *ipiv, double *b);
+int lu_solve(int N, double *A, double *b);
+void lu_initialize_memory(int max_n);
+void lu_free_memory();
+
+void sgemm_1T(int M, int N, int K, double alpha, double *A, int LDA, double *B,
+              int LDB, double beta, double *C, int LDC);
+void sgemm_5(int M, int N, int K, double alpha, double *A, int LDA, double *B,
+             int LDB, double beta, double *C, int LDC);
 
 #ifdef TEST_PERF
 

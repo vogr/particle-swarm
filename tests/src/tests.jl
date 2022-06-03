@@ -35,12 +35,13 @@ function solve_perf_tests_range(iterable)
     end
 end
 
-# solve_tests()
-# MMM.perf_tests(1024, 256, 256 * 2)
-# solve_perf_tests_single(2^9)
-# solve_perf_tests_range(100:500:1024)
-# PSO_GE.solve_tests()
+LU.init(2^15)
+
+solve_tests()
+MMM.perf_tests(1024, 1024, 1024)
+solve_perf_tests_range(2^10:2^10:(2^10)+1)
 PSO_TRI_SYS.solve_tests()
 
+# LU.teardown()
 
 end # module
