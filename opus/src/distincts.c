@@ -88,7 +88,8 @@ int check_if_distinct_1(struct pso_data_constant_inertia *pso,
 #if DISTINCTIVENESS_CHECK_TYPE == 1
 
   size_t x_distinct_s = pso->x_distinct_s;
-  double * chache_dest = fit_surrogate_phi_cache + x_distinct_s * (x_distinct_s - 1) / 2;
+  double *chache_dest =
+      fit_surrogate_phi_cache + x_distinct_s * (x_distinct_s - 1) / 2;
 
   for (int i = 0; i < pso->x_distinct_s; i++)
   {
@@ -103,7 +104,7 @@ int check_if_distinct_1(struct pso_data_constant_inertia *pso,
 
     if (d2 < pso->min_dist2)
     {
-      // we leave the invalid values in the cache, they will be 
+      // we leave the invalid values in the cache, they will be
       // overwritten
       return 0;
     }

@@ -150,10 +150,9 @@ int prealloc_fit_surrogate_1(size_t max_n_phi, size_t n_P)
   return 0;
 }
 
-
 /*
  * replace all occurences of pso-> by scalar replacement
- */ 
+ */
 
 int fit_surrogate_1(struct pso_data_constant_inertia *pso)
 {
@@ -262,7 +261,6 @@ int fit_surrogate_1(struct pso_data_constant_inertia *pso)
 
   return 0;
 }
-
 
 /*
  * Cache distances computation: cache matrix phi
@@ -429,7 +427,6 @@ int fit_surrogate_2(struct pso_data_constant_inertia *pso)
 
   return 0;
 }
-
 
 /*
  * Cache distances computation: same as before, but use memcpy
@@ -933,9 +930,6 @@ int fit_surrogate_5(struct pso_data_constant_inertia *pso)
   return 0;
 }
 
-
-
-
 /*
  * Cooperation between prealloc_fit_surrogate_6 and check_distinct
  */
@@ -992,7 +986,6 @@ int fit_surrogate_6(struct pso_data_constant_inertia *pso)
 
   // phi_p,q = || u_p - u_q ||^3
   // all of those are already computed in check_if_distinct!
-
 
   if (prev_n_phi == n_phi)
   {

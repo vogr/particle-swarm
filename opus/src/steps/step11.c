@@ -14,10 +14,11 @@ void step11_base(struct pso_data_constant_inertia *pso)
   {
     double x_local_eval = pso->f(x_local);
 
-    // ... and add new refinement point and its evaluation to list of distinct evaluation
-    // positions
-    
-    double *x_local_in_xdistinct = add_to_distincts_unconditionnaly(pso, x_local, x_local_eval);
+    // ... and add new refinement point and its evaluation to list of distinct
+    // evaluation positions
+
+    double *x_local_in_xdistinct =
+        add_to_distincts_unconditionnaly(pso, x_local, x_local_eval);
 
     // update overall best if applicable
     if (x_local_eval < pso->y_hat_eval)

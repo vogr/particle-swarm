@@ -3,9 +3,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "gaussian_elimination_solver.h"
+#include "triangular_system_solver.h"
 #include "helpers.h"
-#include "perf_testers/perf_ge_solve.h"
+#include "perf_testers/perf_block_tri_solve.h"
 
 // TODO @vogier had mentioned using a macro system to
 // compile the code in different ways for performance
@@ -42,7 +42,7 @@ static void swapd(double *a, int i, int j)
     We assume that Ab is written in such form.
     Also, parameter d is the side length of the 0 matrix.
 */
-int triangular_system_solve_0(int N, double *Ab, double *x, size_t d)
+int triangular_system_solve_0(int N, int d, double *Ab, double *x)
 {
 #if DEBUG_GE_SOLVER
   printf("Before elimination:");
@@ -203,9 +203,9 @@ int triangular_system_solve_0(int N, double *Ab, double *x, size_t d)
   }
 }
 
-int triangular_system_solve(int N, double *Ab, double *x, size_t d)
+int triangular_system_solve(int N, int d, double *Ab, double *x)
 {
-  return triangular_system_solve_0(N, Ab, x, d);
+  return triangular_system_solve_0(N, d, Ab, x);
 }
 
 #ifdef TEST_PERF
@@ -214,8 +214,7 @@ int triangular_system_solve(int N, double *Ab, double *x, size_t d)
 // weirdness of compiling seperately and linking.
 void register_functions_TRI_SYS_SOLVE()
 {
-  /* add_function_GE_SOLVE(&triangular_system_solve_0, */
-  /*                       "Triangular System Solve Base", 1); */
+  add_function_TRI_SYS_SOLVE(&triangular_system_solve_0, "Triangular System Solve Base", 1);
 }
 
 #endif

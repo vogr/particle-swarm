@@ -68,7 +68,8 @@ OBJ_LIB := src/perf_testers/perf_ge_solve.o \
 		src/perf_testers/perf_lu_solve.o \
 		src/perf_testers/perf_mmm.o \
 		src/perf_testers/perf_fit_surrogate.o \
-		src/pso_ffi.o
+		src/pso_ffi.o \
+		src/perf_testers/perf_block_tri_solve.o
 # Object files required for the the executable
 OBJ_EXE := src/main.o
 
@@ -90,8 +91,11 @@ endif # MKL
 
 	# For the shared file we also need to pass
 	# a preprocessor definition
-	# TEST_PERF=1
+	TEST_PERF=1
 	COMMON_FLAGS += -DTEST_PERF
+
+	# 
+	DEBUG_FLAGS+=-fsanitize=undefined -fsanitize=address
 
 	ifeq ($(UNAME_S),Darwin)
 	target := libpso.dylib

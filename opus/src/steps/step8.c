@@ -33,13 +33,11 @@ void step8_opt1(struct pso_data_constant_inertia *pso)
 {
   int pop_size = pso->population_size;
   int dim = pso->dimensions;
-  double * pso_x = pso->x;
-  double * pso_y = pso->y;
-  double * pso_y_eval = pso->y_eval;
-  double * pso_y_hat = pso->y_hat;
+  double *pso_x = pso->x;
+  double *pso_y = pso->y;
+  double *pso_y_eval = pso->y_eval;
+  double *pso_y_hat = pso->y_hat;
   double pso_y_hat_eval = pso->y_hat_eval;
-
-
 
   // Update the best positions per particle and overall
   for (int i = 0; i < pop_size; i++)
@@ -61,7 +59,7 @@ void step8_opt1(struct pso_data_constant_inertia *pso)
       {
         // TODO: why does pso_y_hat not work?
         //        pso_y_hat = pso_y_i_dim;  // PSO_Y(pso, i);
-        pso->y_hat = pso_y_i_dim;  // pso->y_hat = PSO_Y(pso, i);
+        pso->y_hat = pso_y_i_dim; // pso->y_hat = PSO_Y(pso, i);
         pso_y_hat_eval = x_eval;
       }
     }
@@ -70,7 +68,8 @@ void step8_opt1(struct pso_data_constant_inertia *pso)
   pso->time++;
 }
 
-void step8_optimized(struct pso_data_constant_inertia *pso) {
+void step8_optimized(struct pso_data_constant_inertia *pso)
+{
   step8_base(pso);
-//  step8_opt1(pso);
+  //  step8_opt1(pso);
 }
