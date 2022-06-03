@@ -229,7 +229,7 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
     s1 = _mm256_set1_pd(0);
 
     size_t i = 0;
-    for (; i < pso->dimensions; i += 4)
+    for (; i < pso->dimensions - 3; i += 4)
     {
       u0 = _mm256_loadu_pd(u0_ptr + i);
       u1 = _mm256_loadu_pd(u1_ptr + i);
@@ -257,8 +257,8 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
 
     for (; i < pso->dimensions; i++)
     {
-      double v0_d = u0[i] - x_ptr[i];
-      double v1_d = u1[i] - x_ptr[i];
+      double v0_d = u0_ptr[i] - x_ptr[i];
+      double v1_d = u1_ptr[i] - x_ptr[i];
       s0_d += v0_d * v0_d;
       s1_d += v1_d * v1_d;
     }
@@ -347,7 +347,7 @@ double surrogate_eval_5(struct pso_data_constant_inertia const *pso,
     __m256d s1 = _mm256_set1_pd(0);
 
     size_t i = 0;
-    for (; i < pso->dimensions; i += 4)
+    for (; i < pso->dimensions - 3; i += 4)
     {
       __m256d u0 = _mm256_loadu_pd(u0_ptr + i);
       __m256d u1 = _mm256_loadu_pd(u1_ptr + i);
@@ -371,11 +371,11 @@ double surrogate_eval_5(struct pso_data_constant_inertia const *pso,
 
     for (; i < pso->dimensions; i++)
     {
-      __attribute__((aligned(16))) double v[2] = {u0_ptr[i], u1_ptr[i]};
-      __m128d vv = _mm_load_pd(v);
+      __m128d uu = _mm_load1_pd(&u0_ptr[i]);
+      __m128d uv = _mm_loadh_pd(uu, &u1_ptr[i]);
       __m128d xi = _mm_load1_pd(&x_ptr[i]);
-      __m128d diff = _mm_sub_pd(vv, xi);
-      d2 = _mm_fmadd_pd(d2, diff, diff);
+      __m128d diff = _mm_sub_pd(uv, xi);
+      d2 = _mm_fmadd_pd(diff, diff, d2);
     }
 
     __m128d d = _mm_sqrt_pd(d2);
