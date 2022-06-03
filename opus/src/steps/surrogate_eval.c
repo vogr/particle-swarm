@@ -330,15 +330,15 @@ double surrogate_eval_5(struct pso_data_constant_inertia const *pso,
   size_t dim = pso->dimensions;
 
   double *lambda_p = pso->lambda_p;
-#if LINEAR_SYSTEM_SOLVER_USED == BLOCK_TRI_SOLVER 
+#if LINEAR_SYSTEM_SOLVER_USED == BLOCK_TRI_SOLVER
   // lambda_p is the concatenation (p_0 ... p_(d+1) || lambda_0 ... lambda_i)
   double *lambda = lambda_p + pso->dimensions + 1;
   double *p_coef = lambda_p;
-#else 
+#else
   // lambda_p is the concatenation (lambda_0 ... lambda_i || p_0 ... p_(d+1))
   double *lambda = lambda_p;
   double *p_coef = lambda_p + pso->x_distinct_s;
-#endif 
+#endif
 
   // iterate directly on x_distinct
   size_t k = 0;

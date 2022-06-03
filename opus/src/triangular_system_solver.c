@@ -85,11 +85,10 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
     if (pivot_row_idx < 0)
     {
       // singular matrix
-      fprintf(
-          stderr,
-          "ERROR: block tri GE failed: cannot find non-zero pivot for "
-          "sub-matrix %d\n",
-          k);
+      fprintf(stderr,
+              "ERROR: block tri GE failed: cannot find non-zero pivot for "
+              "sub-matrix %d\n",
+              k);
       return -1;
     }
 
@@ -129,9 +128,8 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
   if (fabs(MAT_Ab(t - 1, t - 1)) < 1e-3)
   {
     // singular matrix
-    fprintf(
-        stderr,
-        "ERROR: block tri GE failed: pivot after first block is 0\n");
+    fprintf(stderr,
+            "ERROR: block tri GE failed: pivot after first block is 0\n");
     return -1;
   }
 

@@ -4,9 +4,9 @@
 #include "stdlib.h"
 #include "string.h"
 
-#include "linear_system_solver.h"
 #include "../helpers.h"
 #include "../pso.h"
+#include "linear_system_solver.h"
 
 int fit_surrogate(struct pso_data_constant_inertia *pso)
 {
@@ -22,7 +22,7 @@ int prealloc_fit_surrogate(size_t max_n_phi, size_t n_P)
 
 // TODO: include past_refinement_points in phi !!!
 
-// is either [A | b] for GE and BLOCK_TRI or [A] for LU 
+// is either [A | b] for GE and BLOCK_TRI or [A] for LU
 static double *fit_surrogate_Ab;
 static double *fit_surrogate_P;
 // if using LU
@@ -935,24 +935,24 @@ int fit_surrogate_5(struct pso_data_constant_inertia *pso)
 
 int prealloc_fit_surrogate_6(size_t max_n_phi, size_t n_P)
 {
-#if LINEAR_SYSTEM_SOLVER_USED == GE_SOLVER 
-    return prealloc_fit_surrogate_6_GE(max_n_phi, n_P);
-#elif LINEAR_SYSTEM_SOLVER_USED == LU_SOLVER 
-    return prealloc_fit_surrogate_6_LU(max_n_phi, n_P);
-#elif LINEAR_SYSTEM_SOLVER_USED == BLOCK_TRI_SOLVER 
-    return prealloc_fit_surrogate_6_BLOCK_TRI(max_n_phi, n_P);
-#endif 
+#if LINEAR_SYSTEM_SOLVER_USED == GE_SOLVER
+  return prealloc_fit_surrogate_6_GE(max_n_phi, n_P);
+#elif LINEAR_SYSTEM_SOLVER_USED == LU_SOLVER
+  return prealloc_fit_surrogate_6_LU(max_n_phi, n_P);
+#elif LINEAR_SYSTEM_SOLVER_USED == BLOCK_TRI_SOLVER
+  return prealloc_fit_surrogate_6_BLOCK_TRI(max_n_phi, n_P);
+#endif
 }
 
 int fit_surrogate_6(struct pso_data_constant_inertia *pso)
 {
-#if LINEAR_SYSTEM_SOLVER_USED == GE_SOLVER 
-    return fit_surrogate_6_GE(pso);
-#elif LINEAR_SYSTEM_SOLVER_USED == LU_SOLVER 
-    return fit_surrogate_6_LU(pso);
-#elif LINEAR_SYSTEM_SOLVER_USED == BLOCK_TRI_SOLVER 
-    return fit_surrogate_6_BLOCK_TRI(pso);
-#endif 
+#if LINEAR_SYSTEM_SOLVER_USED == GE_SOLVER
+  return fit_surrogate_6_GE(pso);
+#elif LINEAR_SYSTEM_SOLVER_USED == LU_SOLVER
+  return fit_surrogate_6_LU(pso);
+#elif LINEAR_SYSTEM_SOLVER_USED == BLOCK_TRI_SOLVER
+  return fit_surrogate_6_BLOCK_TRI(pso);
+#endif
 }
 
 /*
@@ -1271,10 +1271,10 @@ int prealloc_fit_surrogate_6_BLOCK_TRI(size_t max_n_phi, size_t n_P)
 // assumes Ab, n_Ab, n_phi, n_P are in scope.
 // P_{i,j} := A_{i, j} = A[i * n_Ab + j]
 // (P^t)_{i,j} := A_{n_phi + i, n_P + j} = A[(n_phi + i) * n_Ab + n_P + j]
-#define BLOCK_TRI_Ab_P(i, j) (Ab[(i) * n_Ab + (j)])
+#define BLOCK_TRI_Ab_P(i, j) (Ab[(i)*n_Ab + (j)])
 #define BLOCK_TRI_Ab_Pt(i, j) (Ab[((i) + n_phi) * n_Ab + (j) + n_P])
 
-#define BLOCK_TRI_Ab_Phi(i, j) (Ab[(i) * n_Ab + (j) + n_P])
+#define BLOCK_TRI_Ab_Phi(i, j) (Ab[(i)*n_Ab + (j) + n_P])
 #define BLOCK_TRI_Ab_Zeros(i, j) (Ab[((i) + n_phi) * n_Ab + (j)])
 
 int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
@@ -1309,7 +1309,7 @@ int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
    * Prepare Phi
    ********/
 
-    // phi_p,q = || u_p - u_q ||^3
+  // phi_p,q = || u_p - u_q ||^3
   // all of those are already computed in check_if_distinct!
   size_t prev_n_phi = pso->x_distinct_idx_of_last_batch;
   if (prev_n_phi == n_phi)
