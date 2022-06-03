@@ -9,7 +9,6 @@ include("ffi_tri_sys_solve.jl")
 
 const tu = TestUtils
 
-
 function solve_tests()
   # PSO_GE.solve_tests()
   LU.solve_tests()
@@ -35,12 +34,44 @@ function solve_perf_tests_range(iterable)
     end
 end
 
-LU.init(2^15)
+function solve_perf_tests_block_tri_single(n)
+  local A
+  local b
+  local d
+  local d
+  while true
+    d = n ÷ 3
+    c = n - d
+    A = tu.build_block_triangular_matrix(c, d)
+    b = rand(n)
+    (!PSO_TRI_SYS.valid(n, d, A, b) ||
+      !PSO_GE.valid(n, A, b)) ||
+        break
+  end
+  PSO_GE.perf_tests(n, A, b)
+  PSO_TRI_SYS.perf_tests(n, d, A, b)
+end
 
-solve_tests()
-MMM.perf_tests(1024, 1024, 1024)
-solve_perf_tests_range(2^10:2^10:(2^10)+1)
-PSO_TRI_SYS.solve_tests()
+function solve_perf_tests_block_tri_range(iterable)
+  for i in iterable
+    solve_perf_tests_block_tri_single(i)
+  end
+end
+
+# LU.init(2^15)
+
+# solve_tests()
+# MMM.perf_tests(1024, 1024, 1024)
+# solve_perf_tests_range(2^10:2^10:(2^10)+1)
+
+# solve_tests()
+# MMM.perf_tests(1024, 256, 256 * 2)
+# solve_perf_tests_single(2^9)
+# solve_perf_tests_range(100:500:1024)
+# PSO_GE.solve_tests()
+
+# PSO_TRI_SYS.solve_tests()
+solve_perf_tests_block_tri_single(9)
 
 # LU.teardown()
 

@@ -25,7 +25,8 @@ private:
   double *x = nullptr;
 
 public:
-  ArgumentRestorerTRI(int N, int d, double *Ab, double *x) : N{N}, d{d}, Ab{Ab}, x{x}
+  ArgumentRestorerTRI(int N, int d, double *Ab, double *x)
+      : N{N}, d{d}, Ab{Ab}, x{x}
   {
     size_t Ab_s = N * (N + 1);
 
@@ -45,7 +46,8 @@ public:
 
 static PerformanceTester<block_tri_solve_fun_t> perf_tester;
 
-extern "C" void add_function_TRI_SYS_SOLVE(block_tri_solve_fun_t f, char *name, int flop)
+extern "C" void add_function_TRI_SYS_SOLVE(block_tri_solve_fun_t f, char *name,
+                                           int flop)
 {
   std::string nm = std::string(name);
   std::cout << "Register " << nm << "\n";

@@ -37,24 +37,6 @@ function TRI_SYS_solve(A::Matrix{<:Real}, b::Vector{<:Real}, d::Int)
     return x
 end
 
-# Matrix generated is of form:
-# | P |  Q  |
-# | 0 | P^t |
-# Where we assume that the dimensions are: 
-# | c x d | c x c | * | c |  =  | c |
-# | d x d | d x c |   | d |     | d |
-function build_block_triangular_matrix(c::Int64, d::Int64)
-    P = rand(c, d)
-    Q = tu.sym_n(c)
-
-    Z = zeros(d, d)
-
-    M1 = hcat(P, Q)
-    M2 = hcat(Z, P')
-
-    vcat(M1, M2)
-end
-
 # --------------------------------------
 
 function solve_tests()
@@ -65,30 +47,30 @@ function solve_tests()
         function test_tri_sys_solve(A::Matrix, b::Vector, d::Int)
             jx = A\b
             local x
-            # NOTE if the system isnt' solvable
-            # we will get an assertion error from GE_solve
-            # @try begin
+            # The system is solvable if c > d
             x = TRI_SYS_solve(A, b, d)
-            # @catch e::AssertionError
-            #     return
-            # end
 
-            # @test A * jx ≈ b
+            N = size(x, 1)
+
+            # @test jx[N÷2+1:N] ≈ x[N÷2+1:N]
+            # @test x - jx ≈ zeros(Float64, size(A, 1))
             @test A * x ≈ b
             @test jx ≈ x
         end
 
         test_lambda = (n) -> begin
-            c = n ÷ 2
-            d = n - c
+        # plausible scenario: c = iter_max = 100 and d = dimensions = 30
+            d = n ÷ 3
+            c = n - d
 
-            M = build_block_triangular_matrix(c, d)
+            M = tu.build_block_triangular_matrix(c, d)
             b = rand(n)
             test_tri_sys_solve(M, b, d)
         end
 
         @testset "Random TRI SYS Solve Small" begin
-            tu.@run_random_N 100 2^5 2^7 "small try sis solve" test_lambda
+            # tu.@run_random_N 100 2^5 2^7 "small try sis solve" test_lambda
+            tu.@run_random_N 100 9 9 "small try sis solve" test_lambda
         end
 
 

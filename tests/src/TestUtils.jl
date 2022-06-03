@@ -67,6 +67,27 @@ function sym_n(n)
     return A+A'
 end
 
+# Matrix generated is of form:
+# | P |  Q  |
+# | 0 | P^t |
+# Where we assume that the dimensions are: 
+# | c x d | c x c | * | c |  =  | c |
+# | d x d | d x c |   | d |     | d |
+function build_block_triangular_matrix(c::Int64, d::Int64)
+    P = rand(c, d)
+    Q = sym_n(c)
+
+    Z = zeros(d, d)
+
+    M1 = hcat(P, Q)
+    M2 = hcat(Z, P')
+
+    M = vcat(M1, M2)
+
+    # display(M)
+    M
+end
+
 # XXX I know this is a little much. Especially the required thunk
 # that will be invoked with the iterating N. But ...
 # I don't personally like declaring variables that get shared accross
