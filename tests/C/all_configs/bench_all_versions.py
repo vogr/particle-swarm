@@ -87,7 +87,7 @@ def main(argv):
     args = parser.parse_args(argv[1:])
 
     config_nbs = []
-    if len(args.config_nbs) >= 0:
+    if len(args.config_nbs) > 0:
         config_nbs = args.config_nbs
     else:
         config_nbs = CONFIGURATIONS.keys()

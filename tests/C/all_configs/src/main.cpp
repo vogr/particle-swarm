@@ -17,7 +17,7 @@ extern "C"
 }
 
 #define POPSIZE 20
-#define DIMENSION 20
+#define DIMENSION 19
 #define SPACE_FILLING_DESIGN_SIZE 25
 
 static double griewank_Nd(double const *const x)
