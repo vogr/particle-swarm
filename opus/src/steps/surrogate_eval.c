@@ -10,7 +10,7 @@
 double surrogate_eval(struct pso_data_constant_inertia const *pso,
                       double const *x)
 {
-  return surrogate_eval_4(pso, x);
+  return SURROGATE_EVAL_VERSION(pso, x);
 }
 
 double surrogate_eval_0(struct pso_data_constant_inertia const *pso,
@@ -207,7 +207,6 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
 {
   size_t dim = pso->dimensions;
 
-
   double res = 0;
 
   double *lambda_p = pso->lambda_p;
@@ -219,10 +218,10 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
   size_t k = 0;
   for (; k < pso->x_distinct_s - 1; k += 2)
   {
-    double *u0_ptr = pso->x_distinct + k*dim;
-    double *u1_ptr = pso->x_distinct + (k+1)*dim;
-//    double *u2 = pso->x_distinct + (k+2)*dim;
-//    double *u3 = pso->x_distinct + (k+3)*dim;
+    double *u0_ptr = pso->x_distinct + k * dim;
+    double *u1_ptr = pso->x_distinct + (k + 1) * dim;
+    //    double *u2 = pso->x_distinct + (k+2)*dim;
+    //    double *u3 = pso->x_distinct + (k+3)*dim;
 
     __m256d u0, u1, v0, v1, s0, s1;
     __m256d x;
@@ -236,7 +235,7 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
       u1 = _mm256_loadu_pd(u1_ptr + i);
       x = _mm256_loadu_pd(x_ptr + i);
 
-      v0 = _mm256_sub_pd(u0, x);      // u - x_ptr
+      v0 = _mm256_sub_pd(u0, x); // u - x_ptr
       v1 = _mm256_sub_pd(u1, x);
       s0 = _mm256_fmadd_pd(v0, v0, s0); // s += v*v
       s1 = _mm256_fmadd_pd(v1, v1, s1);
@@ -246,13 +245,13 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
     // https://stackoverflow.com/questions/49941645/get-sum-of-values-stored-in-m256d-with-sse-avx
     __m128d vlow = _mm256_castpd256_pd128(s0);
     __m128d vhigh = _mm256_extractf128_pd(s0, 1); // high 128
-    vlow = _mm_add_pd(vlow, vhigh);                  // reduce down to 128
+    vlow = _mm_add_pd(vlow, vhigh);               // reduce down to 128
     __m128d high64 = _mm_unpackhi_pd(vlow, vlow);
     double s0_d = _mm_cvtsd_f64(_mm_add_sd(vlow, high64)); // reduce to scalar
 
     vlow = _mm256_castpd256_pd128(s1);
     vhigh = _mm256_extractf128_pd(s1, 1); // high 128
-    vlow = _mm_add_pd(vlow, vhigh);                  // reduce down to 128
+    vlow = _mm_add_pd(vlow, vhigh);       // reduce down to 128
     high64 = _mm_unpackhi_pd(vlow, vlow);
     double s1_d = _mm_cvtsd_f64(_mm_add_sd(vlow, high64)); // reduce to scalar
 
@@ -267,10 +266,9 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
     double d0 = sqrt(s0_d);
     double d1 = sqrt(s1_d);
 
-    res += lambda[k] * s0_d * d0 ;
-    res += lambda[k+1] * s1_d * d1 ;
+    res += lambda[k] * s0_d * d0;
+    res += lambda[k + 1] * s1_d * d1;
   }
-
 
   for (; k < pso->x_distinct_s; k++) // roll up
   {
@@ -311,8 +309,6 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
 
     res += lambda[k] * s * d;
   }
-
-
 
   for (int j = 0; j < pso->dimensions; j++)
   {

@@ -1,10 +1,12 @@
 #pragma once
 
 #include "../pso.h"
-#include <immintrin.h>
+
+typedef double (*surrogate_eval_fun_t)(
+    struct pso_data_constant_inertia const *pso, double const *x);
 
 #ifndef SURROGATE_EVAL_VERSION
-#define SURROGATE_EVAL_VERSION 0
+#define SURROGATE_EVAL_VERSION surrogate_eval_4
 #endif
 
 double surrogate_eval(struct pso_data_constant_inertia const *pso,

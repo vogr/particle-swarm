@@ -13,6 +13,7 @@ extern "C"
 #include "latin_hypercube.h"
 #include "pso.h"
 #include "steps/fit_surrogate.h"
+#include "steps/surrogate_eval.h"
 }
 
 #define POPSIZE 20
@@ -39,18 +40,22 @@ static double griewank_Nd(double const *const x)
 }
 
 static struct option long_options[] = {{"max-time", required_argument, 0, 't'},
-                                       {"no-bench", no_argument, 0, 'B'},
+                                       {"print", no_argument, 0, 'P'},
+                                       {"bench-fit-surrogate", no_argument, 0, 'f'},
+                                       {"bench-surrogate-eval", no_argument, 0, 'e'},
                                        {0, 0, 0, 0}};
 
 int main(int argc, char **argv)
 {
   int time_max = 60;
-  bool do_bench = true;
+  bool do_bench_fit_surrogate = false;
+  bool do_bench_surrogate_eval = false;
+  bool do_print_outputs = false;
 
   while (1)
   {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "tB", long_options, nullptr);
+    int c = getopt_long(argc, argv, "tfeT", long_options, nullptr);
     if (c == -1)
       break;
 
@@ -59,10 +64,15 @@ int main(int argc, char **argv)
     case 't':
       time_max = std::stoi(optarg);
       break;
-    case 'B':
-      do_bench = false;
+    case 'f':
+      do_bench_fit_surrogate = true;
       break;
-
+    case 'e':
+      do_bench_surrogate_eval = true;
+      break;
+    case 'P':
+      do_print_outputs = true;
+      break;
     case '?':
       break;
 
@@ -122,7 +132,17 @@ int main(int argc, char **argv)
     pso_constant_inertia_loop(&pso);
   }
 
-  if (do_bench)
+  if (do_print_outputs)
+  {
+    size_t lambda_p_s= pso.x_distinct_s + (pso.dimensions + 1);
+    print_vectord(pso.lambda_p, lambda_p_s, "lamdbda_p");
+    
+    double x[DIMENSION] = {0};
+    printf("s(0) = %f\n", surrogate_eval(&pso, x));
+  }
+
+
+  if (do_bench_fit_surrogate)
   {
 
     PerformanceTester<fit_surrogate_fun_t> perf_tester;
@@ -130,7 +150,22 @@ int main(int argc, char **argv)
     auto arg_restorer = [&]()
     { pso.x_distinct_idx_of_last_batch = pso.x_distinct_s - 10; };
 
-    perf_tester.add_function(fit_surrogate, "fit_surrogate", 1);
+    perf_tester.add_function(&fit_surrogate, "fit_surrogate", 1);
     perf_tester.perf_test_all_registered(std::move(arg_restorer), &pso);
+
   }
+
+
+  if (do_bench_surrogate_eval)
+  {
+    PerformanceTester<surrogate_eval_fun_t> perf_tester;
+
+    // nothing to restore, surrogate eval doesn't modify the pso
+    auto arg_restorer = [&](){  };
+
+    double x[DIMENSION] = {0};
+    perf_tester.add_function(&surrogate_eval, "surrogate_eval", 1);
+    perf_tester.perf_test_all_registered(std::move(arg_restorer), &pso, x);
+  }
+
 }
