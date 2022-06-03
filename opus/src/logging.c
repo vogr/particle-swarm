@@ -11,8 +11,6 @@
 
 #include "perf_testers/tsc_x86.h"
 
-
-
 static int logging_dir_fd = -1;
 static FILE *timing_fp = NULL;
 
@@ -41,7 +39,8 @@ void set_logging_directory(char const *logdir)
   }
 }
 
-void log_timing(char const *step, char const * version, uint64_t time, uint64_t cycles)
+void log_timing(char const *step, char const *version, uint64_t time,
+                uint64_t cycles)
 {
   if (timing_fp == NULL)
   {
@@ -52,7 +51,7 @@ void log_timing(char const *step, char const * version, uint64_t time, uint64_t 
           cycles);
 }
 
-uint64_t timing_step(char const *step, char const * version, uint64_t time,
+uint64_t timing_step(char const *step, char const *version, uint64_t time,
                      uint64_t tsc_start)
 {
   uint64_t cycles = stop_tsc(tsc_start);

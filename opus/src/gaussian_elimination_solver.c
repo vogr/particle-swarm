@@ -827,7 +827,6 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
   return 0;
 }
 
-
 #ifdef TEST_PERF
 
 // NOTE I bet we can put these in the templated perf framework and remove the
@@ -842,5 +841,3 @@ void register_functions_GE_SOLVE()
 }
 
 #endif
-
-

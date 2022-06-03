@@ -21,7 +21,7 @@ int main(int argc, char **argv)
     printf("Logging to %s\n", argv[1]);
     set_logging_directory(argv[1]);
   }
-  
+
   uint64_t seed = time(NULL);
   srand(seed);
 
@@ -46,5 +46,4 @@ int main(int argc, char **argv)
           n_trials, bounds_low, bounds_high, vmin, vmax, initial_positions);
 
   stop_logging();
-
 }

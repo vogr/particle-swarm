@@ -45,8 +45,10 @@ int triangular_system_solve(int N, double *Ab, double *x, size_t d)
 
     Which is an upper-triangular block matrix system. 
 
-    We assume that Ab is written in such form. 
-    Also, parameter d is the side length of the 0 matrix.
+    We assume that Ab is written in such form. (Need to modify how 
+    matrices are formed in fit_surrogate, and how the res in recovered)
+    
+    Parameter d is the side length of the 0 matrix.
 */
 int triangular_system_solve_0(int N, double *Ab, double *x, size_t d) {
 #if DEBUG_GE_SOLVER
