@@ -952,9 +952,6 @@ int prealloc_fit_surrogate_6(size_t max_n_phi, size_t n_P)
 
 int fit_surrogate_6(struct pso_data_constant_inertia *pso)
 {
-  static size_t prev_n_phi = 0;
-  // TODO: include past_refinement_points in phi !!!
-
   // TODO: note that the matrix and vector barely change between the
   //  iterations. Maybe there could be a way to re-use them?
 
@@ -986,7 +983,7 @@ int fit_surrogate_6(struct pso_data_constant_inertia *pso)
 
   // phi_p,q = || u_p - u_q ||^3
   // all of those are already computed in check_if_distinct!
-
+  size_t prev_n_phi = pso->x_distinct_idx_of_last_batch;
   if (prev_n_phi == n_phi)
   {
     // There are no new points ! The surrogate is already fit !
@@ -997,7 +994,7 @@ int fit_surrogate_6(struct pso_data_constant_inertia *pso)
   }
   else
   {
-    prev_n_phi = n_phi;
+    pso->x_distinct_idx_of_last_batch = n_phi;
   }
 
   // Copy the distances from phi_cache to the phi block in A
