@@ -87,40 +87,80 @@ void step4_opt1(struct pso_data_constant_inertia *pso)
     PSO_FX(pso, i) = x_eval;
   }
 
-  // find ŷ
+  // Population size is at least >= 1
   double *min0 = pso_y;
-  double *min1 = pso_y + dim;
-  double *min2 = pso_y + 2 * dim;
-  double *min3 = pso_y + 3 * dim;
   double min0_eval = pso_y_eval[0];
-  double min1_eval = pso_y_eval[1];
-  double min2_eval = pso_y_eval[2];
-  double min3_eval = pso_y_eval[3];
-
-  int i0 = 4;
-  for (; i0 < pop_size - 3; i0 += 4) // unroll with mult. (4?) accumulators
+  int i0 = 1;
+  if (pop_size >= 4)
   {
-    int i1 = i0 + 1, i2 = i0 + 2, i3 = i0 + 3;
+    // find ŷ
+    double *min1 = pso_y + dim;
+    double *min2 = pso_y + 2 * dim;
+    double *min3 = pso_y + 3 * dim;
+    double min1_eval = pso_y_eval[1];
+    double min2_eval = pso_y_eval[2];
+    double min3_eval = pso_y_eval[3];
 
-    if (pso_y_eval[i0] < min0_eval)
+    i0 = 4;
+    for (; i0 < pop_size - 3; i0 += 4) // unroll with mult. (4?) accumulators
     {
-      min0 = pso_y + dim * i0;    // PSO_Y(pso, i0);
-      min0_eval = pso_y_eval[i0]; // pso->y_eval[i0];
+      int i1 = i0 + 1, i2 = i0 + 2, i3 = i0 + 3;
+
+      if (pso_y_eval[i0] < min0_eval)
+      {
+        min0 = pso_y + dim * i0;    // PSO_Y(pso, i0);
+        min0_eval = pso_y_eval[i0]; // pso->y_eval[i0];
+      }
+      if (pso_y_eval[i1] < min1_eval)
+      {
+        min1 = pso_y + dim * i1;    // PSO_Y(pso, i0+1);
+        min1_eval = pso_y_eval[i1]; // pso->y_eval[i0+1];
+      }
+      if (pso_y_eval[i2] < min2_eval)
+      {
+        min2 = pso_y + dim * i2;    // PSO_Y(pso, i0+2);
+        min2_eval = pso_y_eval[i2]; // pso->y_eval[i0+2];
+      }
+      if (pso_y_eval[i3] < min3_eval)
+      {
+        min3 = pso_y + dim * i3;    // PSO_Y(pso, i0+3);
+        min3_eval = pso_y_eval[i3]; // pso->y_eval[i0+3];
+      }
     }
-    if (pso_y_eval[i1] < min1_eval)
+    double *min1_2, *min3_4;
+    double min1_2_eval, min3_4_eval;
+
+    if (min0_eval < min1_eval)
     {
-      min1 = pso_y + dim * i1;    // PSO_Y(pso, i0+1);
-      min1_eval = pso_y_eval[i1]; // pso->y_eval[i0+1];
+      min1_2 = min0;
+      min1_2_eval = min0_eval;
     }
-    if (pso_y_eval[i2] < min2_eval)
+    else
     {
-      min2 = pso_y + dim * i2;    // PSO_Y(pso, i0+2);
-      min2_eval = pso_y_eval[i2]; // pso->y_eval[i0+2];
+      min1_2 = min1;
+      min1_2_eval = min1_eval;
     }
-    if (pso_y_eval[i3] < min3_eval)
+    if (min2_eval < min3_eval)
     {
-      min3 = pso_y + dim * i3;    // PSO_Y(pso, i0+3);
-      min3_eval = pso_y_eval[i3]; // pso->y_eval[i0+3];
+      min3_4 = min2;
+      min3_4_eval = min2_eval;
+    }
+    else
+    {
+      min3_4 = min3;
+      min3_4_eval = min3_eval;
+    }
+
+
+    if (min1_2_eval < min3_4_eval)
+    {
+      min0 = min1_2;
+      min0_eval = min1_2_eval;
+    }
+    else
+    {
+      min0 = min3_4;
+      min0_eval = min3_4_eval;
     }
   }
 
@@ -133,40 +173,10 @@ void step4_opt1(struct pso_data_constant_inertia *pso)
     }
   }
 
-  double *min1_2, *min3_4;
-  double min1_2_eval, min3_4_eval;
+  pso->y_hat = min0;
+  pso->y_hat_eval = min0_eval;
 
-  if (min0_eval < min1_eval)
-  {
-    min1_2 = min0;
-    min1_2_eval = min0_eval;
-  }
-  else
-  {
-    min1_2 = min1;
-    min1_2_eval = min1_eval;
-  }
-  if (min2_eval < min3_eval)
-  {
-    min3_4 = min2;
-    min3_4_eval = min2_eval;
-  }
-  else
-  {
-    min3_4 = min3;
-    min3_4_eval = min3_eval;
-  }
 
-  if (min1_2_eval < min3_4_eval)
-  {
-    pso->y_hat = min1_2;
-    pso->y_hat_eval = min1_2_eval;
-  }
-  else
-  {
-    pso->y_hat = min3_4;
-    pso->y_hat_eval = min3_4_eval;
-  }
 }
 
 /*
@@ -195,40 +205,80 @@ void step4_opt1_memcpy(struct pso_data_constant_inertia *pso)
     PSO_FX(pso, i) = x_eval;
   }
 
-  // find ŷ
+  // Population size is at least >= 1
   double *min0 = pso_y;
-  double *min1 = pso_y + dim;
-  double *min2 = pso_y + 2 * dim;
-  double *min3 = pso_y + 3 * dim;
   double min0_eval = pso_y_eval[0];
-  double min1_eval = pso_y_eval[1];
-  double min2_eval = pso_y_eval[2];
-  double min3_eval = pso_y_eval[3];
-
-  int i0 = 4;
-  for (; i0 < pop_size - 3; i0 += 4) // unroll with mult. (4?) accumulators
+  int i0 = 1;
+  if (pop_size >= 4)
   {
-    int i1 = i0 + 1, i2 = i0 + 2, i3 = i0 + 3;
+    // find ŷ
+    double *min1 = pso_y + dim;
+    double *min2 = pso_y + 2 * dim;
+    double *min3 = pso_y + 3 * dim;
+    double min1_eval = pso_y_eval[1];
+    double min2_eval = pso_y_eval[2];
+    double min3_eval = pso_y_eval[3];
 
-    if (pso_y_eval[i0] < min0_eval)
+    i0 = 4;
+    for (; i0 < pop_size - 3; i0 += 4) // unroll with mult. (4?) accumulators
     {
-      min0 = pso_y + dim * i0;    // PSO_Y(pso, i0);
-      min0_eval = pso_y_eval[i0]; // pso->y_eval[i0];
+      int i1 = i0 + 1, i2 = i0 + 2, i3 = i0 + 3;
+
+      if (pso_y_eval[i0] < min0_eval)
+      {
+        min0 = pso_y + dim * i0;    // PSO_Y(pso, i0);
+        min0_eval = pso_y_eval[i0]; // pso->y_eval[i0];
+      }
+      if (pso_y_eval[i1] < min1_eval)
+      {
+        min1 = pso_y + dim * i1;    // PSO_Y(pso, i0+1);
+        min1_eval = pso_y_eval[i1]; // pso->y_eval[i0+1];
+      }
+      if (pso_y_eval[i2] < min2_eval)
+      {
+        min2 = pso_y + dim * i2;    // PSO_Y(pso, i0+2);
+        min2_eval = pso_y_eval[i2]; // pso->y_eval[i0+2];
+      }
+      if (pso_y_eval[i3] < min3_eval)
+      {
+        min3 = pso_y + dim * i3;    // PSO_Y(pso, i0+3);
+        min3_eval = pso_y_eval[i3]; // pso->y_eval[i0+3];
+      }
     }
-    if (pso_y_eval[i1] < min1_eval)
+    double *min1_2, *min3_4;
+    double min1_2_eval, min3_4_eval;
+
+    if (min0_eval < min1_eval)
     {
-      min1 = pso_y + dim * i1;    // PSO_Y(pso, i0+1);
-      min1_eval = pso_y_eval[i1]; // pso->y_eval[i0+1];
+      min1_2 = min0;
+      min1_2_eval = min0_eval;
     }
-    if (pso_y_eval[i2] < min2_eval)
+    else
     {
-      min2 = pso_y + dim * i2;    // PSO_Y(pso, i0+2);
-      min2_eval = pso_y_eval[i2]; // pso->y_eval[i0+2];
+      min1_2 = min1;
+      min1_2_eval = min1_eval;
     }
-    if (pso_y_eval[i3] < min3_eval)
+    if (min2_eval < min3_eval)
     {
-      min3 = pso_y + dim * i3;    // PSO_Y(pso, i0+3);
-      min3_eval = pso_y_eval[i3]; // pso->y_eval[i0+3];
+      min3_4 = min2;
+      min3_4_eval = min2_eval;
+    }
+    else
+    {
+      min3_4 = min3;
+      min3_4_eval = min3_eval;
+    }
+
+
+    if (min1_2_eval < min3_4_eval)
+    {
+      min0 = min1_2;
+      min0_eval = min1_2_eval;
+    }
+    else
+    {
+      min0 = min3_4;
+      min0_eval = min3_4_eval;
     }
   }
 
@@ -241,38 +291,6 @@ void step4_opt1_memcpy(struct pso_data_constant_inertia *pso)
     }
   }
 
-  double *min1_2, *min3_4;
-  double min1_2_eval, min3_4_eval;
-
-  if (min0_eval < min1_eval)
-  {
-    min1_2 = min0;
-    min1_2_eval = min0_eval;
-  }
-  else
-  {
-    min1_2 = min1;
-    min1_2_eval = min1_eval;
-  }
-  if (min2_eval < min3_eval)
-  {
-    min3_4 = min2;
-    min3_4_eval = min2_eval;
-  }
-  else
-  {
-    min3_4 = min3;
-    min3_4_eval = min3_eval;
-  }
-
-  if (min1_2_eval < min3_4_eval)
-  {
-    pso->y_hat = min1_2;
-    pso->y_hat_eval = min1_2_eval;
-  }
-  else
-  {
-    pso->y_hat = min3_4;
-    pso->y_hat_eval = min3_4_eval;
-  }
+  pso->y_hat = min0;
+  pso->y_hat_eval = min0_eval;
 }

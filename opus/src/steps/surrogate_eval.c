@@ -101,7 +101,7 @@ double surrogate_eval_2(struct pso_data_constant_inertia const *pso,
 
     double s0 = 0, s1 = 0, s2 = 0, s3 = 0;
     size_t i = 0;
-    for (; i < pso->dimensions - 3; i += 4)
+    for (; i +3 < pso->dimensions; i += 4)
     {
       double u0 = u[i + 0], u1 = u[i + 1], u2 = u[i + 2], u3 = u[i + 3];
       double x0 = x[i + 0], x1 = x[i + 1], x2 = x[i + 2], x3 = x[i + 3];
@@ -161,7 +161,7 @@ double surrogate_eval_3(struct pso_data_constant_inertia const *pso,
 
     __m256d u_vec, x_vec, v, s_acc;
     s_acc = _mm256_set1_pd(0);
-    for (; i < pso->dimensions - 3; i += 4)
+    for (; i +3 < pso->dimensions; i += 4)
     {
       //      double u0 = u[i+0], u1 = u[i+1], u2 = u[i+2], u3 = u[i+3];
       //      double x0 = x[i+0], x1 = x[i+1], x2 = x[i+2], x3 = x[i+3];
@@ -231,7 +231,7 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
     s1 = _mm256_set1_pd(0);
 
     size_t i = 0;
-    for (; i < pso->dimensions - 3; i += 4)
+    for (; i +3 < pso->dimensions; i += 4)
     {
       u0 = _mm256_loadu_pd(u0_ptr + i);
       u1 = _mm256_loadu_pd(u1_ptr + i);
@@ -281,7 +281,7 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
 
     __m256d u_vec, x_vec, v, s_acc;
     s_acc = _mm256_set1_pd(0);
-    for (; i < pso->dimensions - 3; i += 4)
+    for (; i +3 < pso->dimensions; i += 4)
     {
       //      double u0 = u[i+0], u1 = u[i+1], u2 = u[i+2], u3 = u[i+3];
       //      double x0 = x[i+0], x1 = x[i+1], x2 = x[i+2], x3 = x[i+3];
@@ -355,7 +355,7 @@ double surrogate_eval_5(struct pso_data_constant_inertia const *pso,
     __m256d s1 = _mm256_set1_pd(0);
 
     size_t i = 0;
-    for (; i < pso->dimensions - 3; i += 4)
+    for (; i +3 < pso->dimensions; i += 4)
     {
       __m256d u0 = _mm256_loadu_pd(u0_ptr + i);
       __m256d u1 = _mm256_loadu_pd(u1_ptr + i);
@@ -406,7 +406,7 @@ double surrogate_eval_5(struct pso_data_constant_inertia const *pso,
 
     __m256d u_vec, x_vec, v, s_acc;
     s_acc = _mm256_set1_pd(0);
-    for (; i < pso->dimensions - 3; i += 4)
+    for (; i +3 < pso->dimensions; i += 4)
     {
       //      double u0 = u[i+0], u1 = u[i+1], u2 = u[i+2], u3 = u[i+3];
       //      double x0 = x[i+0], x1 = x[i+1], x2 = x[i+2], x3 = x[i+3];

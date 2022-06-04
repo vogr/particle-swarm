@@ -81,7 +81,7 @@ void step3_opt3(struct pso_data_constant_inertia *pso)
     pso_x_0_i_ptr = PSO_X(pso, i);
     pso_v_i_ptr = PSO_V(pso, i);
     int k = 0;
-    for (; k < pso->dimensions - 3; k += 4)
+    for (; k + 3 < pso->dimensions; k += 4)
     {
       uk = pso_step3_rands_i_ptr[k];
       pso_v_i_ptr[k] = 0.5 * (uk - pso_x_0_i_ptr[k]);
@@ -129,7 +129,7 @@ void step3_opt4(struct pso_data_constant_inertia *pso)
     pso_x_0_i_ptr = PSO_X(pso, i);
     pso_v_i_ptr = PSO_V(pso, i);
     int k = 0;
-    for (; k < pso->dimensions - 3; k += 4)
+    for (; k + 3 < pso->dimensions ; k += 4)
     {
       u_i = _mm256_loadu_pd(pso_step3_rands_i_ptr + k);
       pso_x_0_i = _mm256_loadu_pd(pso_x_0_i_ptr + k);
