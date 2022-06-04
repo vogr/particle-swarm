@@ -49,14 +49,21 @@ static int *scratch_ipiv;
  * @param ipiv Buffer for internal usage when pivoting.
  * @param b Real valued Nx1 vector b.
  */
-int lu_solve(int N, double *A, double *b) { return lu_solve_5(N, A, b); }
+
+#ifndef LU_SOLVE_VERSION
+#define LU_SOLVE_VERSION lu_solve_6
+#endif
+
+int lu_solve(int N, double *A, double *b) { return LU_SOLVE_VERSION(N, A, b); }
 
 void lu_initialize_memory(int max_n)
 {
   // XXX align the scratch buffers to the page size to avoid any potential
   // page misses.
-  scratch_a = (double *)aligned_alloc(4096, (M_BLOCK * K_BLOCK * sizeof(double) + 4095) & -4096);
-  scratch_b = (double *)aligned_alloc(4096, (K_BLOCK * N_BLOCK * sizeof(double) + 4095) & -4096);
+  scratch_a = (double *)aligned_alloc(
+      4096, (M_BLOCK * K_BLOCK * sizeof(double) + 4095) & -4096);
+  scratch_b = (double *)aligned_alloc(
+      4096, (K_BLOCK * N_BLOCK * sizeof(double) + 4095) & -4096);
   scratch_ipiv = (int *)aligned_alloc(32, (max_n * sizeof(int) + 31) & -32);
 }
 
