@@ -81,7 +81,6 @@ extern "C" int perf_test_mmm(int M, int N, int K, double alpha, double *A,
                              int LDA, double *B, int LDB, double beta,
                              double *C, int LDC)
 {
-  register_functions_MMM();
   ArgumentRestorerMMM arg_restorer{M, N,   K,    alpha, A,  LDA,
                                    B, LDB, beta, C,     LDC};
   int input_size = M;

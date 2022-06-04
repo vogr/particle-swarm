@@ -9,6 +9,13 @@ include("ffi_tri_sys_solve.jl")
 
 const tu = TestUtils
 
+function register_perf_tested_functions()
+  ccall((:register_functions_TRI_SYS_SOLVE, :libpso), Cvoid, ()) 
+  ccall((:register_functions_GE_SOLVE, :libpso), Cvoid, ()) 
+  ccall((:register_functions_LU_SOLVE, :libpso), Cvoid, ()) 
+  ccall((:register_functions_MMM, :libpso), Cvoid, ()) 
+end
+
 function solve_tests()
   # PSO_GE.solve_tests()
   LU.solve_tests()
@@ -45,12 +52,10 @@ function solve_perf_tests_block_tri_single(n)
     c = n - d
     A = tu.build_block_triangular_matrix(c, d)
     b = rand(n)
-    (!PSO_TRI_SYS.valid(n, d, A, b) ||
-      !PSO_GE.valid(n, A, b)) ||
+    (!PSO_TRI_SYS.valid(n, d, A, b)) ||
         break
   end
   PSO_TRI_SYS.perf_tests(n, d, A, b)
-  PSO_GE.perf_tests(n, A, b)
 end
 
 function solve_perf_tests_block_tri_range(iterable)
@@ -59,7 +64,9 @@ function solve_perf_tests_block_tri_range(iterable)
   end
 end
 
-# LU.init(2^15)
+register_perf_tested_functions()
+
+LU.init(2^15)
 
 # solve_tests()
 # MMM.perf_tests(1024, 1024, 1024)
@@ -72,7 +79,16 @@ end
 # PSO_GE.solve_tests()
 
 # PSO_TRI_SYS.solve_tests()
-solve_perf_tests_block_tri_single(512)
+
+start = round(Int, 100^(1/3))
+# step = round(Int, 100^(1/3))
+step = 1
+stop = round(Int, 10000^(1/3))
+
+range = [n^3 for n = start:step:stop]
+print(range, '\n')
+solve_perf_tests_range(range)
+solve_perf_tests_block_tri_range(range)
 
 # LU.teardown()
 

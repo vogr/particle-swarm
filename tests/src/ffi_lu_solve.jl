@@ -94,7 +94,7 @@ end
 
 function perf_tests(n, A, b)
     (A_vec, b_vec) = setup(n, A, b)
-    tu.starting_test(@sprintf "LU perf comparison with A[%d, %d]x = b[%d]" n n n)
+    # tu.starting_test(@sprintf "LU perf comparison with A[%d, %d]x = b[%d]" n n n)
     # NOTE this preserve shouldn't be necessary because
     # a Ptr{Cdouble} Base.unsafe_convert already exists.
     GC.@preserve A_vec b_vec begin

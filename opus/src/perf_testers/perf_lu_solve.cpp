@@ -53,8 +53,6 @@ extern "C" void add_function_LU_SOLVE(lu_solve_fun_t f, char *name, int flop)
 
 extern "C" int perf_test_lu_solve(int N, double *A, double *b)
 {
-  register_functions_LU_SOLVE();
-
   ArgumentRestorerLU arg_restorer{N, A, b};
   lu_initialize_memory(N);
   int input_size = N;
