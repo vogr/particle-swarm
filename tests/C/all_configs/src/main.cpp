@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <fstream>
 
 #include "perf_testers/PerformanceTester.hpp"
 
@@ -16,9 +17,9 @@ extern "C"
 #include "steps/surrogate_eval.h"
 }
 
-#define POPSIZE 20
-#define DIMENSION 19
-#define SPACE_FILLING_DESIGN_SIZE 25
+#define POPSIZE 15
+#define DIMENSION 13
+#define SPACE_FILLING_DESIGN_SIZE 20
 
 static double griewank_Nd(double const *const x)
 {
@@ -44,13 +45,14 @@ static struct option long_options[] = {
     {"print", no_argument, 0, 'P'},
     {"bench-fit-surrogate", required_argument, 0, 'f'},
     {"bench-surrogate-eval", required_argument, 0, 'e'},
+    {"write", required_argument, 0, 'w'},
     {0, 0, 0, 0}};
 
-#define N_INPUT_SIZES 40
+#define N_INPUT_SIZES 10
 
 int main(int argc, char **argv)
 {
-  int time_between_measures = 10;
+  int time_between_measures = 2;
   bool do_bench_fit_surrogate = false;
   char *fit_surrogate_name = NULL;
 
@@ -59,10 +61,12 @@ int main(int argc, char **argv)
 
   bool do_print_outputs = false;
 
+  char *write_to_fname = NULL;
+
   while (1)
   {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "tfeT", long_options, nullptr);
+    int c = getopt_long(argc, argv, "tfeTw", long_options, nullptr);
     if (c == -1)
       break;
 
@@ -82,12 +86,22 @@ int main(int argc, char **argv)
     case 'P':
       do_print_outputs = true;
       break;
+    case 'w':
+      write_to_fname = optarg;
+      break;
     case '?':
       break;
 
     default:
       printf("?? getopt returned character code 0%o ??\n", c);
     }
+  }
+
+  std::ofstream outfile;
+  if (write_to_fname)
+  {
+    std::cerr << "Writing results to " << write_to_fname << "\n";
+    outfile.open(write_to_fname, outfile.trunc);
   }
 
   /*
@@ -162,8 +176,12 @@ int main(int argc, char **argv)
       auto arg_restorer = [&]()
       { pso.x_distinct_idx_of_last_batch = pso.x_distinct_s - 10; };
 
-      perf_tester.add_function(&fit_surrogate, fit_surrogate_name, 1);
-      perf_tester.perf_test_all_registered(std::move(arg_restorer), n_A, &pso);
+      double cycles = perf_tester.perf_test(fit_surrogate, fit_surrogate_name,
+                                            std::move(arg_restorer), &pso);
+
+      std::cout << fit_surrogate_name << "," << n_A << "," << cycles
+                << std::endl;
+      outfile << fit_surrogate_name << "," << n_A << "," << cycles << std::endl;
     }
 
     if (do_bench_surrogate_eval)
@@ -174,9 +192,17 @@ int main(int argc, char **argv)
       auto arg_restorer = [&]() {};
 
       double x[DIMENSION] = {0};
-      perf_tester.add_function(&surrogate_eval, surrogate_eval_name, 1);
-      perf_tester.perf_test_all_registered(std::move(arg_restorer), n_A, &pso,
-                                           x);
+
+      double cycles =
+          perf_tester.perf_test(&surrogate_eval, surrogate_eval_name,
+                                std::move(arg_restorer), &pso, x);
+
+      std::cout << surrogate_eval_name << "," << n_A << "," << cycles
+                << std::endl;
+      outfile << surrogate_eval_name << "," << n_A << "," << cycles
+              << std::endl;
     }
   }
+
+  outfile.close();
 }

@@ -42,8 +42,8 @@ extern "C"
 }
 
 //#define PERF_TESTER_NR 32
-#define PERF_TESTER_CYCLES_REQUIRED 1e7
-#define PERF_TESTER_REP 50
+#define PERF_TESTER_CYCLES_REQUIRED 1e6
+#define PERF_TESTER_REP 20
 //#define PERF_TESTER_EPS (1e-3)
 
 // destructuring function pointer template type
@@ -164,7 +164,8 @@ public:
     for (i = 0; i < numFuncs; i++)
     {
       perf = perf_test(userFuncs[i], funcNames[i], arg_restorer, args...);
-      std::cout << funcNames[i] << "," << input_size << "," << perf << "\n";
+      std::cout << funcNames[i] << "," << input_size << "," << perf
+                << std::endl;
     }
 
     return 0;
