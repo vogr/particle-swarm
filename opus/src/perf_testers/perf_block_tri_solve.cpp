@@ -50,7 +50,7 @@ extern "C" void add_function_TRI_SYS_SOLVE(block_tri_solve_fun_t f, char *name,
                                            int flop)
 {
   std::string nm = std::string(name);
-  std::cout << "Register " << nm << "\n";
+  std::cerr << "Register " << nm << "\n";
   perf_tester.add_function(f, nm, flop);
 }
 
