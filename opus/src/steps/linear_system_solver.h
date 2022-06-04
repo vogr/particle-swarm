@@ -1,6 +1,8 @@
 #pragma once
 
+#ifndef LINEAR_SYSTEM_SOLVER_USED
 #define LINEAR_SYSTEM_SOLVER_USED LU_SOLVER
+#endif
 
 #define GE_SOLVER 1
 #define LU_SOLVER 2
