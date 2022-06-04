@@ -55,9 +55,9 @@ void lu_initialize_memory(int max_n)
 {
   // XXX align the scratch buffers to the page size to avoid any potential
   // page misses.
-  scratch_a = (double *)aligned_alloc(4096, M_BLOCK * K_BLOCK * sizeof(double));
-  scratch_b = (double *)aligned_alloc(4096, K_BLOCK * N_BLOCK * sizeof(double));
-  scratch_ipiv = (int *)aligned_alloc(32, max_n * sizeof(int));
+  scratch_a = (double *)aligned_alloc(4096, (M_BLOCK * K_BLOCK * sizeof(double) + 4095) & -4096);
+  scratch_b = (double *)aligned_alloc(4096, (K_BLOCK * N_BLOCK * sizeof(double) + 4095) & -4096);
+  scratch_ipiv = (int *)aligned_alloc(32, (max_n * sizeof(int) + 31) & -32);
 }
 
 void lu_free_memory()
