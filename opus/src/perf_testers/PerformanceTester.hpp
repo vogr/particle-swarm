@@ -116,10 +116,10 @@ public:
 
     std::list<double> cyclesList;
 
-    #ifdef PERF_TESTER_OUTPUT
-      std::cerr << "Benchmarking over " << PERF_TESTER_REP << " * " << num_runs
-                << " runs.\n";
-    #endif
+#ifdef PERF_TESTER_OUTPUT
+    std::cerr << "Benchmarking over " << PERF_TESTER_REP << " * " << num_runs
+              << " runs.\n";
+#endif
 
     // Actual performance measurements repeated REP times.
     // We simply store all results and compute medians during post-processing.
@@ -162,9 +162,9 @@ public:
       return -1;
     }
 
-    #ifdef PERF_TESTER_OUTPUT
-      std::cerr << " " << numFuncs << " functions registered." << std::endl;
-    #endif
+#ifdef PERF_TESTER_OUTPUT
+    std::cerr << " " << numFuncs << " functions registered." << std::endl;
+#endif
 
     for (i = 0; i < numFuncs; i++)
     {
