@@ -2183,12 +2183,12 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 // clang-format off
 #define STORE_8x4B                                                                                                    \
   _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm256_add_pd(c_i0_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 1), _mm256_add_pd(c_i0_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 1))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 2), _mm256_add_pd(c_i0_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 2))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 3), _mm256_add_pd(c_i0_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 3))));  \
   _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 0), _mm256_add_pd(c_i4_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 1), _mm256_add_pd(c_i0_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 1))));  \
   _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 1), _mm256_add_pd(c_i4_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 1))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 2), _mm256_add_pd(c_i0_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 2))));  \
   _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 2), _mm256_add_pd(c_i4_j2, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 2))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 3), _mm256_add_pd(c_i0_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 3))));  \
   _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 3), _mm256_add_pd(c_i4_j3, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 3))));
 // clang-format on
 
@@ -2230,8 +2230,8 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 // clang-format off
 #define STORE_8x2B                                                                                                    \
   _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 0), _mm256_add_pd(c_i0_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 0))));  \
-  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 1), _mm256_add_pd(c_i0_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 1))));  \
   _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 0), _mm256_add_pd(c_i4_j0, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 0))));  \
+  _mm256_storeu_pd(&TIX(C, LDC, i + 0, j + 1), _mm256_add_pd(c_i0_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 0, j + 1))));  \
   _mm256_storeu_pd(&TIX(C, LDC, i + 4, j + 1), _mm256_add_pd(c_i4_j1, _mm256_loadu_pd(&TIX(C, LDC, i + 4, j + 1))));  \
 // clang-format on
 
@@ -2613,37 +2613,6 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 
 // -----
 
-/* #define KERNEL_K1_2x4_avx512_intrinsics_packing\ */
-/*     da0 = _mm_mul_pd(dvalpha, _mm_load_pd(ptr_packing_a));\ */
-/*     db0 = _mm_set1_pd(*ptr_packing_b);\ */
-/*     db1 = _mm_set1_pd(*(ptr_packing_b+1));\ */
-/*     dc00 = _mm_fmadd_pd(da0,db0,dc00);\ */
-/*     dc10 = _mm_fmadd_pd(da0,db1,dc10);\ */
-/*     db0 = _mm_set1_pd(*(ptr_packing_b+2));\ */
-/*     db1 = _mm_set1_pd(*(ptr_packing_b+3));\ */
-/*     dc20 = _mm_fmadd_pd(da0,db0,dc20);\ */
-/*     dc30 = _mm_fmadd_pd(da0,db1,dc30);\ */
-/*     ptr_packing_a+=2;ptr_packing_b+=4;k++; */
-
-/* #define macro_kernel_2xkx4_packing_avx512_v1\ */
-/*     dc00 = _mm_setzero_pd();\ */
-/*     dc10 = _mm_setzero_pd();\ */
-/*     dc20 = _mm_setzero_pd();\ */
-/*     dc30 = _mm_setzero_pd();\ */
-/*     for (k=k_start;k<K4;){\ */
-/*         KERNEL_K1_2x4_avx512_intrinsics_packing\ */
-/*         KERNEL_K1_2x4_avx512_intrinsics_packing\ */
-/*         KERNEL_K1_2x4_avx512_intrinsics_packing\ */
-/*         KERNEL_K1_2x4_avx512_intrinsics_packing\ */
-/*     }\ */
-/*     for (k=K4;k<k_end;){\ */
-/*         KERNEL_K1_2x4_avx512_intrinsics_packing\ */
-/*     }\ */
-/*     _mm_storeu_pd(&C(i,j), _mm_add_pd(dc00,_mm_loadu_pd(&C(i,j))));\ */
-/*     _mm_storeu_pd(&C(i,j+1), _mm_add_pd(dc10,_mm_loadu_pd(&C(i,j+1))));\ */
-/*     _mm_storeu_pd(&C(i,j+2), _mm_add_pd(dc20,_mm_loadu_pd(&C(i,j+2))));\ */
-/*     _mm_storeu_pd(&C(i,j+3), _mm_add_pd(dc30,_mm_loadu_pd(&C(i,j+3)))); */
-
 // NOTE sgemm_5 assumes a TRANSPOSED memory layout
 static void sgemm_5_mini(const int M, const int N, const int K,
                          double *restrict A, const int LDA, double *restrict B,
@@ -2652,9 +2621,6 @@ static void sgemm_5_mini(const int M, const int N, const int K,
   int i, j, k;
 
   double *abuff, *bbuff;
-
-  // TODO REMOVE
-  double *ptr_packing_a, *ptr_packing_b;
 
   const int                  //
       M24_MOD = B_SP(M, 24), //
