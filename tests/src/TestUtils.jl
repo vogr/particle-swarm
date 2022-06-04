@@ -1,5 +1,6 @@
 module TestUtils
 
+using Logging
 using Printf: @printf, @sprintf
 using ProgressBars
 
@@ -59,7 +60,7 @@ function fill_c_vec(V::AbstractVector, v::AbstractVector)
 end
 
 function starting_test(msg)
-    @printf "[starting]: %s\n" msg
+    @info "[starting]: $msg\n"
 end
 
 function sym_n(n)
