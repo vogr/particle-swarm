@@ -1288,7 +1288,7 @@ int prealloc_fit_surrogate_6_BLOCK_TRI(size_t max_n_phi, size_t n_P)
 #define BLOCK_TRI_Phi(i, j) (Ab[(i)*n_Ab + (j) + n_P])
 #define BLOCK_TRI_Zeros(i, j) (Ab[((i) + n_phi) * n_Ab + (j)])
 
-#define BLOCK_TRI_b(i) (Ab[(i)*n_Ab + n_Ab])
+#define BLOCK_TRI_b(i) (Ab[(i)*n_Ab + n_A])
 
 int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
 {
@@ -1395,16 +1395,17 @@ int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
   for (size_t k = 0; k < n_phi; k++)
   {
     // set b_k
-    BLOCK_TRI_b(k) = fxd[k];
+    BLOCK_TRI_b(k) = 0;
   }
 
   for (size_t k = n_phi; k < n_A; k++)
   {
     // set b_k
-    BLOCK_TRI_b(k) = 0;
+    BLOCK_TRI_b(k) = fxd[k - n_phi];
   }
 
 #if DEBUG_SURROGATE
+  printf("matrix size: %d\n", n_Ab);
   print_rect_matrixd(Ab, n_A, n_Ab, "Ab");
 #endif
 
