@@ -1802,7 +1802,7 @@ int lu_solve_2(int N, double *A, double *b)
       ;
 
   // Use unblocked code
-  if (1) // (NB <= 1 || NB >= MIN_MN)
+  if (NB <= 1 || NB >= MIN_MN)
   {
     retcode = sgetf2_2(M, N, A, LDA, ipiv);
     if (retcode != 0)
