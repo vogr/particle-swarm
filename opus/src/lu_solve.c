@@ -2518,15 +2518,15 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 #define INIT_1x4B s_c0 = s_c1 = s_c2 = s_c3 = 0.;
 
 #define DO_1x4B                                                                \
-  s_a0 = -(*abuff);                                                            \
+  s_a0 = *abuff;                                                               \
   s_b0 = *(bbuff + 0);                                                         \
   s_b1 = *(bbuff + 1);                                                         \
-  s_c0 += s_a0 * s_b0;                                                         \
-  s_c1 += s_a0 * s_b1;                                                         \
+  s_c0 -= s_a0 * s_b0;                                                         \
+  s_c1 -= s_a0 * s_b1;                                                         \
   s_b0 = *(bbuff + 2);                                                         \
   s_b1 = *(bbuff + 3);                                                         \
-  s_c2 += s_a0 * s_b0;                                                         \
-  s_c3 += s_a0 * s_b1;                                                         \
+  s_c2 -= s_a0 * s_b0;                                                         \
+  s_c3 -= s_a0 * s_b1;                                                         \
   ++k, ++abuff, bbuff += 4;
 
 #define STORE_1x4B                                                             \
@@ -2556,11 +2556,11 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 #define INIT_1x2B s_c0 = s_c1 = 0.;
 
 #define DO_1x2B                                                                \
-  s_a0 = -(*abuff);                                                            \
+  s_a0 = *abuff;                                                               \
   s_b0 = *(bbuff + 0);                                                         \
   s_b1 = *(bbuff + 1);                                                         \
-  s_c0 += s_a0 * s_b0;                                                         \
-  s_c1 += s_a0 * s_b1;                                                         \
+  s_c0 -= s_a0 * s_b0;                                                         \
+  s_c1 -= s_a0 * s_b1;                                                         \
   ++k, ++abuff, bbuff += 2;
 
 #define STORE_1x2B                                                             \
@@ -2588,9 +2588,9 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 #define INIT_1x1B s_c0 = 0.;
 
 #define DO_1x1B                                                                \
-  s_a0 = -(*abuff);                                                            \
+  s_a0 = *abuff;                                                               \
   s_b0 = *(bbuff + 0);                                                         \
-  s_c0 += s_a0 * s_b0;                                                         \
+  s_c0 -= s_a0 * s_b0;                                                         \
   ++k, ++abuff, ++bbuff;
 
 #define STORE_1x1B TIX(C, LDC, i + 0, j + 0) += s_c0;
@@ -2728,17 +2728,7 @@ static void sgemm_5_mini(const int M, const int N, const int K,
       s_c3  //
       ;
 
-  i = 0;
-
-  // NOTE from personal tests I've seen that the
-  // size of 24 makes the multiplication much slower.
-  // Not sure if this will be the case in practice so
-  // we can try it out.
-  //
-  // TODO run tests with estimated sized matrices
-  // and dimensions.
-
-  j = 0;
+  i = j = 0;
 
   for (; j < N4_MOD; j += 4)
   {
@@ -2807,19 +2797,17 @@ static void pack_a(double *dst, double *src, int LDA, int M, int N)
   double *s0, *d0 = dst;
   i = 0;
 
+  __m256d psrc0, psrc4;
+
   for (; i < M - 7; i += 8)
   {
     s0 = src + i;
     for (j = 0; j < N; ++j, dst += 8, s0 += LDA)
     {
-      *(dst + 0) = *(s0 + 0);
-      *(dst + 1) = *(s0 + 1);
-      *(dst + 2) = *(s0 + 2);
-      *(dst + 3) = *(s0 + 3);
-      *(dst + 4) = *(s0 + 4);
-      *(dst + 5) = *(s0 + 5);
-      *(dst + 6) = *(s0 + 6);
-      *(dst + 7) = *(s0 + 7);
+      psrc0 = _mm256_loadu_pd(s0 + 0);
+      psrc4 = _mm256_loadu_pd(s0 + 4);
+      _mm256_storeu_pd(dst + 0, psrc0);
+      _mm256_storeu_pd(dst + 4, psrc4);
     }
   }
 
@@ -2828,15 +2816,14 @@ static void pack_a(double *dst, double *src, int LDA, int M, int N)
     s0 = src + i;
     for (j = 0; j < N; ++j, dst += 4, s0 += LDA)
     {
-      *(dst + 0) = *(s0 + 0);
-      *(dst + 1) = *(s0 + 1);
-      *(dst + 2) = *(s0 + 2);
-      *(dst + 3) = *(s0 + 3);
+      psrc0 = _mm256_loadu_pd(s0 + 0);
+      _mm256_storeu_pd(dst + 0, psrc0);
     }
   }
 
   for (; i < M - 1; i += 2)
   {
+    // NOTE you could do this with an SSE instruction
     s0 = src + i;
     for (j = 0; j < N; ++j, dst += 2, s0 += LDA)
     {
@@ -2905,17 +2892,6 @@ static void pack_b(double *dst, double *src, int LDA, int M, int N)
   }
 }
 
-static void print_m(double *A, int m, int n)
-{
-  for (int i = 0; i < m; ++i)
-  {
-    for (int j = 0; j < n; ++j)
-      printf("%f ", MIX(A, n, i, j));
-    printf("\n");
-  }
-  printf("\n");
-}
-
 void sgemm_5(int M, int N, int K, double alpha, double *restrict A, int LDA,
              double *restrict B, int LDB, double beta, double *restrict C,
              int LDC)
@@ -2940,7 +2916,7 @@ void sgemm_5(int M, int N, int K, double alpha, double *restrict A, int LDA,
         d_i = MIN(M - i, M_BLOCK);
         pack_a(AL, &TIX(A, LDA, i, k), LDA, d_i, d_k);
         sgemm_5_mini(d_i, d_j, d_k, //
-                     AL, -10E5,     //
+                     AL, -10E5,     // NOTE these shouldn't be used
                      BL, -10E5,     //
                      &TIX(C, LDC, i, j), LDC);
       }
@@ -3644,24 +3620,37 @@ int lu_solve_6(int N, double *A, double *b)
       if (retcode != 0)
         return retcode;
 
-      // Update the pivot indices
-      for (k = ib; k < MIN(M, ib + IB) - 31; k += 32)
-      {
-        pib = _mm256_set1_epi32(ib); // XXX sequence of instructions
+      pib = _mm256_set1_epi32(ib); // XXX sequence of instructions
 
+      // ----
+
+      k = ib;
+
+      // Update the pivot indices
+      for (; k < MIN(M, ib + IB) - 15; k += 16)
+      {
         ipiv_k0 = _mm256_loadu_si256((void *)(ipiv + k + 0));
         _mm256_storeu_si256((void *)(ipiv + k + 0),
                             _mm256_add_epi32(ipiv_k0, pib));
 
-        ipiv_k0 = _mm256_loadu_si256((void *)(ipiv + k + 16));
-        _mm256_storeu_si256((void *)(ipiv + k + 16),
+        ipiv_k0 = _mm256_loadu_si256((void *)(ipiv + k + 8));
+        _mm256_storeu_si256((void *)(ipiv + k + 8),
                             _mm256_add_epi32(ipiv_k0, pib));
       }
-      // TODO unroll factor 16 ?
+
+      for (; k < MIN(M, ib + IB) - 7; k += 8)
+      {
+        ipiv_k0 = _mm256_loadu_si256((void *)(ipiv + k + 0));
+        _mm256_storeu_si256((void *)(ipiv + k + 0),
+                            _mm256_add_epi32(ipiv_k0, pib));
+      }
+
       for (; k < MIN(M, ib + IB); ++k)
       {
         ipiv[k + 0] += ib;
       }
+
+      // ----
 
       // Apply interchanges to columns 0 : ib
       slaswp_6(ib, A, LDA, ib, ib + IB, ipiv, 1);
