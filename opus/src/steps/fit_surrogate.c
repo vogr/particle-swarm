@@ -26,7 +26,7 @@ int prealloc_fit_surrogate(size_t max_n_phi, size_t n_P)
   FIT_SURROGATE_PREALLOC_VERSION(max_n_phi, n_P);
 }
 
-#define DEBUG_SURROGATE 0
+#define DEBUG_SURROGATE 1
 
 // TODO: include past_refinement_points in phi !!!
 
@@ -1187,10 +1187,10 @@ int fit_surrogate_6_LU(struct pso_data_constant_inertia *pso)
     for (size_t i = 0; i < j; i++)
     {
       double phi_i_j = d3_to_u_j_cached[i];
-      A[i * n_Ab + j] = phi_i_j;
-      A[j * n_Ab + i] = phi_i_j;
+      A[i * n_A + j] = phi_i_j;
+      A[j * n_A + i] = phi_i_j;
     }
-    A[j * n_Ab + j] = 0.;
+    A[j * n_A + j] = 0.;
   }
 
   // P and tP are blocks in A
@@ -1202,16 +1202,16 @@ int fit_surrogate_6_LU(struct pso_data_constant_inertia *pso)
     double *u = x_distincts + k * dimensions;
 
     // P(p,0) = 1;
-    A[k * (n_A + 1) + n_phi + 0] = 1;
+    A[k * n_A + n_phi + 0] = 1;
     // tP(0,p) = 1;
-    A[(n_phi + 0) * (n_A + 1) + k] = 1;
+    A[(n_phi + 0) * n_A + k] = 1;
 
     for (int j = 0; j < dimensions; j++)
     {
       // P(p,1+j) = u[j];
-      A[k * (n_A + 1) + n_phi + j + 1] = u[j];
+      A[k * n_A + n_phi + j + 1] = u[j];
       // tP(1+j,p) = u[j];
-      A[(n_phi + 1 + j) * (n_A + 1) + k] = u[j];
+      A[(n_phi + 1 + j) * n_A + k] = u[j];
     }
   }
 
@@ -1220,7 +1220,7 @@ int fit_surrogate_6_LU(struct pso_data_constant_inertia *pso)
   {
     for (size_t j = n_phi; j < n_A; j++)
     {
-      A[i * (n_A + 1) + j] = 0;
+      A[i * n_A + j] = 0;
     }
   }
 
@@ -1240,7 +1240,8 @@ int fit_surrogate_6_LU(struct pso_data_constant_inertia *pso)
   }
 
 #if DEBUG_SURROGATE
-  print_rect_matrixd(Ab, n_A, n_A + 1, "Ab");
+  print_matrixd(A, n_A, "A");
+  print_vectord(b, n_A, "b");
 #endif
 
   if (lu_solve(n_A, A, b) < 0)
@@ -1287,7 +1288,7 @@ int prealloc_fit_surrogate_6_BLOCK_TRI(size_t max_n_phi, size_t n_P)
 #define BLOCK_TRI_Phi(i, j) (Ab[(i)*n_Ab + (j) + n_P])
 #define BLOCK_TRI_Zeros(i, j) (Ab[((i) + n_phi) * n_Ab + (j)])
 
-#define BLOCK_TRI_b(i) (Ab[(i) * n_Ab + n_Ab])
+#define BLOCK_TRI_b(i) (Ab[(i)*n_Ab + n_Ab])
 
 int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
 {
