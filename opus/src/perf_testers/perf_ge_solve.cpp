@@ -55,6 +55,7 @@ extern "C" int perf_test_ge_solve(int N, double *Ab, double *x)
 {
   register_functions_GE_SOLVE();
   ArgumentRestorerGE arg_restorer{N, Ab, x};
-  return perf_tester.perf_test_all_registered(std::move(arg_restorer), N, Ab,
-                                              x);
+  int input_size = N;
+  return perf_tester.perf_test_all_registered(std::move(arg_restorer),
+                                              input_size, N, Ab, x);
 }

@@ -67,7 +67,6 @@ OBJ_COMMON := src/helpers.o src/local_refinement.o src/logging.o \
 OBJ_LIB := src/perf_testers/perf_ge_solve.o \
 		src/perf_testers/perf_lu_solve.o \
 		src/perf_testers/perf_mmm.o \
-		src/perf_testers/perf_fit_surrogate.o \
 		src/pso_ffi.o \
 		src/perf_testers/perf_block_tri_solve.o
 # Object files required for the the executable

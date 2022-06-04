@@ -42,15 +42,21 @@ static double griewank_Nd(double const *const x)
 static struct option long_options[] = {
     {"max-time", required_argument, 0, 't'},
     {"print", no_argument, 0, 'P'},
-    {"bench-fit-surrogate", no_argument, 0, 'f'},
-    {"bench-surrogate-eval", no_argument, 0, 'e'},
+    {"bench-fit-surrogate", required_argument, 0, 'f'},
+    {"bench-surrogate-eval", required_argument, 0, 'e'},
     {0, 0, 0, 0}};
+
+#define N_INPUT_SIZES 40
 
 int main(int argc, char **argv)
 {
-  int time_max = 60;
+  int time_between_measures = 10;
   bool do_bench_fit_surrogate = false;
+  char *fit_surrogate_name = NULL;
+
   bool do_bench_surrogate_eval = false;
+  char *surrogate_eval_name = NULL;
+
   bool do_print_outputs = false;
 
   while (1)
@@ -63,13 +69,15 @@ int main(int argc, char **argv)
     switch (c)
     {
     case 't':
-      time_max = std::stoi(optarg);
+      time_between_measures = std::stoi(optarg);
       break;
     case 'f':
       do_bench_fit_surrogate = true;
+      fit_surrogate_name = optarg;
       break;
     case 'e':
       do_bench_surrogate_eval = true;
+      surrogate_eval_name = optarg;
       break;
     case 'P':
       do_print_outputs = true;
@@ -87,6 +95,7 @@ int main(int argc, char **argv)
    */
   srand(42);
 
+  int time_max = N_INPUT_SIZES * time_between_measures;
   double inertia = 0.8;
   double social = 0.1, cognition = 0.2;
   double local_refinement_box_size = 5.;
@@ -127,42 +136,47 @@ int main(int argc, char **argv)
 
   pso_constant_inertia_first_steps(&pso, SPACE_FILLING_DESIGN_SIZE,
                                    space_filling_design);
-
-  while (pso.time < pso.time_max - 1)
+  for (int k_input = 0; k_input < N_INPUT_SIZES; k_input++)
   {
-    pso_constant_inertia_loop(&pso);
-  }
+    while (pso.time < k_input * time_between_measures - 1)
+    {
+      pso_constant_inertia_loop(&pso);
+    }
 
-  if (do_print_outputs)
-  {
-    size_t lambda_p_s = pso.x_distinct_s + (pso.dimensions + 1);
-    print_vectord(pso.lambda_p, lambda_p_s, "lamdbda_p");
+    if (do_print_outputs)
+    {
+      size_t lambda_p_s = pso.x_distinct_s + (pso.dimensions + 1);
+      // print_vectord(pso.lambda_p, lambda_p_s, "lamdbda_p");
 
-    double x[DIMENSION] = {0};
-    printf("s(0) = %f\n", surrogate_eval(&pso, x));
-  }
+      double x[DIMENSION] = {0};
+      printf("s(0) = %f\n", surrogate_eval(&pso, x));
+    }
 
-  if (do_bench_fit_surrogate)
-  {
+    size_t n_A = pso.x_distinct_s + pso.dimensions + 1;
 
-    PerformanceTester<fit_surrogate_fun_t> perf_tester;
+    if (do_bench_fit_surrogate)
+    {
 
-    auto arg_restorer = [&]()
-    { pso.x_distinct_idx_of_last_batch = pso.x_distinct_s - 10; };
+      PerformanceTester<fit_surrogate_fun_t> perf_tester;
 
-    perf_tester.add_function(&fit_surrogate, "fit_surrogate", 1);
-    perf_tester.perf_test_all_registered(std::move(arg_restorer), &pso);
-  }
+      auto arg_restorer = [&]()
+      { pso.x_distinct_idx_of_last_batch = pso.x_distinct_s - 10; };
 
-  if (do_bench_surrogate_eval)
-  {
-    PerformanceTester<surrogate_eval_fun_t> perf_tester;
+      perf_tester.add_function(&fit_surrogate, fit_surrogate_name, 1);
+      perf_tester.perf_test_all_registered(std::move(arg_restorer), n_A, &pso);
+    }
 
-    // nothing to restore, surrogate eval doesn't modify the pso
-    auto arg_restorer = [&]() {};
+    if (do_bench_surrogate_eval)
+    {
+      PerformanceTester<surrogate_eval_fun_t> perf_tester;
 
-    double x[DIMENSION] = {0};
-    perf_tester.add_function(&surrogate_eval, "surrogate_eval", 1);
-    perf_tester.perf_test_all_registered(std::move(arg_restorer), &pso, x);
+      // nothing to restore, surrogate eval doesn't modify the pso
+      auto arg_restorer = [&]() {};
+
+      double x[DIMENSION] = {0};
+      perf_tester.add_function(&surrogate_eval, surrogate_eval_name, 1);
+      perf_tester.perf_test_all_registered(std::move(arg_restorer), n_A, &pso,
+                                           x);
+    }
   }
 }

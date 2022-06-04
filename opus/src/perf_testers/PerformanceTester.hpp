@@ -42,7 +42,7 @@ extern "C"
 }
 
 //#define PERF_TESTER_NR 32
-#define PERF_TESTER_CYCLES_REQUIRED 1e8
+#define PERF_TESTER_CYCLES_REQUIRED 1e7
 #define PERF_TESTER_REP 50
 //#define PERF_TESTER_EPS (1e-3)
 
@@ -65,7 +65,6 @@ class PerformanceTester<Ret_T (*)(Args_T...)>
 private:
   std::vector<fun_T> userFuncs;
   std::vector<std::string> funcNames;
-  std::vector<int> funcFlops;
   int numFuncs = 0;
 
 public:
@@ -77,7 +76,6 @@ public:
   {
     userFuncs.push_back(f);
     funcNames.emplace_back(name);
-    funcFlops.push_back(flop);
     numFuncs++;
   };
 
@@ -86,7 +84,7 @@ public:
    * If valid, then computes and reports and returns the number of cycles
    * required per iteration
    */
-  double perf_test(fun_T f, std::string desc, int flops,
+  double perf_test(fun_T f, std::string desc,
                    std::function<void()> arg_restorer, Args_T... args)
   {
     double cycles = 0.;
@@ -117,7 +115,7 @@ public:
 
     std::list<double> cyclesList;
 
-    std::cout << "Benchmarking over " << PERF_TESTER_REP << " * " << num_runs
+    std::cerr << "Benchmarking over " << PERF_TESTER_REP << " * " << num_runs
               << " runs.\n";
 
     // Actual performance measurements repeated REP times.
@@ -144,30 +142,29 @@ public:
   }
 
   int perf_test_all_registered(std::function<void()> arg_restorer,
-                               Args_T... args)
+                               int input_size, Args_T... args)
   {
-    std::cout << "Starting performance tests.";
+    // std::cerr << "Starting performance tests.";
     double perf;
     int i;
 
     if (numFuncs == 0)
     {
-      std::cout << std::endl;
-      std::cout << "No functions registered - nothing for driver to do"
+      std::cerr << std::endl;
+      std::cerr << "No functions registered - nothing for driver to do"
                 << std::endl;
-      std::cout << "Register functions by calling register_func(f, name)"
+      std::cerr << "Register functions by calling register_func(f, name)"
                 << std::endl;
-      std::cout << "in register_funcs()" << std::endl;
+      std::cerr << "in register_funcs()" << std::endl;
       return -1;
     }
 
-    std::cout << " " << numFuncs << " functions registered." << std::endl;
+    std::cerr << " " << numFuncs << " functions registered." << std::endl;
 
     for (i = 0; i < numFuncs; i++)
     {
-      perf = perf_test(userFuncs[i], funcNames[i], 1, arg_restorer, args...);
-      std::cout << std::endl << "Running: " << funcNames[i] << std::endl;
-      std::cout << perf << " cycles" << std::endl;
+      perf = perf_test(userFuncs[i], funcNames[i], arg_restorer, args...);
+      std::cout << funcNames[i] << "," << input_size << "," << perf << "\n";
     }
 
     return 0;

@@ -58,6 +58,7 @@ extern "C" int perf_test_tri_sys_solve(int N, int d, double *Ab, double *x)
 {
   register_functions_TRI_SYS_SOLVE();
   ArgumentRestorerTRI arg_restorer{N, d, Ab, x};
-  return perf_tester.perf_test_all_registered(std::move(arg_restorer), N, d, Ab,
-                                              x);
+  int input_size = N;
+  return perf_tester.perf_test_all_registered(std::move(arg_restorer),
+                                              input_size, N, d, Ab, x);
 }

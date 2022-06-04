@@ -57,8 +57,9 @@ extern "C" int perf_test_lu_solve(int N, double *A, double *b)
 
   ArgumentRestorerLU arg_restorer{N, A, b};
   lu_initialize_memory(N);
-  int ret =
-      perf_tester.perf_test_all_registered(std::move(arg_restorer), N, A, b);
+  int input_size = N;
+  int ret = perf_tester.perf_test_all_registered(std::move(arg_restorer),
+                                                 input_size, N, A, b);
   lu_free_memory();
   return ret;
 }

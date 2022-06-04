@@ -596,7 +596,7 @@ int triangular_system_solve_1(int N, double *Ab, double *x)
 void register_functions_TRI_SYS_SOLVE()
 {
   add_function_TRI_SYS_SOLVE(&triangular_system_solve_0,
-                             "Triangular System Solve Base", 1);
+                             "Triangular_System_Solve_Base", 1);
 }
 
 #endif

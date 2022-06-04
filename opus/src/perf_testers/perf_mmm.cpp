@@ -84,6 +84,8 @@ extern "C" int perf_test_mmm(int M, int N, int K, double alpha, double *A,
   register_functions_MMM();
   ArgumentRestorerMMM arg_restorer{M, N,   K,    alpha, A,  LDA,
                                    B, LDB, beta, C,     LDC};
-  return perf_tester.perf_test_all_registered(
-      std::move(arg_restorer), M, N, K, alpha, A, LDA, B, LDB, beta, C, LDC);
+  int input_size = M;
+  return perf_tester.perf_test_all_registered(std::move(arg_restorer),
+                                              input_size, M, N, K, alpha, A,
+                                              LDA, B, LDB, beta, C, LDC);
 }

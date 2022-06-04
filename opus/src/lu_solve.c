@@ -3698,22 +3698,22 @@ void register_functions_LU_SOLVE()
 {
   // add_function_LU_SOLVE(&lu_solve_0, "LU Solve Base", 1);
   // add_function_LU_SOLVE(&lu_solve_1, "LU Solve Recursive", 1);
-  add_function_LU_SOLVE(&lu_solve_2, "LU Solve Basic C Opts", 1);
+  add_function_LU_SOLVE(&lu_solve_2, "LU_Solve_Basic_C_Opts", 1);
 #ifdef TEST_MKL
-  add_function_LU_SOLVE(&lu_solve_3, "LU Solve Intel DGEMM", 1);
-  add_function_LU_SOLVE(&lu_solve_4, "Intel DGESV Row Major", 1);
+  add_function_LU_SOLVE(&lu_solve_3, "LU_Solve_Intel_DGEMM", 1);
+  add_function_LU_SOLVE(&lu_solve_4, "LU_Solve_Intel_DGESV_Row_Major", 1);
 #endif
-  add_function_LU_SOLVE(&lu_solve_5, "LU Solve Transposed", 1);
-  add_function_LU_SOLVE(&lu_solve_6, "LU Solve Transposed Vector", 1);
+  add_function_LU_SOLVE(&lu_solve_5, "LU_Solve_Transposed", 1);
+  add_function_LU_SOLVE(&lu_solve_6, "LU_Solve_Transposed_Vector", 1);
 }
 
 void register_functions_MMM()
 {
   // add_function_MMM(&sgemm_1, "MMM Base", 1);
-  add_function_MMM(&sgemm_2, "MMM C opts", 1);
-  add_function_MMM(&sgemm_5, "MMM Copts + Vector", 1);
+  add_function_MMM(&sgemm_2, "MMM_C_opts", 1);
+  add_function_MMM(&sgemm_5, "MMM_Copts_Vector", 1);
 #ifdef TEST_MKL
-  add_function_MMM(&sgemm_intel, "MMM Intel", 1);
+  add_function_MMM(&sgemm_intel, "MMM_Intel", 1);
 #endif
 }
 

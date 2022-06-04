@@ -12,61 +12,89 @@ CONFIGURATIONS = {}
 
 
 CONFIGURATIONS[0] = {
-        "bench-flags": ["--bench-fit-surrogate"],
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_0"],
         "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_0 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_0 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_0",
 }
 CONFIGURATIONS[1] = {
-        "bench-flags": ["--bench-fit-surrogate"],
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_1"],
         "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_1 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_1 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_0",
 }
 CONFIGURATIONS[2] = {
-        "bench-flags": ["--bench-fit-surrogate"],
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_2"],
         "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_2 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_2 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_0",
 }
 
 CONFIGURATIONS[3] = {
-        "bench-flags": ["--bench-fit-surrogate"],
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_3"],
         "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_3 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_3 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_0",
 }
 CONFIGURATIONS[4] = {
-        "bench-flags": ["--bench-fit-surrogate"],
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_4"],
         "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_4 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_4 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_0",
 }
 CONFIGURATIONS[5] = {
-        "bench-flags": ["--bench-fit-surrogate"],
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_5"],
         "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_5 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_5 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_0",
 }
 CONFIGURATIONS[6] = {
-        "bench-flags": ["--bench-fit-surrogate"],
-        "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_6 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_6 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_1",
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_6_GE"],
+        "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_6 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_6 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_1 -DLINEAR_SYSTEM_SOLVER_USED=1",
 }
 
 
 
+CONFIGURATIONS[8] = {
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_6_LU_1"],
+        "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_6 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_6 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_1 -DLINEAR_SYSTEM_SOLVER_USED=2 -DLU_SOLVE_VERSION=lu_solve_1",
+}
+CONFIGURATIONS[9] = {
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_6_LU_2"],
+        "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_6 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_6 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_1 -DLINEAR_SYSTEM_SOLVER_USED=2 -DLU_SOLVE_VERSION=lu_solve_2",
+}
 CONFIGURATIONS[10] = {
-        "bench-flags": ["--bench-surrogate-eval"],
-        "CPPFLAGS": "-DSURROGATE_EVAL_VERSION=surrogate_eval_0",
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_6_LU_5"],
+        "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_6 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_6 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_1 -DLINEAR_SYSTEM_SOLVER_USED=2 -DLU_SOLVE_VERSION=lu_solve_5",
 }
 CONFIGURATIONS[11] = {
-        "bench-flags": ["--bench-surrogate-eval"],
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_6_LU_6"],
+        "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_6 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_6 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_1 -DLINEAR_SYSTEM_SOLVER_USED=2 -DLU_SOLVE_VERSION=lu_solve_6",
+}
+
+
+
+
+CONFIGURATIONS[20] = {
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_6_TRI"],
+        "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_6 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_6 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_1 -DLINEAR_SYSTEM_SOLVER_USED=3",
+}
+
+
+
+CONFIGURATIONS[50] = {
+        "bench-flags": ["--bench-surrogate-eval", "surrogate_eval_0"],
+        "CPPFLAGS": "-DSURROGATE_EVAL_VERSION=surrogate_eval_0",
+}
+CONFIGURATIONS[51] = {
+        "bench-flags": ["--bench-surrogate-eval", "surrogate_eval_1"],
         "CPPFLAGS": "-DSURROGATE_EVAL_VERSION=surrogate_eval_1",
 }
-CONFIGURATIONS[12] = {
-        "bench-flags": ["--bench-surrogate-eval"],
+CONFIGURATIONS[52] = {
+        "bench-flags": ["--bench-surrogate-eval", "surrogate_eval_2"],
         "CPPFLAGS": "-DSURROGATE_EVAL_VERSION=surrogate_eval_2",
 }
-CONFIGURATIONS[13] = {
-        "bench-flags": ["--bench-surrogate-eval"],
+CONFIGURATIONS[53] = {
+        "bench-flags": ["--bench-surrogate-eval", "surrogate_eval_3"],
         "CPPFLAGS": "-DSURROGATE_EVAL_VERSION=surrogate_eval_3",
 }
-CONFIGURATIONS[14] = {
-        "bench-flags": ["--bench-surrogate-eval"],
+CONFIGURATIONS[54] = {
+        "bench-flags": ["--bench-surrogate-eval", "surrogate_eval_4"],
         "CPPFLAGS": "-DSURROGATE_EVAL_VERSION=surrogate_eval_4",
 }
-CONFIGURATIONS[15] = {
-        "bench-flags": ["--bench-surrogate-eval"],
+CONFIGURATIONS[55] = {
+        "bench-flags": ["--bench-surrogate-eval", "surrogate_eval_5"],
         "CPPFLAGS": "-DSURROGATE_EVAL_VERSION=surrogate_eval_5",
 }
+
 parser = argparse.ArgumentParser(description='Benchmark under several compile-time configurations.')
 parser.add_argument('config_nbs', metavar='N', type=int, nargs='*',
                     help='the configs to build/benchmark/profile [defaults to all]')

@@ -833,10 +833,10 @@ int gaussian_elimination_solve_2(int N, double *Ab, double *x)
 // weirdness of compiling seperately and linking.
 void register_functions_GE_SOLVE()
 {
-  add_function_GE_SOLVE(&gaussian_elimination_solve_0, "GE Solve Base", 1);
-  add_function_GE_SOLVE(&gaussian_elimination_solve_1, "GE Solve Loop Unroll",
+  add_function_GE_SOLVE(&gaussian_elimination_solve_0, "GE_Solve_Base", 1);
+  add_function_GE_SOLVE(&gaussian_elimination_solve_1, "GE_Solve_Loop_Unroll",
                         1);
-  add_function_GE_SOLVE(&gaussian_elimination_solve_2, "GE Solve Naive Vector",
+  add_function_GE_SOLVE(&gaussian_elimination_solve_2, "GE_Solve_Naive_Vector",
                         1);
 }
 
