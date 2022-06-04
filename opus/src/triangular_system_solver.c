@@ -15,6 +15,8 @@
 
 #define DEBUG_GE_SOLVER 0
 
+int triangular_system_solve_0(int N, int d, double *Ab, double *x);
+
 int triangular_system_solve(int N, int d, double *Ab, double *x)
 {
   return triangular_system_solve_0(N, d, Ab, x);
