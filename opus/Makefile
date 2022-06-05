@@ -11,6 +11,9 @@ DEBUG ?= 1
 # Build the pso solver as a library? Default=no
 PSO_SHARED ?= 0
 
+# Build the run_pso_testers main file? Default=no
+RUN_PERF_TESTERS ?= 0
+
 ######
 # Compilation flags
 ######
@@ -61,7 +64,8 @@ OBJ_COMMON := src/helpers.o src/local_refinement.o src/logging.o \
 		src/steps/step6.o src/steps/step7.o src/steps/step8.o \
 		src/steps/step9.o src/steps/step10.o src/steps/step11.o \
 		src/steps/surrogate_eval.o src/steps/fit_surrogate.o \
-		src/triangular_system_solver.o src/latin_hypercube.o
+		src/triangular_system_solver.o src/latin_hypercube.o \
+		
 
 # Object files required for the the library
 OBJ_LIB := src/perf_testers/perf_ge_solve.o \
@@ -69,8 +73,18 @@ OBJ_LIB := src/perf_testers/perf_ge_solve.o \
 		src/perf_testers/perf_mmm.o \
 		src/pso_ffi.o \
 		src/perf_testers/perf_block_tri_solve.o
+
 # Object files required for the the executable
-OBJ_EXE := src/main.o
+ifeq ($(RUN_PERF_TESTERS), 1)
+	OBJ_EXE := src/perf_testers/run_perf_testers.o
+
+	OBJ_COMMON += src/perf_testers/perf_ge_solve.o \
+		src/perf_testers/perf_lu_solve.o \
+		src/perf_testers/perf_mmm.o \
+		src/perf_testers/perf_block_tri_solve.o
+else 
+	OBJ_EXE := src/main.o
+endif
 
 ######
 # Library vs executable compilation options
