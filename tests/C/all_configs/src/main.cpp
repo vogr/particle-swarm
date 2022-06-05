@@ -17,9 +17,9 @@ extern "C"
 #include "steps/surrogate_eval.h"
 }
 
-#define POPSIZE 15
+#define POPSIZE 9
 #define DIMENSION 13
-#define SPACE_FILLING_DESIGN_SIZE 20
+#define SPACE_FILLING_DESIGN_SIZE 16
 
 static double griewank_Nd(double const *const x)
 {
@@ -153,9 +153,9 @@ int main(int argc, char **argv)
 
   pso_constant_inertia_first_steps(&pso, SPACE_FILLING_DESIGN_SIZE,
                                    space_filling_design);
-  for (int k_input = 0; k_input < nb_measurements; k_input++)
+  for (int k_input = 0; k_input < nb_measurements + 1; k_input++)
   {
-    while (pso.time < k_input * time_between_measures - 1)
+    while (pso.time < k_input * time_between_measures)
     {
       pso_constant_inertia_loop(&pso);
     }

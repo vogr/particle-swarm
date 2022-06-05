@@ -163,7 +163,8 @@ def main(argv):
 
     if args.benchmark:
         subprocess.run(["make"], cwd=curdir, env=build_env)
-        os.truncate(outfile, 0)
+        # truncate the output file
+        outfile.write_bytes(b"")
         for i in config_nbs:
             config = CONFIGURATIONS[i]
             print(f"\n********\nBENCHMARKING CONFIG {i}:\n{config}\n{additionnal_bench_flags}\n********\n")
