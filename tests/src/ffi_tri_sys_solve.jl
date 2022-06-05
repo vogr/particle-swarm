@@ -70,7 +70,12 @@ function solve_tests()
 
         @testset "Random TRI SYS Solve Small" begin
             # tu.@run_random_N 100 2^5 2^7 "small try sis solve" test_lambda
-            tu.@run_random_N 100 9 9 "small try sis solve" test_lambda
+            tu.@run_random_N 100 10 200 "small try sis solve" test_lambda
+        end
+
+        @testset "Random TRI SYS Solve Large" begin
+            # tu.@run_random_N 100 2^5 2^7 "small try sis solve" test_lambda
+            tu.@run_random_N 100 247 2000 "large try sis solve" test_lambda
         end
 
 

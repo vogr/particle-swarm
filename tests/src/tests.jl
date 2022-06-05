@@ -78,17 +78,16 @@ LU.init(2^15)
 # solve_perf_tests_range(100:500:1024)
 # PSO_GE.solve_tests()
 
-# PSO_TRI_SYS.solve_tests()
+PSO_TRI_SYS.solve_tests()
 
-start = round(Int, 100^(1/3))
-# step = round(Int, 100^(1/3))
-step = 1
-stop = round(Int, 10000^(1/3))
+# start = round(Int, 100^(1/3))
+# step = 1
+# stop = round(Int, 10000^(1/3))
 
-range = [n^3 for n = start:step:stop]
-print(range, '\n')
-solve_perf_tests_range(range)
-solve_perf_tests_block_tri_range(range)
+# range = [n^3 for n = start:step:stop]
+# print(range, '\n')
+# solve_perf_tests_range(range)
+# solve_perf_tests_block_tri_range(range)
 
 # LU.teardown()
 
