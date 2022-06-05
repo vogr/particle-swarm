@@ -68,6 +68,37 @@ function sym_n(n)
     return A+A'
 end
 
+# Matrices generated are of form:
+# |  Q  | P |
+# | P^t | 0 |
+#  === AND ===
+# | P |  Q  |
+# | 0 | P^t |
+# Where we assume that the dimensions are: 
+# | c x c | c x d | * | d |  =  | d |
+# | d x c | d x d |   | c |     | c |
+# === AND ===
+# | c x d | c x c | * | c |  =  | c |
+# | d x d | d x c |   | d |     | d |
+function build_matrices(c::Int64, d::Int64)
+    P = rand(c, d)
+    Q = sym_n(c)
+
+    Z = zeros(d, d)
+
+    R1 = hcat(Q, P)
+    R2 = hcat(P', Z)
+
+    R = vcat(R1, R2)
+
+    M1 = hcat(P, Q)
+    M2 = hcat(Z, P')
+
+    M = vcat(M1, M2)
+
+    R, M
+end
+
 # Matrix generated is of form:
 # | P |  Q  |
 # | 0 | P^t |

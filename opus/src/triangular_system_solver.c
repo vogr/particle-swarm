@@ -19,10 +19,11 @@
 #define APPROX_ZERO(number) (fabs(number) < THRESHOLD)
 
 int triangular_system_solve_0(int N, int d, double *Ab, double *x);
+int triangular_system_solve_1(int N, int d, double *Ab, double *x);
 
 int triangular_system_solve(int N, int d, double *Ab, double *x)
 {
-  return triangular_system_solve_0(N, d, Ab, x);
+  return triangular_system_solve_1(N, d, Ab, x);
 }
 
 static void swapd(double *a, int i, int j)
@@ -125,7 +126,7 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
     // as it is known to give value 0 (and not used in back substitution)
     // Keep for debugging for now
 
-    for (int i = k + 1; i < N; i++)
+    for (int i = k + 1; i < t; i++)
     {
       double r = MAT_Ab(i, k) / p;
       for (int j = k; j < N + 1; j++)
@@ -135,7 +136,7 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
     }
   }
 
-  if (APPROX_ZERO(MAT_Ab(d - 1, d - 1)))
+  if (APPROX_ZERO(MAT_Ab(d, d)))
   {
     // singular matrix
     fprintf(stderr,
@@ -241,12 +242,241 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
  * DON'T USE THAT IT DOESN'T WORK
  * - Loop unrolling up to depth 8.
  */
-int triangular_system_solve_1(int N, double *Ab, double *x)
+int triangular_system_solve_1(int N, int d, double *Ab, double *x)
 {
+  int t = N - d;
+
   // loop indices
   int k, i, j;
 
-  for (k = 0; k < N - 1; k++)
+// First small block
+  for (k = 0; k < d; k++)
+  {
+    // Find largest possible pivot in submatrix of A
+
+    double                        //
+        v_i[4],                   //
+        p = 0.0,                  //
+        p_i[4] = {0., 0., 0., 0.} //
+    ;
+
+    int                            //
+        pivot_row_idx = -1,        //
+        pr_i[4] = {-1, -1, -1, -1} //
+    ;
+
+    // NOTE this is a column major iteration
+    // ! unrolling will probably not help
+    // but vectorization might.
+    //
+    // Potentially we can change iteration order
+    // for better locality.
+    for (i = k; i < t - 3; i += 4)
+    {
+      v_i[0] = MAT_Ab(i + 0, k);
+      v_i[1] = MAT_Ab(i + 1, k);
+      v_i[2] = MAT_Ab(i + 2, k);
+      v_i[3] = MAT_Ab(i + 3, k);
+
+      if (fabs(v_i[0]) > fabs(p_i[0]))
+      {
+        p_i[0] = v_i[0];
+        pr_i[0] = i + 0;
+      }
+
+      if (fabs(v_i[1]) > fabs(p_i[1]))
+      {
+        p_i[1] = v_i[1];
+        pr_i[1] = i + 1;
+      }
+
+      if (fabs(v_i[2]) > fabs(p_i[2]))
+      {
+        p_i[2] = v_i[2];
+        pr_i[2] = i + 2;
+      }
+
+      if (fabs(v_i[3]) > fabs(p_i[3]))
+      {
+        p_i[3] = v_i[3];
+        pr_i[3] = i + 3;
+      }
+
+    } // unroll i
+
+    for (; i < t; i++)
+    {
+      v_i[0] = MAT_Ab(i + 0, k);
+
+      if (fabs(v_i[0]) > fabs(p_i[0]))
+      {
+        p_i[0] = v_i[0];
+        pr_i[0] = i;
+      }
+    } // leftover i
+
+    // -----
+
+    for (int ii = 0; ii < 4; ii++)
+    {
+      if (fabs(p_i[ii]) > fabs(p))
+      {
+        p = p_i[ii];
+        pivot_row_idx = pr_i[ii];
+      }
+    }
+
+    // -----
+
+    if (pivot_row_idx < 0)
+    {
+      // singular matrix
+      fprintf(
+          stderr,
+          "ERROR: gaussian elimination failed: cannot find non-zero pivot for "
+          "sub-matrix %d\n",
+          k);
+      return -1;
+    }
+
+    if (k != pivot_row_idx)
+    {
+
+      for (j = k; j < N + 1 - 7; j += 8)
+      {
+        swapd(Ab, k * (N + 1) + j + 0, pivot_row_idx * (N + 1) + j + 0);
+        swapd(Ab, k * (N + 1) + j + 1, pivot_row_idx * (N + 1) + j + 1);
+        swapd(Ab, k * (N + 1) + j + 2, pivot_row_idx * (N + 1) + j + 2);
+        swapd(Ab, k * (N + 1) + j + 3, pivot_row_idx * (N + 1) + j + 3);
+
+        swapd(Ab, k * (N + 1) + j + 4, pivot_row_idx * (N + 1) + j + 4);
+        swapd(Ab, k * (N + 1) + j + 5, pivot_row_idx * (N + 1) + j + 5);
+        swapd(Ab, k * (N + 1) + j + 6, pivot_row_idx * (N + 1) + j + 6);
+        swapd(Ab, k * (N + 1) + j + 7, pivot_row_idx * (N + 1) + j + 7);
+      } // unrolled j
+
+      for (; j < N + 1; j++)
+      {
+        swapd(Ab, k * (N + 1) + j, pivot_row_idx * (N + 1) + j);
+      } // leftover j
+    }
+
+    // elimination: on A __and b__
+    // note: the first substraction could be skipped / or replaced by =0
+    // as it is known to give value 0 (and not used in back substitution)
+    // Keep for debugging for now
+
+    double   //
+        r_0, //
+        r_1, //
+        r_2, //
+        r_3, //
+
+        inv_p = 1 / p //
+        ;
+
+    // NOTE unroll i 4 times
+    //      unroll j 8 times
+    for (i = k + 1; i < t - 3; i += 4)
+    {
+
+      r_0 = inv_p * MAT_Ab(i + 0, k);
+      r_1 = inv_p * MAT_Ab(i + 1, k);
+      r_2 = inv_p * MAT_Ab(i + 2, k);
+      r_3 = inv_p * MAT_Ab(i + 3, k);
+
+      for (j = k; j < N + 1 - 7; j += 8)
+      {
+        // ----
+        MAT_Ab(i + 0, j + 0) -= r_0 * MAT_Ab(k, j + 0);
+        MAT_Ab(i + 0, j + 1) -= r_0 * MAT_Ab(k, j + 1);
+        MAT_Ab(i + 0, j + 2) -= r_0 * MAT_Ab(k, j + 2);
+        MAT_Ab(i + 0, j + 3) -= r_0 * MAT_Ab(k, j + 3);
+        MAT_Ab(i + 0, j + 4) -= r_0 * MAT_Ab(k, j + 4);
+        MAT_Ab(i + 0, j + 5) -= r_0 * MAT_Ab(k, j + 5);
+        MAT_Ab(i + 0, j + 6) -= r_0 * MAT_Ab(k, j + 6);
+        MAT_Ab(i + 0, j + 7) -= r_0 * MAT_Ab(k, j + 7);
+
+        // ----
+        MAT_Ab(i + 1, j + 0) -= r_1 * MAT_Ab(k, j + 0);
+        MAT_Ab(i + 1, j + 1) -= r_1 * MAT_Ab(k, j + 1);
+        MAT_Ab(i + 1, j + 2) -= r_1 * MAT_Ab(k, j + 2);
+        MAT_Ab(i + 1, j + 3) -= r_1 * MAT_Ab(k, j + 3);
+        MAT_Ab(i + 1, j + 4) -= r_1 * MAT_Ab(k, j + 4);
+        MAT_Ab(i + 1, j + 5) -= r_1 * MAT_Ab(k, j + 5);
+        MAT_Ab(i + 1, j + 6) -= r_1 * MAT_Ab(k, j + 6);
+        MAT_Ab(i + 1, j + 7) -= r_1 * MAT_Ab(k, j + 7);
+
+        // ----
+        MAT_Ab(i + 2, j + 0) -= r_2 * MAT_Ab(k, j + 0);
+        MAT_Ab(i + 2, j + 1) -= r_2 * MAT_Ab(k, j + 1);
+        MAT_Ab(i + 2, j + 2) -= r_2 * MAT_Ab(k, j + 2);
+        MAT_Ab(i + 2, j + 3) -= r_2 * MAT_Ab(k, j + 3);
+        MAT_Ab(i + 2, j + 4) -= r_2 * MAT_Ab(k, j + 4);
+        MAT_Ab(i + 2, j + 5) -= r_2 * MAT_Ab(k, j + 5);
+        MAT_Ab(i + 2, j + 6) -= r_2 * MAT_Ab(k, j + 6);
+        MAT_Ab(i + 2, j + 7) -= r_2 * MAT_Ab(k, j + 7);
+
+        // ----
+        MAT_Ab(i + 3, j + 0) -= r_3 * MAT_Ab(k, j + 0);
+        MAT_Ab(i + 3, j + 1) -= r_3 * MAT_Ab(k, j + 1);
+        MAT_Ab(i + 3, j + 2) -= r_3 * MAT_Ab(k, j + 2);
+        MAT_Ab(i + 3, j + 3) -= r_3 * MAT_Ab(k, j + 3);
+        MAT_Ab(i + 3, j + 4) -= r_3 * MAT_Ab(k, j + 4);
+        MAT_Ab(i + 3, j + 5) -= r_3 * MAT_Ab(k, j + 5);
+        MAT_Ab(i + 3, j + 6) -= r_3 * MAT_Ab(k, j + 6);
+        MAT_Ab(i + 3, j + 7) -= r_3 * MAT_Ab(k, j + 7);
+
+      } // j unrolled
+
+      for (; j < N + 1; j++)
+      {
+        MAT_Ab(i + 0, j) -= r_0 * MAT_Ab(k, j);
+        MAT_Ab(i + 1, j) -= r_1 * MAT_Ab(k, j);
+        MAT_Ab(i + 2, j) -= r_2 * MAT_Ab(k, j);
+        MAT_Ab(i + 3, j) -= r_3 * MAT_Ab(k, j);
+      } // leftover j
+
+    } // i unrolled
+
+    // -----
+
+    for (; i < t; i++)
+    {
+
+      r_0 = inv_p * MAT_Ab(i, k);
+
+      for (j = k; j < N + 1 - 7; j += 8)
+      {
+        MAT_Ab(i, j + 0) -= r_0 * MAT_Ab(k, j + 0);
+        MAT_Ab(i, j + 1) -= r_0 * MAT_Ab(k, j + 1);
+        MAT_Ab(i, j + 2) -= r_0 * MAT_Ab(k, j + 2);
+        MAT_Ab(i, j + 3) -= r_0 * MAT_Ab(k, j + 3);
+
+        MAT_Ab(i, j + 4) -= r_0 * MAT_Ab(k, j + 4);
+        MAT_Ab(i, j + 5) -= r_0 * MAT_Ab(k, j + 5);
+        MAT_Ab(i, j + 6) -= r_0 * MAT_Ab(k, j + 6);
+        MAT_Ab(i, j + 7) -= r_0 * MAT_Ab(k, j + 7);
+      } // j unrolled
+
+      for (; j < N + 1; j++)
+      {
+        MAT_Ab(i, j) -= r_0 * MAT_Ab(k, j);
+      } // leftover j
+
+    } // Leftover i
+  }
+
+  if (APPROX_ZERO(MAT_Ab(d, d)))
+  {
+    // singular matrix
+    fprintf(stderr, "ERROR: gaussian elimination failed: last pivot is 0\n");
+    return -1;
+  }
+
+
+// Second big block
+  for (k = d; k < N - 1; k++)
   {
     // Find largest possible pivot in submatrix of A
 
@@ -463,7 +693,7 @@ int triangular_system_solve_1(int N, double *Ab, double *x)
     } // Leftover i
   }
 
-  if (fabs(MAT_Ab(N - 1, N - 1)) < 1e-10)
+  if (APPROX_ZERO(MAT_Ab(N - 1, N - 1)))
   {
     // singular matrix
     fprintf(stderr, "ERROR: gaussian elimination failed: last pivot is 0\n");
@@ -524,6 +754,8 @@ void register_functions_TRI_SYS_SOLVE()
 {
   add_function_TRI_SYS_SOLVE(&triangular_system_solve_0,
                              "Triangular_System_Solve_Base", 1);
+  add_function_TRI_SYS_SOLVE(&triangular_system_solve_1,
+                             "Triangular_System_Solve_Loop_Unroll", 1);
 }
 
 #endif
