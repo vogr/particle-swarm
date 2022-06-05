@@ -114,8 +114,6 @@ stop = round(Int, 10000^(1/3))
 
 range = [n^3 for n = start:step:stop]
 print(range, '\n')
-# solve_perf_tests_range(range)
-# solve_perf_tests_block_tri_range(range)
 solve_all_perf_tests_range(range)
 
 # LU.teardown()
