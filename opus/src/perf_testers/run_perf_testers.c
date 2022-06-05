@@ -137,18 +137,19 @@ static void generate_random_vec(double *b, size_t n)
   }
 }
 
-static void init_perf_test() {
-    register_functions_GE_SOLVE();
-    register_functions_LU_SOLVE();
-    register_functions_TRI_SYS_SOLVE();
-    register_functions_MMM();
+static void init_perf_test()
+{
+  register_functions_GE_SOLVE();
+  register_functions_LU_SOLVE();
+  register_functions_TRI_SYS_SOLVE();
+  register_functions_MMM();
 
-    // enough mem
-    lu_initialize_memory((int) pow(2, 20));
+  // enough mem
+  lu_initialize_memory((int)pow(2, 20));
 }
 
-static void pre_perf_test(double **A_ge, double **A_lu, double **A_tri, double **b,
-                          double **x, size_t n, size_t d)
+static void pre_perf_test(double **A_ge, double **A_lu, double **A_tri,
+                          double **b, double **x, size_t n, size_t d)
 {
   *A_ge = realloc(*A_ge, n * (n + 1) * sizeof(double));
 
