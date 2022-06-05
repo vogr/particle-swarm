@@ -135,7 +135,6 @@ int triangular_system_solve_0(int N, int d, double *Ab, double *x)
     }
   }
 
-
   if (APPROX_ZERO(MAT_Ab(d - 1, d - 1)))
   {
     // singular matrix
