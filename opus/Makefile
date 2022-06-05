@@ -78,6 +78,8 @@ OBJ_LIB := src/perf_testers/perf_ge_solve.o \
 ifeq ($(RUN_PERF_TESTERS), 1)
 	OBJ_EXE := src/perf_testers/run_perf_testers.o
 
+	TEST_PERF=1
+	COMMON_FLAGS += -DTEST_PERF
 	OBJ_COMMON += src/perf_testers/perf_ge_solve.o \
 		src/perf_testers/perf_lu_solve.o \
 		src/perf_testers/perf_mmm.o \
