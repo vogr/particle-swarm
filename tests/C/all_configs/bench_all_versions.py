@@ -102,6 +102,8 @@ parser.add_argument('--build', action="store_true")
 parser.add_argument('--benchmark', action="store_true")
 parser.add_argument('--profile', action="store_true")
 parser.add_argument('--test', action="store_true")
+parser.add_argument('--interval', action="store")
+parser.add_argument('--measurements', action="store")
 parser.add_argument('-w', dest="outfile", action="store")
 
 
@@ -121,9 +123,19 @@ def main(argv):
     else:
         config_nbs = CONFIGURATIONS.keys()
 
-    outfile_flags = []
+    additionnal_bench_flags = []
+
+    outfile = None
     if args.outfile:
-        outfile_flags = ["--write", args.outfile]
+        outfile = Path(args.outfile).resolve()
+        additionnal_bench_flags += ["--write", str(outfile)]
+
+    if args.measurements:
+        additionnal_bench_flags += ["--measurements", args.measurements]
+
+    if args.interval:
+        additionnal_bench_flags += ["--interval", args.interval]
+
 
     if args.build:
         for i in config_nbs:
@@ -151,12 +163,13 @@ def main(argv):
 
     if args.benchmark:
         subprocess.run(["make"], cwd=curdir, env=build_env)
+        os.truncate(outfile, 0)
         for i in config_nbs:
             config = CONFIGURATIONS[i]
-            print(f"\n********\nBENCHMARKING CONFIG {i}:\n{config}\n{outfile_flags}\n********\n")
+            print(f"\n********\nBENCHMARKING CONFIG {i}:\n{config}\n{additionnal_bench_flags}\n********\n")
             libpso_destdir = libdir / "config{}".format(i)
             env = {"PATH": os.environ["PATH"], "LD_LIBRARY_PATH": str(libpso_destdir)}
-            subprocess.run(["./test"] + config["bench-flags"] + outfile_flags, env=env, cwd=curdir)
+            subprocess.run(["./test"] + config["bench-flags"] + additionnal_bench_flags, env=env, cwd=curdir)
 
     flame_dir = curdir / "flamegraphs"
     flame_dir.mkdir(exist_ok=True)

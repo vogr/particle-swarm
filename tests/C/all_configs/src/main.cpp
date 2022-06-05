@@ -41,18 +41,18 @@ static double griewank_Nd(double const *const x)
 }
 
 static struct option long_options[] = {
-    {"max-time", required_argument, 0, 't'},
+    {"interval", required_argument, 0, 'I'},
+    {"measurements", required_argument, 0, 'M'},
     {"print", no_argument, 0, 'P'},
     {"bench-fit-surrogate", required_argument, 0, 'f'},
     {"bench-surrogate-eval", required_argument, 0, 'e'},
     {"write", required_argument, 0, 'w'},
     {0, 0, 0, 0}};
 
-#define N_INPUT_SIZES 10
-
 int main(int argc, char **argv)
 {
-  int time_between_measures = 2;
+  int nb_measurements = 20;
+  int time_between_measures = 5;
   bool do_bench_fit_surrogate = false;
   char *fit_surrogate_name = NULL;
 
@@ -66,14 +66,20 @@ int main(int argc, char **argv)
   while (1)
   {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "tfeTw", long_options, nullptr);
+    int c = getopt_long(argc, argv, "IMPfew", long_options, nullptr);
     if (c == -1)
       break;
 
     switch (c)
     {
-    case 't':
+    case 'I':
       time_between_measures = std::stoi(optarg);
+      break;
+    case 'M':
+      nb_measurements = std::stoi(optarg);
+      break;
+    case 'P':
+      do_print_outputs = true;
       break;
     case 'f':
       do_bench_fit_surrogate = true;
@@ -82,9 +88,6 @@ int main(int argc, char **argv)
     case 'e':
       do_bench_surrogate_eval = true;
       surrogate_eval_name = optarg;
-      break;
-    case 'P':
-      do_print_outputs = true;
       break;
     case 'w':
       write_to_fname = optarg;
@@ -101,7 +104,7 @@ int main(int argc, char **argv)
   if (write_to_fname)
   {
     std::cerr << "Writing results to " << write_to_fname << "\n";
-    outfile.open(write_to_fname, outfile.trunc);
+    outfile.open(write_to_fname, outfile.app);
   }
 
   /*
@@ -109,7 +112,7 @@ int main(int argc, char **argv)
    */
   srand(42);
 
-  int time_max = N_INPUT_SIZES * time_between_measures;
+  int time_max = nb_measurements * time_between_measures;
   double inertia = 0.8;
   double social = 0.1, cognition = 0.2;
   double local_refinement_box_size = 5.;
@@ -150,7 +153,7 @@ int main(int argc, char **argv)
 
   pso_constant_inertia_first_steps(&pso, SPACE_FILLING_DESIGN_SIZE,
                                    space_filling_design);
-  for (int k_input = 0; k_input < N_INPUT_SIZES; k_input++)
+  for (int k_input = 0; k_input < nb_measurements; k_input++)
   {
     while (pso.time < k_input * time_between_measures - 1)
     {
