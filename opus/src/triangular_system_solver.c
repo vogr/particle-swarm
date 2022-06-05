@@ -761,7 +761,7 @@ int triangular_system_solve_2(int N, int d, double *Ab, double *x)
   // loop indices
   int k, i, j;
 
-// First small block, search pivot up to t, eliminate up to t
+  // First small block, search pivot up to t, eliminate up to t
   for (k = 0; k < d; k++)
   {
     // Find largest possible pivot in submatrix of A
@@ -1079,7 +1079,7 @@ int triangular_system_solve_2(int N, int d, double *Ab, double *x)
     return -1;
   }
 
-// Second big block
+  // Second big block
   for (k = d; k < N - 1; k++)
   {
     // Find largest possible pivot in submatrix of A
