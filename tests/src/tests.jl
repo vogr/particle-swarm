@@ -94,7 +94,7 @@ end
 
 register_perf_tested_functions()
 
-LU.init(2^15)
+LU.init(2^20)
 
 # solve_tests()
 # MMM.perf_tests(1024, 1024, 1024)
