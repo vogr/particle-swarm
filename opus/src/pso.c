@@ -13,8 +13,14 @@
 
 #include "steps/steps.h"
 
+#include "timer.h"
+
 #if DISTINCTIVENESS_CHECK_TYPE == 2
 #include "rounding_bloom.h"
+#endif
+
+#ifndef ENABLE_TIMER
+#define ENABLE_TIMER 1
 #endif
 
 #define DEBUG_TRIALS 0
@@ -165,34 +171,76 @@ void pso_constant_inertia_init(struct pso_data_constant_inertia *pso,
 
   // precomputed random numbers
   random_number_generation(pso);
+
+#if ENABLE_TIMER == 1
+  alloc_timer(pso->time_max, 3, 7);
+#endif
 }
 
 void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso,
                                       size_t sfd_size,
                                       double *space_filling_design)
 {
+#if ENABLE_TIMER == 1
+  timer_start_fixed();
+#endif
+
   step1_2(pso, sfd_size, space_filling_design);
+#if ENABLE_TIMER == 1
+  timer_step_fixed();
+#endif
 
   step3(pso);
+#if ENABLE_TIMER == 1
+  timer_step_fixed();
+#endif
 
   step4(pso);
+#if ENABLE_TIMER == 1
+  timer_step_fixed();
+#endif
 }
 
 bool pso_constant_inertia_loop(struct pso_data_constant_inertia *pso)
 {
+#if ENABLE_TIMER == 1
+  timer_start_repeat();
+#endif
+
   step5_optimized(pso);
+#if ENABLE_TIMER == 1
+  timer_step_repeat(pso->time);
+#endif
 
   step6_optimized(pso);
+#if ENABLE_TIMER == 1
+  timer_step_repeat(pso->time);
+#endif
 
   step7_optimized(pso);
+#if ENABLE_TIMER == 1
+  timer_step_repeat(pso->time);
+#endif
 
   step8_optimized(pso);
+#if ENABLE_TIMER == 1
+  timer_step_repeat(pso->time);
+#endif
 
   step9_optimized(pso);
+#if ENABLE_TIMER == 1
+  timer_step_repeat(pso->time);
+#endif
 
   step10_optimized(pso);
+#if ENABLE_TIMER == 1
+  timer_step_repeat(pso->time);
+#endif
 
   step11_optimized(pso);
+#if ENABLE_TIMER == 1
+  timer_step_repeat(pso->time);
+#endif
 
   return (pso->time < pso->time_max - 1);
 }
@@ -233,4 +281,8 @@ void run_pso(blackbox_fun f, double inertia, double social, double cognition,
     }
     printf("]  f(ŷ)=%f\n", pso.y_hat_eval);
   }
+
+#if ENABLE_TIMER == 1
+  timer_print_statistics(pso.time_max);
+#endif
 }

@@ -61,7 +61,7 @@ int main(int argc, char **argv)
   double min_dist = 0.01;
   int dimensions = DIMENSION;
   int population_size = POPSIZE;
-  int time_max = 50;
+  int time_max = 25;
   int n_trials = 10;
   double bounds_low[DIMENSION] = {0};
   double bounds_high[DIMENSION] = {0};
