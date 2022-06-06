@@ -1883,7 +1883,7 @@ void sgemm_intel(int M, int N, int K, double alpha, double *A, int LDA,
                  double *B, int LDB, double beta, double *C, int LDC)
 {
   // Update trailing submatrix
-  return cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha,
+  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha,
                      A, LDA, B, LDB, beta, C, LDC);
 }
 
@@ -3675,7 +3675,7 @@ void register_functions_LU_SOLVE()
 
 void register_functions_MMM()
 {
-  // add_function_MMM(&sgemm_1, "MMM Base", 1);
+  add_function_MMM(&sgemm_1, "MMM Base", 1);
   add_function_MMM(&sgemm_2, "MMM_C_opts", 1);
   add_function_MMM(&sgemm_5, "MMM_Copts_Vector", 1);
 #ifdef TEST_MKL
