@@ -76,10 +76,11 @@ function solve_all_perf_tests_single(n)
 
       A1, A2 = tu.build_matrices(c, d)
       b = rand(n)
-      (!LU.valid(n, A1, b) ||
-          !PSO_GE.valid(n, A1, b) ||
-            !PSO_TRI_SYS.valid(n, d, A2, b))
-          break
+      (!LU.valid(n, A1, b) # ||
+          # !PSO_GE.valid(n, A1, b) ||
+          # !PSO_TRI_SYS.valid(n, d, A2, b) ||
+       )
+            break
   end
   PSO_GE.perf_tests(n, A1, b)
   LU.perf_tests(n, A1, b)
@@ -92,9 +93,29 @@ function solve_all_perf_tests_range(iterable)
   end
 end
 
+# SETUP
 register_perf_tested_functions()
+LU.init(2^20) # Arbitrarily large N
 
-LU.init(2^20)
+
+# ------
+# For performance testing system solving
+start = round(Int, 100^(1/3))
+step = 1
+stop = round(Int, 10000^(1/3))
+range = [n^3 for n = start:step:stop]
+print(range, '\n')
+solve_all_perf_tests_range(range)
+
+
+
+# ------
+# For performance testing MMM
+# for i in 5:11
+#     MMM.perf_tests(2^i, 2^i, 2^i)
+# end
+
+# IGORE BELOW THIS LINE
 
 # solve_tests()
 # MMM.perf_tests(1024, 1024, 1024)
@@ -108,13 +129,6 @@ LU.init(2^20)
 
 # PSO_TRI_SYS.solve_tests()
 
-start = round(Int, 100^(1/3))
-step = 1
-stop = round(Int, 10000^(1/3))
-
-range = [n^3 for n = start:step:stop]
-print(range, '\n')
-solve_all_perf_tests_range(range)
 
 # LU.teardown()
 

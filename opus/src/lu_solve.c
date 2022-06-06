@@ -3675,7 +3675,7 @@ void register_functions_LU_SOLVE()
 
 void register_functions_MMM()
 {
-  // add_function_MMM(&sgemm_1, "MMM Base", 1);
+  add_function_MMM(&sgemm_1, "MMM Base", 1);
   add_function_MMM(&sgemm_2, "MMM_C_opts", 1);
   add_function_MMM(&sgemm_5, "MMM_Copts_Vector", 1);
 #ifdef TEST_MKL
