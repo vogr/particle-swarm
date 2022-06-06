@@ -100,8 +100,8 @@ endif
 # to get an updated list of flags
 ifeq ($(INC_MKL), 1)
 	# link to MKL's "Single Dynamic Library"
-	LDLIBS += -L${MKLROOT}/lib/intel64 -lmkl_rt -lpthread -lm -ldl
-	COMMON_FLAGS += -I"${MKLROOT}/include"
+	LDLIBS += $(shell pkg-config --libs  mkl-static-lp64-seq)
+	COMMON_FLAGS += $(shell pkg-config --cflags  mkl-static-lp64-seq)
 	COMMON_FLAGS+=-DTEST_MKL
 endif # MKL
 
