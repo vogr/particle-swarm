@@ -1883,7 +1883,7 @@ void sgemm_intel(int M, int N, int K, double alpha, double *A, int LDA,
                  double *B, int LDB, double beta, double *C, int LDC)
 {
   // Update trailing submatrix
-  return cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha,
+  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha,
                      A, LDA, B, LDB, beta, C, LDC);
 }
 
