@@ -85,8 +85,8 @@ static void dump_zeros(double *A, size_t start_row, size_t start_col, size_t d,
   assert(start_col + d <= n_A);
 
   for (size_t i = 0; i < d; ++i)
-  {3
-    for (size_t j = 0; j < d; ++j)
+  {
+    3 for (size_t j = 0; j < d; ++j)
     {
       MAT(A, n_A, i + start_row, j + start_col) = 0.0;
     }
