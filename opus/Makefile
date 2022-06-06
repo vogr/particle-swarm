@@ -14,6 +14,9 @@ PSO_SHARED ?= 0
 # Build the run_pso_testers main file? Default=no
 RUN_PERF_TESTERS ?= 0
 
+# Build with Intel's MKL
+INC_MKL ?= 0
+
 ######
 # Compilation flags
 ######
@@ -46,6 +49,7 @@ CXXFLAGS += -std=gnu++17
 
 # Libraries to link
 LDLIBS+=-lm
+
 
 
 ######
@@ -88,6 +92,20 @@ else
 	OBJ_EXE := src/main.o
 endif
 
+#####
+# MKL compilation options
+#####
+
+# see https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl-link-line-advisor.html
+# to get an updated list of flags
+ifeq ($(INC_MKL), 1)
+	# link to MKL's "Single Dynamic Library"
+	LDLIBS += -L${MKLROOT}/lib/intel64 -lmkl_rt -lpthread -lm -ldl
+	COMMON_FLAGS += -I"${MKLROOT}/include"
+	COMMON_FLAGS+=-DTEST_MKL
+endif # MKL
+
+
 ######
 # Library vs executable compilation options
 ######
@@ -97,11 +115,6 @@ UNAME_S := $(shell uname -s)
 
 
 ifeq ($(PSO_SHARED), 1)
-
-ifeq ($(INC_MKL), 1)
-	COMMON_FLAGS += -DTEST_MKL -L$MKLPATH -Wl,-rpath,$MKLPATH -lmkl_rt
-endif # MKL
-
 	# Option 1. Build a shared library
 
 	# For the shared file we also need to pass
