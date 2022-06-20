@@ -433,5 +433,5 @@ void step6_optimized(struct pso_data_constant_inertia *pso)
   //    step6_base(pso);
   //  step6_opt1(pso);
   //    step6_opt2(pso);
-  step6_opt3(pso);
+  STEP6_VERSION(pso);
 }
