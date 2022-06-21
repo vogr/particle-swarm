@@ -60,6 +60,10 @@ CONFIGURATIONS[11] = {
         "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_6 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_6 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_1 -DLINEAR_SYSTEM_SOLVER_USED=2 -DLU_SOLVE_VERSION=lu_solve_6",
 }
 
+CONFIGURATIONS[12] = {
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_6_LU_blocked"],
+        "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_6_LU_blocked -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_6 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_1 -DLINEAR_SYSTEM_SOLVER_USED=2 -DLU_SOLVE_VERSION=lu_solve_6",
+}
 
 
 
@@ -184,7 +188,8 @@ def main(argv):
     if args.benchmark:
         subprocess.run(["make"], cwd=curdir, env=build_env)
         # truncate the output file
-        outfile.write_bytes(b"")
+        if outfile:
+            outfile.write_bytes(b"")
         for i in config_nbs:
             config = CONFIGURATIONS[i]
             print(f"\n********\nBENCHMARKING CONFIG {i}:\n{config}\n{additionnal_bench_flags}\n********\n")

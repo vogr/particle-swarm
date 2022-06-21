@@ -146,12 +146,12 @@ int main(int argc, char **argv)
   }
 
   struct pso_data_constant_inertia pso;
-    std::cout << "init" << std::endl;
+  std::cout << "init" << std::endl;
   pso_constant_inertia_init(&pso, &griewank_Nd, inertia, social, cognition,
                             local_refinement_box_size, min_dist, dimensions,
                             population_size, time_max, n_trials, bounds_low,
                             bounds_high, vmin, vmax, SPACE_FILLING_DESIGN_SIZE);
-    std::cout << "first steps" << std::endl;
+  std::cout << "first steps" << std::endl;
 
   pso_constant_inertia_first_steps(&pso, SPACE_FILLING_DESIGN_SIZE,
                                    space_filling_design);
