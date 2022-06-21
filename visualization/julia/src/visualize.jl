@@ -32,7 +32,7 @@ params = RUN_PSO.PsoParams(
     DIMENSIONS, 5, T_MAX, 5,
     [-10., -10.], [10., 10.],
     [-10., -10.], [10., 10.],
-    [-1., 8., 5., -3., 5., 6., 7., 3., -9., -2.]
+    [-1., 8., 5., -3., 5., 6., 7., 3., -9., -2., -6, 7]
 )
 
 
@@ -42,10 +42,10 @@ y = LinRange(-10, 10, 40)
 
 pso = RUN_PSO.pso_alloc()
 
-RUN_PSO.pso_init(params, pso)
+RUN_PSO.pso_init(pso, params)
 
 
-RUN_PSO.pso_first_steps(pso)
+RUN_PSO.pso_first_steps(pso, params)
 
 
 

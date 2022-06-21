@@ -60,6 +60,10 @@ CONFIGURATIONS[11] = {
         "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_6 -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_6 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_1 -DLINEAR_SYSTEM_SOLVER_USED=2 -DLU_SOLVE_VERSION=lu_solve_6",
 }
 
+CONFIGURATIONS[12] = {
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_6_LU_blocked"],
+        "CPPFLAGS": "-DFIT_SURROGATE_VERSION=fit_surrogate_6_LU_blocked -DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_6 -DCHECK_IF_DISTINCT_VERSION=check_if_distinct_1 -DLINEAR_SYSTEM_SOLVER_USED=2 -DLU_SOLVE_VERSION=lu_solve_6",
+}
 
 
 
@@ -91,8 +95,28 @@ CONFIGURATIONS[54] = {
         "CPPFLAGS": "-DSURROGATE_EVAL_VERSION=surrogate_eval_4",
 }
 CONFIGURATIONS[55] = {
-        "bench-flags": ["--bench-surrogate-eval", "surrogate_eval_5"],
+        "bench-flags": ["", ""],
         "CPPFLAGS": "-DSURROGATE_EVAL_VERSION=surrogate_eval_5",
+}
+
+
+CONFIGURATIONS[100] = {
+        "bench-flags": ["", ""],
+        "CPPFLAGS": ("-DFIT_SURROGATE_VERSION=fit_surrogate_0 "
+                     "-DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_0 "
+                     "-DCHECK_IF_DISTINCT_VERSION=check_if_distinct_0 "
+                     "-DSURROGATE_EVAL_VERSION=surrogate_eval_0 "
+                     "-DSTEP1_2_VERSION=step1_2_opt0 "
+                     "-DSTEP3_VERSION=step3_base "
+                     "-DSTEP4_VERSION=step4_base "
+                     "-DSTEP6_VERSION=step6_base "
+                     "-DGE_SOLVE_VERSION=gaussian_elimination_solve_0 "
+                 ),  
+}
+
+CONFIGURATIONS[101] = {
+        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_0"],
+        "CPPFLAGS": "",
 }
 
 parser = argparse.ArgumentParser(description='Benchmark under several compile-time configurations.')
@@ -164,7 +188,8 @@ def main(argv):
     if args.benchmark:
         subprocess.run(["make"], cwd=curdir, env=build_env)
         # truncate the output file
-        outfile.write_bytes(b"")
+        if outfile:
+            outfile.write_bytes(b"")
         for i in config_nbs:
             config = CONFIGURATIONS[i]
             print(f"\n********\nBENCHMARKING CONFIG {i}:\n{config}\n{additionnal_bench_flags}\n********\n")
@@ -181,7 +206,7 @@ def main(argv):
             print(f"\n********\nPROFILE CONFIG {i}:\n{config}\n********\n")
             libpso_destdir = libdir / "config{}".format(i)
             env = {"PATH": os.environ["PATH"], "LD_LIBRARY_PATH": str(libpso_destdir)}
-            subprocess.run(["perf", "record", "--call-graph", "dwarf", "-F", "99", "./test"], env=env, cwd=curdir)
+            subprocess.run(["perf", "record", "--call-graph", "dwarf", "-F", "99", "./test"] + additionnal_bench_flags, env=env, cwd=curdir)
 
             this_config_perf_folded = flame_dir / f"out_{i}.perf-folded"
             this_config_fg = flame_dir / f"flamegraph_{i}.svg"

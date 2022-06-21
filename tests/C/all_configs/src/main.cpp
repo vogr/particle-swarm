@@ -112,7 +112,7 @@ int main(int argc, char **argv)
    */
   srand(42);
 
-  int time_max = nb_measurements * time_between_measures;
+  int time_max = nb_measurements * (time_between_measures - 1);
   double inertia = 0.8;
   double social = 0.1, cognition = 0.2;
   double local_refinement_box_size = 5.;
@@ -146,14 +146,18 @@ int main(int argc, char **argv)
   }
 
   struct pso_data_constant_inertia pso;
+  std::cout << "init" << std::endl;
   pso_constant_inertia_init(&pso, &griewank_Nd, inertia, social, cognition,
                             local_refinement_box_size, min_dist, dimensions,
                             population_size, time_max, n_trials, bounds_low,
                             bounds_high, vmin, vmax, SPACE_FILLING_DESIGN_SIZE);
+  std::cout << "first steps" << std::endl;
 
   pso_constant_inertia_first_steps(&pso, SPACE_FILLING_DESIGN_SIZE,
                                    space_filling_design);
-  for (int k_input = 0; k_input < nb_measurements + 1; k_input++)
+
+  std::cout << nb_measurements << " x " << time_between_measures << "\n";
+  for (int k_input = 0; k_input < nb_measurements; k_input++)
   {
     while (pso.time < k_input * time_between_measures)
     {

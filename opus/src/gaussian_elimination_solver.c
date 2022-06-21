@@ -42,7 +42,7 @@ static void swapd(double *a, int i, int j)
 
 int gaussian_elimination_solve(int N, double *Ab, double *x)
 {
-  return gaussian_elimination_solve_2(N, Ab, x);
+  return GE_SOLVE_VERSION(N, Ab, x);
 }
 
 // Base implementation

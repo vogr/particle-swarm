@@ -40,7 +40,7 @@ struct PsoParams
     bounds_high::Vector{<:Real}
     vmin::Vector{<:Real}
     vmax::Vector{<:Real}
-    initial_positions::Vector{<:Real}
+    space_filling_design::Vector{<:Real}
 end
 
 
@@ -59,7 +59,7 @@ end
 
 
 
-function pso_init(params::PsoParams, pso::Ptr{Pso})
+function pso_init(pso::Ptr{Pso}, params::PsoParams)
     ccall(
         (:pso_constant_inertia_init, :libpso),
         Cvoid,
@@ -67,23 +67,23 @@ function pso_init(params::PsoParams, pso::Ptr{Pso})
             Ptr{Pso}, Ptr{Cvoid},
             Cdouble, Cdouble, Cdouble, Cdouble, Cdouble,
             Cint, Cint, Cint, Cint,
-            Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}
+            Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}, Csize_t
         ),
         pso, params.f,
         params.intertia, params.social, params.cognition,
         params.local_refinement_box_size, params.min_minimizer_distance,
         params.dimensions, params.pop_size, params.time_max, params.n_trials,
         params.bounds_low, params.bounds_high, params.vmin, params.vmax,
-        params.initial_positions
+        length(params.space_filling_design)
     )
 end
 
-function pso_first_steps(pso::Ptr{Pso})
+function pso_first_steps(pso::Ptr{Pso}, params::PsoParams)
     ccall(
         (:pso_constant_inertia_first_steps, :libpso),
         Cvoid,
-        (Ptr{Pso},),
-        pso
+        (Ptr{Pso},Csize_t,Ptr{Cdouble}),
+        pso, length(params.space_filling_design), params.space_filling_design
     )
 end
 

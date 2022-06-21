@@ -1,8 +1,10 @@
 #include "fit_surrogate.h"
 
-#include "math.h"
-#include "stdlib.h"
-#include "string.h"
+#include <immintrin.h>
+
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "../helpers.h"
 #include "../pso.h"
@@ -52,8 +54,6 @@ int prealloc_fit_surrogate_0(size_t max_n_phi, size_t n_P)
 
 int fit_surrogate_0(struct pso_data_constant_inertia *pso)
 {
-  // TODO: note that the matrix and vector barely change between the
-  //  iterations. Maybe there could be a way to re-use them?
 
   // the size of phi is the total number of _distinct_ points where
   // f has been evaluated
@@ -168,9 +168,6 @@ int prealloc_fit_surrogate_1(size_t max_n_phi, size_t n_P)
 int fit_surrogate_1(struct pso_data_constant_inertia *pso)
 {
   // TODO: include past_refinement_points in phi !!!
-
-  // TODO: note that the matrix and vector barely change between the
-  //  iterations. Maybe there could be a way to re-use them?
 
   size_t dimensions = pso->dimensions;
   size_t popsize = pso->population_size;
@@ -294,9 +291,6 @@ int prealloc_fit_surrogate_2(size_t max_n_phi, size_t n_P)
 int fit_surrogate_2(struct pso_data_constant_inertia *pso)
 {
   // TODO: include past_refinement_points in phi !!!
-
-  // TODO: note that the matrix and vector barely change between the
-  //  iterations. Maybe there could be a way to re-use them?
 
   size_t dimensions = pso->dimensions;
   size_t popsize = pso->population_size;
@@ -461,9 +455,6 @@ int fit_surrogate_3(struct pso_data_constant_inertia *pso)
 {
   // TODO: include past_refinement_points in phi !!!
 
-  // TODO: note that the matrix and vector barely change between the
-  //  iterations. Maybe there could be a way to re-use them?
-
   size_t dimensions = pso->dimensions;
   size_t popsize = pso->population_size;
   size_t t = pso->time;
@@ -622,9 +613,6 @@ int prealloc_fit_surrogate_4(size_t max_n_phi, size_t n_P)
 int fit_surrogate_4(struct pso_data_constant_inertia *pso)
 {
   // TODO: include past_refinement_points in phi !!!
-
-  // TODO: note that the matrix and vector barely change between the
-  //  iterations. Maybe there could be a way to re-use them?
 
   size_t dimensions = pso->dimensions;
   size_t popsize = pso->population_size;
@@ -798,9 +786,6 @@ int prealloc_fit_surrogate_5(size_t max_n_phi, size_t n_P)
 int fit_surrogate_5(struct pso_data_constant_inertia *pso)
 {
   // TODO: include past_refinement_points in phi !!!
-
-  // TODO: note that the matrix and vector barely change between the
-  //  iterations. Maybe there could be a way to re-use them?
 
   size_t dimensions = pso->dimensions;
   size_t popsize = pso->population_size;
@@ -985,8 +970,6 @@ int prealloc_fit_surrogate_6_GE(size_t max_n_phi, size_t n_P)
 
 int fit_surrogate_6_GE(struct pso_data_constant_inertia *pso)
 {
-  // TODO: note that the matrix and vector barely change between the
-  //  iterations. Maybe there could be a way to re-use them?
 
   size_t dimensions = pso->dimensions;
   size_t popsize = pso->population_size;
@@ -1132,8 +1115,6 @@ int prealloc_fit_surrogate_6_LU(size_t max_n_phi, size_t n_P)
 
 int fit_surrogate_6_LU(struct pso_data_constant_inertia *pso)
 {
-  // TODO: note that the matrix and vector barely change between the
-  //  iterations. Maybe there could be a way to re-use them?
 
   size_t dimensions = pso->dimensions;
   size_t popsize = pso->population_size;
@@ -1292,8 +1273,6 @@ int prealloc_fit_surrogate_6_BLOCK_TRI(size_t max_n_phi, size_t n_P)
 
 int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
 {
-  // TODO: note that the matrix and vector barely change between the
-  //  iterations. Maybe there could be a way to re-use them?
 
   size_t dimensions = pso->dimensions;
   size_t popsize = pso->population_size;
@@ -1413,6 +1392,282 @@ int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso)
   {
     return -1;
   }
+
+#if DEBUG_SURROGATE
+  print_vectord(pso->lambda_p, n_A, "x");
+#endif
+
+  return 0;
+}
+
+int fit_surrogate_6_LU_blocked(struct pso_data_constant_inertia *pso)
+{
+  size_t dimensions = pso->dimensions;
+  size_t popsize = pso->population_size;
+  size_t t = pso->time;
+
+  // the size of phi is the total number of _distinct_ points where
+  // f has been evaluated
+  // currently : n = x_distinct_s
+  size_t n_phi = pso->x_distinct_s;
+  double *x_distincts = pso->x_distinct;
+  double *fxd = pso->x_distinct_eval;
+
+  // the size of P is n x d+1
+  size_t n_P = dimensions + 1;
+
+  // the size of the matrix in the linear system is n+d+1
+  size_t n_A = n_phi + n_P;
+  size_t n_Ab = n_A + 1;
+
+  double *A = fit_surrogate_Ab;
+
+  double *b = fit_surrogate_b;
+
+  size_t max_N_phi = fit_surrogate_max_N_phi;
+  double *phi_cache = fit_surrogate_phi_cache;
+  /********
+   * Prepare left hand side A
+   ********/
+
+  // phi_p,q = || u_p - u_q ||^3
+  // all of those are already computed in check_if_distinct!
+  size_t prev_n_phi = pso->x_distinct_idx_of_last_batch;
+  if (prev_n_phi == n_phi)
+  {
+    // There are no new points ! The surrogate is already fit !
+#if DEBUG_SURROGATE
+    printf("Skip fit_surrogate: no new evaluation position!\n");
+#endif
+    return 0;
+  }
+  else
+  {
+    pso->x_distinct_idx_of_last_batch = n_phi;
+  }
+
+  // Copy the distances from phi_cache to the phi block in A
+
+  /** auto-generated code **/
+
+  /* Fill the matrix rowwise/colwise by blocks at the same time, starting at the
+   * diagonal entry i */
+  size_t i = 0;
+  while (i + 4 - 1 < n_phi)
+  {
+    size_t i0 = i + 0;
+    size_t i1 = i + 1;
+    size_t i2 = i + 2;
+    size_t i3 = i + 3;
+
+    size_t cache_idx_row_i0 = i0 * (i0 - 1) / 2;
+    size_t cache_idx_row_i1 = i1 * (i1 - 1) / 2;
+    size_t cache_idx_row_i2 = i2 * (i2 - 1) / 2;
+    size_t cache_idx_row_i3 = i3 * (i3 - 1) / 2;
+
+    /* Fill in the corresponding blocks in the upper and lower triangle
+     - these blocks are transposed of each other.
+     - i is a multiple of 4
+     - block on diagonal is special case
+    */
+    for (size_t j = 0; j < i; j += 4)
+    {
+      size_t j0 = j + 0;
+      size_t j1 = j + 1;
+      size_t j2 = j + 2;
+      size_t j3 = j + 3;
+
+      // load cached values
+      double phi_0_0 = phi_cache[cache_idx_row_i0 + j0];
+      double phi_0_1 = phi_cache[cache_idx_row_i0 + j1];
+      double phi_0_2 = phi_cache[cache_idx_row_i0 + j2];
+      double phi_0_3 = phi_cache[cache_idx_row_i0 + j3];
+      double phi_1_0 = phi_cache[cache_idx_row_i1 + j0];
+      double phi_1_1 = phi_cache[cache_idx_row_i1 + j1];
+      double phi_1_2 = phi_cache[cache_idx_row_i1 + j2];
+      double phi_1_3 = phi_cache[cache_idx_row_i1 + j3];
+      double phi_2_0 = phi_cache[cache_idx_row_i2 + j0];
+      double phi_2_1 = phi_cache[cache_idx_row_i2 + j1];
+      double phi_2_2 = phi_cache[cache_idx_row_i2 + j2];
+      double phi_2_3 = phi_cache[cache_idx_row_i2 + j3];
+      double phi_3_0 = phi_cache[cache_idx_row_i3 + j0];
+      double phi_3_1 = phi_cache[cache_idx_row_i3 + j1];
+      double phi_3_2 = phi_cache[cache_idx_row_i3 + j2];
+      double phi_3_3 = phi_cache[cache_idx_row_i3 + j3];
+
+      // fill block in lower triangle
+      A[i0 * n_A + j0] = phi_0_0;
+      A[i0 * n_A + j1] = phi_0_1;
+      A[i0 * n_A + j2] = phi_0_2;
+      A[i0 * n_A + j3] = phi_0_3;
+      A[i1 * n_A + j0] = phi_1_0;
+      A[i1 * n_A + j1] = phi_1_1;
+      A[i1 * n_A + j2] = phi_1_2;
+      A[i1 * n_A + j3] = phi_1_3;
+      A[i2 * n_A + j0] = phi_2_0;
+      A[i2 * n_A + j1] = phi_2_1;
+      A[i2 * n_A + j2] = phi_2_2;
+      A[i2 * n_A + j3] = phi_2_3;
+      A[i3 * n_A + j0] = phi_3_0;
+      A[i3 * n_A + j1] = phi_3_1;
+      A[i3 * n_A + j2] = phi_3_2;
+      A[i3 * n_A + j3] = phi_3_3;
+
+      // fill block in upper triangle
+      A[j0 * n_A + i0] = phi_0_0;
+      A[j0 * n_A + i1] = phi_1_0;
+      A[j0 * n_A + i2] = phi_2_0;
+      A[j0 * n_A + i3] = phi_3_0;
+      A[j1 * n_A + i0] = phi_0_1;
+      A[j1 * n_A + i1] = phi_1_1;
+      A[j1 * n_A + i2] = phi_2_1;
+      A[j1 * n_A + i3] = phi_3_1;
+      A[j2 * n_A + i0] = phi_0_2;
+      A[j2 * n_A + i1] = phi_1_2;
+      A[j2 * n_A + i2] = phi_2_2;
+      A[j2 * n_A + i3] = phi_3_2;
+      A[j3 * n_A + i0] = phi_0_3;
+      A[j3 * n_A + i1] = phi_1_3;
+      A[j3 * n_A + i2] = phi_2_3;
+      A[j3 * n_A + i3] = phi_3_3;
+    }
+    /* The last block (j = i) is on the diagonal, it is symmetric with a zero
+     * diagonal. */
+    {
+      size_t j0 = i + 0;
+      size_t j1 = i + 1;
+      size_t j2 = i + 2;
+      size_t j3 = i + 3;
+      double phi_1_0 = phi_cache[cache_idx_row_i1 + j0];
+      double phi_2_0 = phi_cache[cache_idx_row_i2 + j0];
+      double phi_2_1 = phi_cache[cache_idx_row_i2 + j1];
+      double phi_3_0 = phi_cache[cache_idx_row_i3 + j0];
+      double phi_3_1 = phi_cache[cache_idx_row_i3 + j1];
+      double phi_3_2 = phi_cache[cache_idx_row_i3 + j2];
+
+      A[i0 * n_A + j0] = 0.;
+      A[i0 * n_A + j1] = phi_1_0;
+      A[i0 * n_A + j2] = phi_2_0;
+      A[i0 * n_A + j3] = phi_3_0;
+
+      A[i1 * n_A + j0] = phi_1_0;
+      A[i1 * n_A + j1] = 0.;
+      A[i1 * n_A + j2] = phi_2_1;
+      A[i1 * n_A + j3] = phi_3_1;
+
+      A[i2 * n_A + j0] = phi_2_0;
+      A[i2 * n_A + j1] = phi_2_1;
+      A[i2 * n_A + j2] = 0.;
+      A[i2 * n_A + j3] = phi_3_2;
+
+      A[i3 * n_A + j0] = phi_3_0;
+      A[i3 * n_A + j1] = phi_3_1;
+      A[i3 * n_A + j2] = phi_3_2;
+      A[i3 * n_A + j3] = 0.;
+    }
+    i += 4;
+  }
+
+  /* finish the rows and the columns */
+  while (i < n_phi)
+  {
+    size_t cache_idx_row_i = i * (i - 1) / 2;
+
+    size_t j = 0;
+    while (j + 4 - 1 < i)
+    {
+      size_t j0 = j + 0;
+      size_t j1 = j + 1;
+      size_t j2 = j + 2;
+      size_t j3 = j + 3;
+      double phi_i_0 = phi_cache[cache_idx_row_i + j0];
+      double phi_i_1 = phi_cache[cache_idx_row_i + j1];
+      double phi_i_2 = phi_cache[cache_idx_row_i + j2];
+      double phi_i_3 = phi_cache[cache_idx_row_i + j3];
+
+      // fill line in lower triangle
+      A[i * n_A + j0] = phi_i_0;
+      A[i * n_A + j1] = phi_i_1;
+      A[i * n_A + j2] = phi_i_2;
+      A[i * n_A + j3] = phi_i_3;
+
+      // fill line in upper triangle
+      A[j0 * n_A + i] = phi_i_0;
+      A[j1 * n_A + i] = phi_i_1;
+      A[j2 * n_A + i] = phi_i_2;
+      A[j3 * n_A + i] = phi_i_3;
+      j += 4;
+    }
+    while (j < i)
+    {
+      double phi_i_j = phi_cache[cache_idx_row_i + j];
+      A[i * n_A + j] = phi_i_j;
+      A[j * n_A + i] = phi_i_j;
+      j++;
+    }
+    A[i * n_A + i] = 0.;
+    i++;
+  }
+  /** end of auto-generated code **/
+
+  // P and tP are blocks in A
+  // P_{i,j} := A_{i,n_phi + j} = A[i * n_A + n_phi + j]
+  // tP_{i,j} := A_{n_phi + i, j} = A[(n_phi + i) * n_A + j]
+
+  for (size_t k = 0; k < n_phi; k++)
+  {
+    double *u = x_distincts + k * dimensions;
+
+    // P(p,0) = 1;
+    A[k * n_A + n_phi + 0] = 1;
+    // tP(0,p) = 1;
+    A[(n_phi + 0) * n_A + k] = 1;
+
+    for (int j = 0; j < dimensions; j++)
+    {
+      // P(p,1+j) = u[j];
+      A[k * n_A + n_phi + j + 1] = u[j];
+      // tP(1+j,p) = u[j];
+      A[(n_phi + 1 + j) * n_A + k] = u[j];
+    }
+  }
+
+  // lower right block is zeros
+  for (size_t i = n_phi; i < n_A; i++)
+  {
+    for (size_t j = n_phi; j < n_A; j++)
+    {
+      A[i * n_A + j] = 0;
+    }
+  }
+
+  /********
+   * Prepare right hand side b
+   ********/
+  for (size_t k = 0; k < n_phi; k++)
+  {
+    // set b_k
+    b[k] = fxd[k];
+  }
+
+  for (size_t k = n_phi; k < n_A; k++)
+  {
+    // set b_k
+    b[k] = 0;
+  }
+
+#if DEBUG_SURROGATE
+  print_matrixd(A, n_A, "A");
+  print_vectord(b, n_A, "b");
+#endif
+
+  if (lu_solve(n_A, A, b) < 0)
+  {
+    return -1;
+  }
+
+  // b is overwitten with the result of Ax = b in lu_solve
+  pso->lambda_p = b;
 
 #if DEBUG_SURROGATE
   print_vectord(pso->lambda_p, n_A, "x");
