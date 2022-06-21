@@ -33,9 +33,15 @@ int lu_solve_5(int N, double *A, double *b);
 int lu_solve_6(int N, double *A, double *b);
 
 // M N K block sizes for scratch buffers
+#ifndef M_BLOCK
 #define M_BLOCK 192
+#endif
+#ifndef N_BLOCK
 #define N_BLOCK 2048
+#endif
+#ifndef K_BLOCK
 #define K_BLOCK 384
+#endif
 
 static double *scratch_a;
 static double *scratch_b;
@@ -104,7 +110,7 @@ int isamax(int N, double *A, int stride);
  * @param Y The second vector of real valued elements to swap.
  * @param incy The storage stride between elements in Y.
  */
-void sswap(int N, double *X, int incx, double *Y, int incy);
+void dswap(int N, double *X, int incx, double *Y, int incy);
 
 /** @brief Perform a series of row interchanges, one for each row
  *         k1 - k2 of A.
@@ -117,7 +123,7 @@ void sswap(int N, double *X, int incx, double *Y, int incy);
  * @param ipiv The array of vector pivot indices such that i <-> ipiv[i].
  * @param incx The increment between indices in ipiv.
  */
-void slaswp(int N, double *A, int LDA, int k1, int k2, int *ipiv, int incx);
+void dlaswp(int N, double *A, int LDA, int k1, int k2, int *ipiv, int incx);
 
 /** @brief Solves matrix equation A * X = B
  *         A is assumed to be Non-transposed (L)ower
@@ -132,13 +138,13 @@ void slaswp(int N, double *A, int LDA, int k1, int k2, int *ipiv, int incx);
  *  @param B Real valued matrix B.
  *  @param LDB Leading dimension of B.
  */
-void strsm_L(int M, int N, double *A, int LDA, double *B, int LDB);
+void dtrsm_L(int M, int N, double *A, int LDA, double *B, int LDB);
 
-/** @brief equivalent to strsm_L except A is an (U)pper triangular matrix
+/** @brief equivalent to dtrsm_L except A is an (U)pper triangular matrix
  *         with a *Non-unit* diagonal. It is still assumed to be
 non-transposed.
  */
-void strsm_U(int M, int N, double *A, int LDA, double *B, int LDB);
+void dtrsm_U(int M, int N, double *A, int LDA, double *B, int LDB);
 
 // Assume No-transpose for both matrices
 /** @brief compute C := alpha * A * B + beta * C
@@ -155,7 +161,7 @@ void strsm_U(int M, int N, double *A, int LDA, double *B, int LDB);
  * @param C Real valued MxN matrix C.
  * @param Leading dimension of C.
  */
-void sgemm(int M, int N, int K, double alpha, double *A, int LDA, double *B,
+void dgemm(int M, int N, int K, double alpha, double *A, int LDA, double *B,
            int LDB, double beta, double *C, int LDC);
 
 /** @brief Factor A = P * L * U in place using BLAS1 / BLAS2 functions
@@ -166,9 +172,9 @@ void sgemm(int M, int N, int K, double alpha, double *A, int LDA, double *B,
  * @param LDA The leading dimension of the matrix in memory A.
  * @param ipiv Pivot indices for A.
  */
-int sgetf2(int M, int N, double *A, int LDA, int *ipiv);
+int dgetf2(int M, int N, double *A, int LDA, int *ipiv);
 
-// Equivalent to SGETRS (no-transpose).
+// Equivalent to DGETRS (no-transpose).
 /** @brief Solves system of linear equations A * x = b.
  *         After exit b is overwritten with solution vector x.
  *
@@ -177,7 +183,7 @@ int sgetf2(int M, int N, double *A, int LDA, int *ipiv);
  * @param ipiv Pivot indices used when factoring A.
  * @param b Real valued vector with N elements.
  */
-int sgetrs(int N, double *A, int *ipiv, double *b);
+int dgetrs(int N, double *A, int *ipiv, double *b);
 
 #endif // FALSE to remove the above documentation.
 
@@ -191,8 +197,13 @@ static void swapd(double *a, int i, int j)
   a[j] = t;
 }
 
-// XXX FIXME
-static int ideal_block(int M, int N) { return 32; }
+static __attribute__((always_inline)) int ideal_block(int M, int N)
+{
+#ifndef LU_BLOCK
+#define LU_BLOCK 64
+#endif
+  return LU_BLOCK;
+}
 
 // ------------------------------------------------------------------
 // Implementation start
@@ -344,7 +355,7 @@ static int isamax_1(int N, double *A, int stride)
   return p_i;
 }
 
-static void sswap_1(int N, double *X, int incx, double *Y, int incy)
+static void dswap_1(int N, double *X, int incx, double *Y, int incy)
 {
   // TODO special case when incx == incy == 1
   // ^^^ This is our case actually (row-major iteration).
@@ -366,7 +377,7 @@ static void sswap_1(int N, double *X, int incx, double *Y, int incy)
   return;
 }
 
-static void slaswp_1(int N, double *A, int LDA, int k1, int k2, int *ipiv,
+static void dlaswp_1(int N, double *A, int LDA, int k1, int k2, int *ipiv,
                      int incx)
 {
   // interchange row i with row IPIV[k1 + (i - k1) * abs(incx)]
@@ -394,7 +405,7 @@ static void slaswp_1(int N, double *A, int LDA, int k1, int k2, int *ipiv,
   }
 }
 
-static void strsm_L_1(int M, int N, double *A, int LDA, double *B, int LDB)
+static void dtrsm_L_1(int M, int N, double *A, int LDA, double *B, int LDB)
 {
   int i, j, k;
 
@@ -414,7 +425,7 @@ static void strsm_L_1(int M, int N, double *A, int LDA, double *B, int LDB)
   }
 }
 
-static void strsm_U_1(int M, int N, double *A, int LDA, double *B, int LDB)
+static void dtrsm_U_1(int M, int N, double *A, int LDA, double *B, int LDB)
 {
   int i, j, k;
 
@@ -435,7 +446,7 @@ static void strsm_U_1(int M, int N, double *A, int LDA, double *B, int LDB)
   }
 }
 
-static void sgemm_1(int M, int N, int K, double alpha, double *A, int LDA,
+static void dgemm_1(int M, int N, int K, double alpha, double *A, int LDA,
                     double *B, int LDB, double beta, double *C, int LDC)
 {
 
@@ -457,7 +468,7 @@ static void sgemm_1(int M, int N, int K, double alpha, double *A, int LDA,
     }
 }
 
-void sgemm_1T(int M, int N, int K, double alpha, double *A, int LDA, double *B,
+void dgemm_1T(int M, int N, int K, double alpha, double *A, int LDA, double *B,
               int LDB, double beta, double *C, int LDC)
 {
 
@@ -479,7 +490,7 @@ void sgemm_1T(int M, int N, int K, double alpha, double *A, int LDA, double *B,
     }
 }
 
-int sgetf2_1(int M, int N, double *A, int LDA, int *ipiv)
+int dgetf2_1(int M, int N, double *A, int LDA, int *ipiv)
 {
 
   int i, j;
@@ -506,12 +517,8 @@ int sgetf2_1(int M, int N, double *A, int LDA, int *ipiv)
 
     if (i != p_i)
     {
-      sswap_1(N, &MIX(A, LDA, i, 0), 1, &MIX(A, LDA, p_i, 0), 1);
+      dswap_1(N, &MIX(A, LDA, i, 0), 1, &MIX(A, LDA, p_i, 0), 1);
     }
-
-    // TODO compute the minimum machine safe integer such that
-    // 1 / fmin doesn't overflow. This can be inlind because
-    // we are targeting SKYLAKE.
 
     // BLAS 1 Scale vector
     for (j = i + 1; j < M; ++j)
@@ -537,13 +544,13 @@ int sgetf2_1(int M, int N, double *A, int LDA, int *ipiv)
   return 0;
 }
 
-// Equivalent to SGETRS (no-transpose).
-static int sgetrs_1(int N, double *A, int *ipiv, double *b)
+// Equivalent to DGETRS (no-transpose).
+static int dgetrs_1(int N, double *A, int *ipiv, double *b)
 {
   // A now contains L (below diagonal)
   //                U (above diagonal)
   // Swap pivot rows in b
-  slaswp_1(1, b, 1, 0, N, ipiv, 1);
+  dlaswp_1(1, b, 1, 0, N, ipiv, 1);
 
 #if DEBUG_LU_SOLVER
   printf("B: ");
@@ -553,9 +560,9 @@ static int sgetrs_1(int N, double *A, int *ipiv, double *b)
 #endif
 
   // Forward substitution
-  strsm_L_1(N, 1, A, N, b, 1);
+  dtrsm_L_1(N, 1, A, N, b, 1);
   // Backward substitution
-  strsm_U_1(N, 1, A, N, b, 1);
+  dtrsm_U_1(N, 1, A, N, b, 1);
   return 0;
 }
 
@@ -580,7 +587,7 @@ int lu_solve_1(int N, double *A, double *b)
   if (N < NB)
   {
     // Use unblocked code
-    retcode = sgetf2_1(M, N, A, LDA, ipiv);
+    retcode = dgetf2_1(M, N, A, LDA, ipiv);
 
 #if DEBUG_LU_SOLVER
     printf("IPIV: ");
@@ -599,7 +606,7 @@ int lu_solve_1(int N, double *A, double *b)
     {
       IB = MIN(MIN(M, N) - ib, NB);
 
-      retcode = sgetf2_1(M - ib, IB, &AIX(ib, ib), LDA, ipiv + ib);
+      retcode = dgetf2_1(M - ib, IB, &AIX(ib, ib), LDA, ipiv + ib);
 
       if (retcode != 0)
         return retcode;
@@ -611,20 +618,20 @@ int lu_solve_1(int N, double *A, double *b)
       }
 
       // Apply interchanges to columns 0 : ib
-      slaswp_1(ib, A, LDA, ib, ib + IB, ipiv, 1);
+      dlaswp_1(ib, A, LDA, ib, ib + IB, ipiv, 1);
 
       if (ib + IB < N)
       {
         // Apply interchanges to columns ib + IB : N
-        slaswp_1(N - ib - IB, &AIX(0, ib + IB), LDA, ib, ib + IB, ipiv, 1);
+        dlaswp_1(N - ib - IB, &AIX(0, ib + IB), LDA, ib, ib + IB, ipiv, 1);
 
         // Compute the block row of U
-        strsm_L_1(IB, N - ib - IB, &AIX(ib, ib), LDA, &AIX(ib, ib + IB), LDA);
+        dtrsm_L_1(IB, N - ib - IB, &AIX(ib, ib), LDA, &AIX(ib, ib + IB), LDA);
 
         if (ib + IB < M) // NOTE for a square matrix this will always be true.
         {
           // Update trailing submatrix
-          sgemm_1(M - ib - IB, N - ib - IB, IB, -ONE, //
+          dgemm_1(M - ib - IB, N - ib - IB, IB, -ONE, //
                   &AIX(ib + IB, ib), LDA,             //
                   &AIX(ib, ib + IB), LDA,             //
                   ONE,                                //
@@ -636,7 +643,7 @@ int lu_solve_1(int N, double *A, double *b)
   }
 
   // Solve the system with A
-  retcode = sgetrs_1(N, A, ipiv, b);
+  retcode = dgetrs_1(N, A, ipiv, b);
 
   return retcode;
 }
@@ -686,10 +693,8 @@ static int isamax_2(int N, double *A, int stride)
   return p_i;
 }
 
-static void sswap_2(int N, double *X, int incx, double *Y, int incy)
+static void dswap_2(int N, double *X, int incx, double *Y, int incy)
 {
-  // TODO special case when incx == incy == 1
-  // ^^^ This is our case actually (row-major iteration).
 
   assert(0 < N);
   assert(0 < incx);
@@ -787,7 +792,7 @@ static void sswap_2(int N, double *X, int incx, double *Y, int incy)
   }
 }
 
-static void slaswp_2(int N, double *A, int LDA, int k1, int k2, int *ipiv,
+static void dlaswp_2(int N, double *A, int LDA, int k1, int k2, int *ipiv,
                      int incx)
 {
   // NOTE ipiv is layed out sequentially in memory so we can special case it
@@ -931,7 +936,7 @@ static void slaswp_2(int N, double *A, int LDA, int k1, int k2, int *ipiv,
   }
 }
 
-static void strsm_L_2(int M, int N, double *A, int LDA, double *B, int LDB)
+static void dtrsm_L_2(int M, int N, double *A, int LDA, double *B, int LDB)
 {
   int i, j, k;
 
@@ -948,7 +953,7 @@ static void strsm_L_2(int M, int N, double *A, int LDA, double *B, int LDB)
   }
 }
 
-static void strsm_U_2(int M, int N, double *A, int LDA, double *B, int LDB)
+static void dtrsm_U_2(int M, int N, double *A, int LDA, double *B, int LDB)
 {
   int i, j, k;
 
@@ -967,7 +972,7 @@ static void strsm_U_2(int M, int N, double *A, int LDA, double *B, int LDB)
 }
 
 // NOTE this function handles boundary cases
-static void sgemm_2(int M, int N, int K, double alpha, double *restrict A,
+static void dgemm_2(int M, int N, int K, double alpha, double *restrict A,
                     int LDA, double *restrict B, int LDB, double beta,
                     double *restrict C, int LDC)
 {
@@ -986,15 +991,10 @@ static void sgemm_2(int M, int N, int K, double alpha, double *restrict A,
   // NOTE Skylake has a 32000 B L1 cache
   // With cache lines of 64 B
 
-  // TODO add an include for autotuning
   const int NB = 56;
   const int MB = 56;
   const int KB = 56;
-  const int DBL_LMT = 512 * 2;
-
-  double __attribute__((aligned(32))) AL[MB * KB];
-  double __attribute__((aligned(32))) BL[KB * NB];
-  double __attribute__((aligned(32))) CL[MB * NB];
+#define DBL_LMT (512 * 2)
 
   // NOTE choose MU + NU + MU * NU <= 16
   const int MU = 4;
@@ -1639,7 +1639,7 @@ static void sgemm_2(int M, int N, int K, double alpha, double *restrict A,
   return;
 }
 
-int sgetf2_2(int M, int N, double *A, int LDA, int *ipiv)
+int dgetf2_2(int M, int N, double *A, int LDA, int *ipiv)
 {
 
   int i, j, k, p_i;
@@ -1693,7 +1693,7 @@ int sgetf2_2(int M, int N, double *A, int LDA, int *ipiv)
 #ifdef DEBUG_LU_SOLVER
       printf("Switching rows: %d %d\n", i, p_i);
 #endif
-      sswap_2(N, &MIX(A, LDA, i, 0), 1, &MIX(A, LDA, p_i, 0), 1);
+      dswap_2(N, &MIX(A, LDA, i, 0), 1, &MIX(A, LDA, p_i, 0), 1);
     }
 
     // TODO compute the minimum machine safe integer such that
@@ -1760,27 +1760,27 @@ int sgetf2_2(int M, int N, double *A, int LDA, int *ipiv)
   return 0;
 }
 
-// Equivalent to SGETRS (no-transpose).
-static int sgetrs_2(int N, double *A, int *ipiv, double *b)
+// Equivalent to DGETRS (no-transpose).
+static int dgetrs_2(int N, double *A, int *ipiv, double *b)
 {
   // A now contains L (below diagonal)
   //                U (above diagonal)
   // Swap pivot rows in b
-  slaswp_2(1, b, 1, 0, N, ipiv, 1);
+  dlaswp_2(1, b, 1, 0, N, ipiv, 1);
 #ifdef DEBUG_LU_SOLVER
   printf("\nB Swapped\n");
   for (int i = 0; i < N; ++i)
     printf("%.4f\n", b[i]);
 #endif
   // Forward substitution
-  strsm_L_2(N, 1, A, N, b, 1);
+  dtrsm_L_2(N, 1, A, N, b, 1);
 #ifdef DEBUG_LU_SOLVER
   printf("\nB forward\n");
   for (int i = 0; i < N; ++i)
     printf("%.4f\n", b[i]);
 #endif
   // Backward substitution
-  strsm_U_2(N, 1, A, N, b, 1);
+  dtrsm_U_2(N, 1, A, N, b, 1);
 #ifdef DEBUG_LU_SOLVER
   printf("\nB solved\n");
   for (int i = 0; i < N; ++i)
@@ -1804,7 +1804,7 @@ int lu_solve_2(int N, double *A, double *b)
   // Use unblocked code
   if (NB <= 1 || NB >= MIN_MN)
   {
-    retcode = sgetf2_2(M, N, A, LDA, ipiv);
+    retcode = dgetf2_2(M, N, A, LDA, ipiv);
     if (retcode != 0)
       return retcode;
   }
@@ -1816,7 +1816,7 @@ int lu_solve_2(int N, double *A, double *b)
     {
       IB = MIN(MIN_MN - ib, NB);
 
-      retcode = sgetf2_2(M - ib, IB, &AIX(ib, ib), LDA, ipiv + ib);
+      retcode = dgetf2_2(M - ib, IB, &AIX(ib, ib), LDA, ipiv + ib);
 
       if (retcode != 0)
         return retcode;
@@ -1840,18 +1840,18 @@ int lu_solve_2(int N, double *A, double *b)
       }
 
       // Apply interchanges to columns 0 : ib
-      slaswp_2(ib, A, LDA, ib, ib + IB, ipiv, 1);
+      dlaswp_2(ib, A, LDA, ib, ib + IB, ipiv, 1);
 
       if (ib + IB < N)
       {
         // Apply interchanges to columns ib + IB : N
-        slaswp_2(N - ib - IB, &AIX(0, ib + IB), LDA, ib, ib + IB, ipiv, 1);
+        dlaswp_2(N - ib - IB, &AIX(0, ib + IB), LDA, ib, ib + IB, ipiv, 1);
 
         // Compute the block row of U
-        strsm_L_2(IB, N - ib - IB, &AIX(ib, ib), LDA, &AIX(ib, ib + IB), LDA);
+        dtrsm_L_2(IB, N - ib - IB, &AIX(ib, ib), LDA, &AIX(ib, ib + IB), LDA);
 
         // Update trailing submatrix
-        sgemm_2(M - ib - IB, N - ib - IB, IB, -ONE, //
+        dgemm_2(M - ib - IB, N - ib - IB, IB, -ONE, //
                 &AIX(ib + IB, ib), LDA,             //
                 &AIX(ib, ib + IB), LDA,             //
                 ONE,                                //
@@ -1872,14 +1872,14 @@ int lu_solve_2(int N, double *A, double *b)
 #endif
 
   // Solve the system with A
-  retcode = sgetrs_2(N, A, ipiv, b);
+  retcode = dgetrs_2(N, A, ipiv, b);
 
   return retcode;
 }
 
 #ifdef TEST_MKL
 
-void sgemm_intel(int M, int N, int K, double alpha, double *A, int LDA,
+void dgemm_intel(int M, int N, int K, double alpha, double *A, int LDA,
                  double *B, int LDB, double beta, double *C, int LDC)
 {
   // Update trailing submatrix
@@ -1943,18 +1943,18 @@ int lu_solve_3(int N, double *A, double *b)
       }
 
       // Apply interchanges to columns 0 : ib
-      slaswp_2(ib, A, LDA, ib, ib + IB, ipiv, 1);
+      dlaswp_2(ib, A, LDA, ib, ib + IB, ipiv, 1);
 
       if (ib + IB < N)
       {
         // Apply interchanges to columns ib + IB : N
-        slaswp_2(N - ib - IB, &AIX(0, ib + IB), LDA, ib, ib + IB, ipiv, 1);
+        dlaswp_2(N - ib - IB, &AIX(0, ib + IB), LDA, ib, ib + IB, ipiv, 1);
 
         // Compute the block row of U
-        strsm_L_2(IB, N - ib - IB, &AIX(ib, ib), LDA, &AIX(ib, ib + IB), LDA);
+        dtrsm_L_2(IB, N - ib - IB, &AIX(ib, ib), LDA, &AIX(ib, ib + IB), LDA);
 
         // Update trailing submatrix
-        sgemm_intel(M - ib - IB, N - ib - IB, IB, -ONE, //
+        dgemm_intel(M - ib - IB, N - ib - IB, IB, -ONE, //
                     &AIX(ib + IB, ib), LDA,             //
                     &AIX(ib, ib + IB), LDA,             //
                     ONE,                                //
@@ -1965,7 +1965,7 @@ int lu_solve_3(int N, double *A, double *b)
   }
 
   // Solve the system with A
-  // retcode = sgetrs_2(N, A, ipiv, b);
+  // retcode = dgetrs_2(N, A, ipiv, b);
   retcode = LAPACKE_dgetrs(LAPACK_ROW_MAJOR, 'N',
                            N,    // Number of equations
                            1,    // Number of rhs equations
@@ -1998,7 +1998,7 @@ int lu_solve_4(int N, double *A, double *b)
  * Transposed memory layout operations
  *
  */
-static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
+static void dlaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
                      int incx)
 {
   // NOTE ipiv is layed out sequentially in memory so we can special case it
@@ -2613,8 +2613,8 @@ static void slaswp_5(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 
 // -----
 
-// NOTE sgemm_5 assumes a TRANSPOSED memory layout
-static void sgemm_5_mini(const int M, const int N, const int K,
+// NOTE dgemm_5 assumes a TRANSPOSED memory layout
+static void dgemm_5_mini(const int M, const int N, const int K,
                          double *restrict A, const int LDA, double *restrict B,
                          const int LDB, double *restrict C, const int LDC)
 {
@@ -2858,7 +2858,7 @@ static void pack_b(double *dst, double *src, int LDA, int M, int N)
   }
 }
 
-void sgemm_5(int M, int N, int K, double alpha, double *restrict A, int LDA,
+void dgemm_5(int M, int N, int K, double alpha, double *restrict A, int LDA,
              double *restrict B, int LDB, double beta, double *restrict C,
              int LDC)
 {
@@ -2881,7 +2881,7 @@ void sgemm_5(int M, int N, int K, double alpha, double *restrict A, int LDA,
       {
         d_i = MIN(M - i, M_BLOCK);
         pack_a(AL, &TIX(A, LDA, i, k), LDA, d_i, d_k);
-        sgemm_5_mini(d_i, d_j, d_k, //
+        dgemm_5_mini(d_i, d_j, d_k, //
                      AL, -10E5,     // NOTE these shouldn't be used
                      BL, -10E5,     //
                      &TIX(C, LDC, i, j), LDC);
@@ -2891,7 +2891,7 @@ void sgemm_5(int M, int N, int K, double alpha, double *restrict A, int LDA,
 }
 
 // A is a lower / left / unit / *transposed* matrix
-static void strsm_L_5(int M, int N, double *A, int LDA, double *B, int LDB)
+static void dtrsm_L_5(int M, int N, double *A, int LDA, double *B, int LDB)
 {
   int i, j, k;
 
@@ -2903,7 +2903,7 @@ static void strsm_L_5(int M, int N, double *A, int LDA, double *B, int LDB)
 }
 
 // A is a upper / left / non-unit / *transposed* matrix
-static void strsm_U_5(int M, int N, double *A, int LDA, double *B, int LDB)
+static void dtrsm_U_5(int M, int N, double *A, int LDA, double *B, int LDB)
 {
   // TODO
   int i, j, k;
@@ -2918,26 +2918,26 @@ static void strsm_U_5(int M, int N, double *A, int LDA, double *B, int LDB)
     }
 }
 
-static int sgetrs_5(int N, double *A, int *ipiv, double *b)
+static int dgetrs_5(int N, double *A, int *ipiv, double *b)
 {
   // A now contains L (below diagonal)
   //                U (above diagonal)
   // Swap pivot rows in b
-  slaswp_5(1, b, 1, 0, N, ipiv, 1);
+  dlaswp_5(1, b, 1, 0, N, ipiv, 1);
 #ifdef DEBUG_LU_SOLVER
   printf("\nB Swapped\n");
   for (int i = 0; i < N; ++i)
     printf("%.4f\n", b[i]);
 #endif
   // Forward substitution
-  strsm_L_5(N, 1, A, N, b, 1);
+  dtrsm_L_5(N, 1, A, N, b, 1);
 #ifdef DEBUG_LU_SOLVER
   printf("\nB Forward\n");
   for (int i = 0; i < N; ++i)
     printf("%.4f\n", b[i]);
 #endif
   // Backward substitution
-  strsm_U_5(N, 1, A, N, b, 1);
+  dtrsm_U_5(N, 1, A, N, b, 1);
 #ifdef DEBUG_LU_SOLVER
   printf("\nB Solved\n");
   for (int i = 0; i < N; ++i)
@@ -2946,7 +2946,7 @@ static int sgetrs_5(int N, double *A, int *ipiv, double *b)
   return 0;
 }
 
-int sgetf2_5(int M, int N, double *A, int LDA, int *ipiv)
+int dgetf2_5(int M, int N, double *A, int LDA, int *ipiv)
 {
 
   int i, j, k, p_i;
@@ -3013,7 +3013,7 @@ int sgetf2_5(int M, int N, double *A, int LDA, int *ipiv)
 #ifdef DEBUG_LU_SOLVER
       printf("Switching rows: %d %d\n", i, p_i);
 #endif
-      sswap_2(N, &TIX(A, LDA, i, 0), LDA, &TIX(A, LDA, p_i, 0), LDA);
+      dswap_2(N, &TIX(A, LDA, i, 0), LDA, &TIX(A, LDA, p_i, 0), LDA);
     }
 
     m_0 = 1 / TIX(A, LDA, i, i);
@@ -3083,7 +3083,7 @@ int sgetf2_5(int M, int N, double *A, int LDA, int *ipiv)
 }
 
 /**
- * Same al lu_solve_2 except it uses the new sgemm_5
+ * Same al lu_solve_2 except it uses the new dgemm_5
  * and a transposed memory layout.
  */
 int lu_solve_5(int N, double *A, double *b)
@@ -3100,7 +3100,7 @@ int lu_solve_5(int N, double *A, double *b)
   // Use unblocked code
   if (NB <= 1 || NB >= MIN_MN)
   {
-    retcode = sgetf2_5(M, N, A, LDA, ipiv);
+    retcode = dgetf2_5(M, N, A, LDA, ipiv);
     if (retcode != 0)
       return retcode;
   }
@@ -3112,7 +3112,7 @@ int lu_solve_5(int N, double *A, double *b)
     {
       IB = MIN(MIN_MN - ib, NB);
 
-      retcode = sgetf2_5(M - ib, IB, &TIX(A, LDA, ib, ib), LDA, ipiv + ib);
+      retcode = dgetf2_5(M - ib, IB, &TIX(A, LDA, ib, ib), LDA, ipiv + ib);
 
       if (retcode != 0)
         return retcode;
@@ -3136,20 +3136,20 @@ int lu_solve_5(int N, double *A, double *b)
       }
 
       // Apply interchanges to columns 0 : ib
-      slaswp_5(ib, A, LDA, ib, ib + IB, ipiv, 1);
+      dlaswp_5(ib, A, LDA, ib, ib + IB, ipiv, 1);
 
       if (ib + IB < N)
       {
         // Apply interchanges to columns ib + IB : N
-        slaswp_5(N - ib - IB, &TIX(A, LDA, 0, ib + IB), LDA, ib, ib + IB, ipiv,
+        dlaswp_5(N - ib - IB, &TIX(A, LDA, 0, ib + IB), LDA, ib, ib + IB, ipiv,
                  1);
 
         // Compute the block row of U
-        strsm_L_5(IB, N - ib - IB, &TIX(A, LDA, ib, ib), LDA,
+        dtrsm_L_5(IB, N - ib - IB, &TIX(A, LDA, ib, ib), LDA,
                   &TIX(A, LDA, ib, ib + IB), LDA);
 
         // Update trailing submatrix
-        sgemm_5(M - ib - IB, N - ib - IB, IB, -ONE, //
+        dgemm_5(M - ib - IB, N - ib - IB, IB, -ONE, //
                 &TIX(A, LDA, ib + IB, ib), LDA,     //
                 &TIX(A, LDA, ib, ib + IB), LDA,     //
                 ONE,                                //
@@ -3170,7 +3170,7 @@ int lu_solve_5(int N, double *A, double *b)
 #endif
 
   // Solve the system with A
-  retcode = sgetrs_5(N, A, ipiv, b);
+  retcode = dgetrs_5(N, A, ipiv, b);
 
   return retcode;
 }
@@ -3179,7 +3179,7 @@ int lu_solve_5(int N, double *A, double *b)
  * Transposed memory layout operations
  *
  */
-static void sswap_6(int N, double *X, int incx, double *Y, int incy)
+static void dswap_6(int N, double *X, int incx, double *Y, int incy)
 {
   // TODO special case when incx == incy == 1
   // ^^^ This is our case actually (row-major iteration).
@@ -3234,7 +3234,7 @@ static void sswap_6(int N, double *X, int incx, double *Y, int incy)
   }
 }
 
-static void slaswp_6(int N, double *A, int LDA, int k1, int k2, int *ipiv,
+static void dlaswp_6(int N, double *A, int LDA, int k1, int k2, int *ipiv,
                      int incx)
 {
   // NOTE ipiv is layed out sequentially in memory so we can special case it
@@ -3379,7 +3379,7 @@ static void slaswp_6(int N, double *A, int LDA, int k1, int k2, int *ipiv,
 }
 
 // A is a lower / left / unit / *transposed* matrix
-static void strsm_L_6(int M, int N, double *A, int LDA, double *B, int LDB)
+static void dtrsm_L_6(int M, int N, double *A, int LDA, double *B, int LDB)
 {
   int i, j, k;
 
@@ -3391,7 +3391,7 @@ static void strsm_L_6(int M, int N, double *A, int LDA, double *B, int LDB)
 }
 
 // A is a upper / left / non-unit / *transposed* matrix
-static void strsm_U_6(int M, int N, double *A, int LDA, double *B, int LDB)
+static void dtrsm_U_6(int M, int N, double *A, int LDA, double *B, int LDB)
 {
   // TODO
   int i, j, k;
@@ -3406,26 +3406,26 @@ static void strsm_U_6(int M, int N, double *A, int LDA, double *B, int LDB)
     }
 }
 
-static int sgetrs_6(int N, double *A, int *ipiv, double *b)
+static int dgetrs_6(int N, double *A, int *ipiv, double *b)
 {
   // A now contains L (below diagonal)
   //                U (above diagonal)
   // Swap pivot rows in b
-  slaswp_6(1, b, 1, 0, N, ipiv, 1);
+  dlaswp_6(1, b, 1, 0, N, ipiv, 1);
 #ifdef DEBUG_LU_SOLVER
   printf("\nB Swapped\n");
   for (int i = 0; i < N; ++i)
     printf("%.4f\n", b[i]);
 #endif
   // Forward substitution
-  strsm_L_6(N, 1, A, N, b, 1);
+  dtrsm_L_6(N, 1, A, N, b, 1);
 #ifdef DEBUG_LU_SOLVER
   printf("\nB Forward\n");
   for (int i = 0; i < N; ++i)
     printf("%.4f\n", b[i]);
 #endif
   // Backward substitution
-  strsm_U_6(N, 1, A, N, b, 1);
+  dtrsm_U_6(N, 1, A, N, b, 1);
 #ifdef DEBUG_LU_SOLVER
   printf("\nB Solved\n");
   for (int i = 0; i < N; ++i)
@@ -3434,41 +3434,44 @@ static int sgetrs_6(int N, double *A, int *ipiv, double *b)
   return 0;
 }
 
-int sgetf2_6(int M, int N, double *A, int LDA, int *ipiv)
+int dgetf2_6(int M, int N, double *A, int LDA, int *ipiv)
 {
 
   int i, j, k, p_i;
 
   double   //
       p_v, //
-      m_0  //
+      m_0, //
+      m_1, //
+      m_2, //
+      m_3  //
       ;
 
   double      //
-      A_j_k0, //
-      A_j_k1, //
-      A_j_k2, //
-      A_j_k3, //
-      A_j_k4, //
-      A_j_k5, //
-      A_j_k6, //
-      A_j_k7, //
+      A_j0_k, //
+      A_j1_k, //
+      A_j2_k, //
+      A_j3_k, //
 
-      A_i_k0, //
-      A_i_k1, //
-      A_i_k2, //
-      A_i_k3, //
-      A_i_k4, //
-      A_i_k5, //
-      A_i_k6, //
-      A_i_k7  //
+      A_i_k //
       ;
 
   __m256d     //
-      pm_0,   //
+      m_0p,   //
+      m_4p,   //
       A_j0_i, //
       A_j4_i  //
       ;
+
+  __m256d      //
+      A_i_kp,  //
+      A_j0_kp, //
+      A_j4_kp, //
+
+      zero_pd //
+      ;
+
+  zero_pd = _mm256_setzero_pd();
 
   // Quick return
   if (!M || !N)
@@ -3498,23 +3501,23 @@ int sgetf2_6(int M, int N, double *A, int LDA, int *ipiv)
 #ifdef DEBUG_LU_SOLVER
       printf("Switching rows: %d %d\n", i, p_i);
 #endif
-      sswap_6(N, &TIX(A, LDA, i, 0), LDA, &TIX(A, LDA, p_i, 0), LDA);
+      dswap_6(N, &TIX(A, LDA, i, 0), LDA, &TIX(A, LDA, p_i, 0), LDA);
     }
 
     // BLAS 1 Scale vector ---
     m_0 = 1 / TIX(A, LDA, i, i);
-    pm_0 = _mm256_set1_pd(m_0); // XXX sequence of instructions
+    m_0p = _mm256_set1_pd(m_0); // XXX sequence of instructions
     for (j = i + 1; j <= M - 8; j += 8)
     {
       A_j0_i = _mm256_loadu_pd(&TIX(A, LDA, j + 0, i));
-      _mm256_storeu_pd(&TIX(A, LDA, j + 0, i), _mm256_mul_pd(pm_0, A_j0_i));
+      _mm256_storeu_pd(&TIX(A, LDA, j + 0, i), _mm256_mul_pd(m_0p, A_j0_i));
       A_j0_i = _mm256_loadu_pd(&TIX(A, LDA, j + 4, i));
-      _mm256_storeu_pd(&TIX(A, LDA, j + 4, i), _mm256_mul_pd(pm_0, A_j0_i));
+      _mm256_storeu_pd(&TIX(A, LDA, j + 4, i), _mm256_mul_pd(m_0p, A_j0_i));
     }
     for (; j <= M - 4; j += 4)
     {
       A_j0_i = _mm256_loadu_pd(&TIX(A, LDA, j + 0, i));
-      _mm256_storeu_pd(&TIX(A, LDA, j + 0, i), _mm256_mul_pd(pm_0, A_j0_i));
+      _mm256_storeu_pd(&TIX(A, LDA, j + 0, i), _mm256_mul_pd(m_0p, A_j0_i));
     }
     for (; j < M; ++j)
     {
@@ -3528,18 +3531,50 @@ int sgetf2_6(int M, int N, double *A, int LDA, int *ipiv)
       // BLAS 2 Rank 1 update ---
       for (k = i + 1; k < N; ++k)
       {
-        // XXX flip the loop order to get better locaility
-        for (j = i + 1; j < M; ++j)
+        A_i_k = TIX(A, LDA, i, k + 0);
+        A_i_kp = _mm256_set1_pd(A_i_k);
+
+        j = i + 1;
+
+        for (; j < M - 7; j += 8)
+        {
+          // Negate to make computations look like FMA :)
+          m_0p = _mm256_sub_pd(                       //
+              zero_pd,                                //
+              _mm256_loadu_pd(&TIX(A, LDA, j + 0, i)) //
+          );
+          m_4p = _mm256_sub_pd(                       //
+              zero_pd,                                //
+              _mm256_loadu_pd(&TIX(A, LDA, j + 4, i)) //
+          );
+          A_j0_kp = _mm256_loadu_pd(&TIX(A, LDA, j + 0, k + 0));
+          A_j4_kp = _mm256_loadu_pd(&TIX(A, LDA, j + 4, k + 0));
+          _mm256_storeu_pd(&TIX(A, LDA, j + 0, k + 0), //
+                           _mm256_fmadd_pd(m_0p, A_i_kp, A_j0_kp));
+          _mm256_storeu_pd(&TIX(A, LDA, j + 4, k + 0), //
+                           _mm256_fmadd_pd(m_4p, A_i_kp, A_j4_kp));
+        }
+
+        for (; j < M - 3; j += 4)
+        {
+          m_0p = _mm256_sub_pd(                       //
+              zero_pd,                                //
+              _mm256_loadu_pd(&TIX(A, LDA, j + 0, i)) //
+          );
+          A_j0_kp = _mm256_loadu_pd(&TIX(A, LDA, j + 0, k + 0));
+          _mm256_storeu_pd(&TIX(A, LDA, j + 0, k + 0), //
+                           _mm256_fmadd_pd(m_0p, A_i_kp, A_j0_kp));
+        }
+
+        for (; j < M; ++j)
         {
           // Negate to make computations look like FMA :)
           m_0 = -TIX(A, LDA, j, i);
-          A_j_k0 = TIX(A, LDA, j, k + 0);
-          A_i_k0 = TIX(A, LDA, i, k + 0);
-          TIX(A, LDA, j, k + 0) = m_0 * A_i_k0 + A_j_k0;
+          A_j0_k = TIX(A, LDA, j, k + 0);
+          TIX(A, LDA, j, k + 0) = m_0 * A_i_k + A_j0_k;
         }
       }
       // --- BLAS 2 Rank 1 update
-      //
     }
   }
 
@@ -3547,7 +3582,7 @@ int sgetf2_6(int M, int N, double *A, int LDA, int *ipiv)
 }
 
 /**
- * Same al lu_solve_2 except it uses the new sgemm_5
+ * Same al lu_solve_2 except it uses the new dgemm_5
  * and a transposed memory layout.
  */
 int lu_solve_6(int N, double *A, double *b)
@@ -3569,7 +3604,7 @@ int lu_solve_6(int N, double *A, double *b)
   // Use unblocked code
   if (NB <= 1 || NB >= MIN_MN)
   {
-    retcode = sgetf2_6(M, N, A, LDA, ipiv);
+    retcode = dgetf2_6(M, N, A, LDA, ipiv);
     if (retcode != 0)
       return retcode;
   }
@@ -3581,7 +3616,7 @@ int lu_solve_6(int N, double *A, double *b)
     {
       IB = MIN(MIN_MN - ib, NB);
 
-      retcode = sgetf2_6(M - ib, IB, &TIX(A, LDA, ib, ib), LDA, ipiv + ib);
+      retcode = dgetf2_6(M - ib, IB, &TIX(A, LDA, ib, ib), LDA, ipiv + ib);
 
       if (retcode != 0)
         return retcode;
@@ -3619,20 +3654,20 @@ int lu_solve_6(int N, double *A, double *b)
       // ----
 
       // Apply interchanges to columns 0 : ib
-      slaswp_6(ib, A, LDA, ib, ib + IB, ipiv, 1);
+      dlaswp_6(ib, A, LDA, ib, ib + IB, ipiv, 1);
 
       if (ib + IB < N)
       {
         // Apply interchanges to columns ib + IB : N
-        slaswp_6(N - ib - IB, &TIX(A, LDA, 0, ib + IB), LDA, ib, ib + IB, ipiv,
+        dlaswp_6(N - ib - IB, &TIX(A, LDA, 0, ib + IB), LDA, ib, ib + IB, ipiv,
                  1);
 
         // Compute the block row of U
-        strsm_L_6(IB, N - ib - IB, &TIX(A, LDA, ib, ib), LDA,
+        dtrsm_L_6(IB, N - ib - IB, &TIX(A, LDA, ib, ib), LDA,
                   &TIX(A, LDA, ib, ib + IB), LDA);
 
         // Update trailing submatrix
-        sgemm_5(M - ib - IB, N - ib - IB, IB, -1.,  //
+        dgemm_5(M - ib - IB, N - ib - IB, IB, -1.,  //
                 &TIX(A, LDA, ib + IB, ib), LDA,     //
                 &TIX(A, LDA, ib, ib + IB), LDA,     //
                 1.,                                 //
@@ -3653,7 +3688,7 @@ int lu_solve_6(int N, double *A, double *b)
 #endif
 
   // Solve the system with A
-  retcode = sgetrs_6(N, A, ipiv, b);
+  retcode = dgetrs_6(N, A, ipiv, b);
 
   return retcode;
 }
@@ -3675,11 +3710,11 @@ void register_functions_LU_SOLVE()
 
 void register_functions_MMM()
 {
-  add_function_MMM(&sgemm_1, "MMM Base", 1);
-  add_function_MMM(&sgemm_2, "MMM_C_opts", 1);
-  add_function_MMM(&sgemm_5, "MMM_Copts_Vector", 1);
+  add_function_MMM(&dgemm_1, "MMM Base", 1);
+  add_function_MMM(&dgemm_2, "MMM_C_opts", 1);
+  add_function_MMM(&dgemm_5, "MMM_Copts_Vector", 1);
 #ifdef TEST_MKL
-  add_function_MMM(&sgemm_intel, "MMM_Intel", 1);
+  add_function_MMM(&dgemm_intel, "MMM_Intel", 1);
 #endif
 }
 
