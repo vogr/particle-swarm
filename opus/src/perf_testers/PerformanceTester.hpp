@@ -33,12 +33,17 @@
 #include <functional>
 #include <iostream>
 #include <list>
+#include <sstream>
 #include <string>
 #include <vector>
 
 extern "C"
 {
 #include "tsc_x86.h"
+
+#ifdef WITH_PAPI
+#include "papi.h"
+#endif
 }
 
 // #define PERF_TESTER_OUTPUT
@@ -73,7 +78,7 @@ public:
    * Registers a user function to be tested by the driver program. Registers a
    * string description of the function as well
    */
-  void add_function(fun_T f, std::string name, int flop)
+  void add_function(fun_T f, std::string const &name, int flop)
   {
     userFuncs.push_back(f);
     funcNames.emplace_back(name);
@@ -85,7 +90,7 @@ public:
    * If valid, then computes and reports and returns the number of cycles
    * required per iteration
    */
-  double perf_test(fun_T f, std::string desc,
+  double perf_test(fun_T f, std::string const &desc,
                    std::function<void()> arg_restorer, Args_T... args)
   {
     double cycles = 0.;
@@ -141,6 +146,27 @@ public:
     total_cycles /= (PERF_TESTER_REP * num_runs);
     cycles = total_cycles;
 
+#ifdef WITH_PAPI
+
+#ifdef PERF_TESTER_OUTPUT
+    std::cerr << "PAPI over " << PERF_TESTER_REP << " * " << num_runs
+              << " runs.\n";
+#endif
+
+    // Measure again, this time with PAPI
+    for (size_t j = 0; j < PERF_TESTER_REP; j++)
+    {
+      for (size_t i = 0; i < num_runs; ++i)
+      {
+        PAPI_hl_region_begin(desc.data());
+        f(args...);
+        PAPI_hl_region_end(desc.data());
+
+        arg_restorer();
+      }
+    }
+#endif
+
     return cycles;
   }
 
@@ -168,7 +194,9 @@ public:
 
     for (i = 0; i < numFuncs; i++)
     {
-      perf = perf_test(userFuncs[i], funcNames[i], arg_restorer, args...);
+      std::stringstream descr;
+      descr << funcNames[i] << "__" << input_size;
+      perf = perf_test(userFuncs[i], descr.str(), arg_restorer, args...);
       std::cout << funcNames[i] << "," << input_size << "," << perf
                 << std::endl;
     }

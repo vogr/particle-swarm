@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdio>
 #include <fstream>
+#include <sstream>
 
 #include "perf_testers/PerformanceTester.hpp"
 
@@ -146,17 +147,18 @@ int main(int argc, char **argv)
   }
 
   struct pso_data_constant_inertia pso;
-  std::cout << "init" << std::endl;
+  std::cout << "PSO init" << std::endl;
   pso_constant_inertia_init(&pso, &griewank_Nd, inertia, social, cognition,
                             local_refinement_box_size, min_dist, dimensions,
                             population_size, time_max, n_trials, bounds_low,
                             bounds_high, vmin, vmax, SPACE_FILLING_DESIGN_SIZE);
-  std::cout << "first steps" << std::endl;
+  std::cout << "PSO first steps" << std::endl;
 
   pso_constant_inertia_first_steps(&pso, SPACE_FILLING_DESIGN_SIZE,
                                    space_filling_design);
 
-  std::cout << nb_measurements << " x " << time_between_measures << "\n";
+  std::cout << "Run pso: " << nb_measurements << " x " << time_between_measures
+            << "\n";
   for (int k_input = 0; k_input < nb_measurements; k_input++)
   {
     while (pso.time < k_input * time_between_measures)
@@ -183,7 +185,10 @@ int main(int argc, char **argv)
       auto arg_restorer = [&]()
       { pso.x_distinct_idx_of_last_batch = pso.x_distinct_s - 10; };
 
-      double cycles = perf_tester.perf_test(fit_surrogate, fit_surrogate_name,
+      std::stringstream descr;
+      descr << fit_surrogate_name << "__" << n_A;
+
+      double cycles = perf_tester.perf_test(fit_surrogate, descr.str(),
                                             std::move(arg_restorer), &pso);
 
       std::cout << fit_surrogate_name << "," << n_A << "," << cycles
@@ -200,9 +205,11 @@ int main(int argc, char **argv)
 
       double x[DIMENSION] = {0};
 
-      double cycles =
-          perf_tester.perf_test(&surrogate_eval, surrogate_eval_name,
-                                std::move(arg_restorer), &pso, x);
+      std::stringstream descr;
+      descr << surrogate_eval_name << "__" << n_A;
+
+      double cycles = perf_tester.perf_test(&surrogate_eval, descr.str(),
+                                            std::move(arg_restorer), &pso, x);
 
       std::cout << surrogate_eval_name << "," << n_A << "," << cycles
                 << std::endl;

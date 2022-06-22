@@ -1,6 +1,10 @@
 
-# Debug flags
 CPPFLAGS+=-I../../../opus/src
+
+# PAPI output
+CPPFLAGS+=-DWITH_PAPI -DPERF_TESTER_OUTPUT
+LDLIBS+=-lpapi
+
 
 # Release flags
 RELEASE_FLAGS:=-DNDEBUG -O2 -flto -fcf-protection=none -fno-stack-protector -ffast-math -g
