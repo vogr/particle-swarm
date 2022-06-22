@@ -17,8 +17,6 @@
 #define BIT_ALGINMENT 32
 #define IS_ALIGN(i) ((i) % 4 == 0)
 #define COND_OR_ALIGN(i, cnd) ((cnd) | IS_ALIGN(i))
-#define ERR_THRESHOLD 1.00e-6
-#define APPROX_EQUAL(l, r) (fabs((r) - (l)) <= ERR_THRESHOLD)
 
 // NOTE predefine functions here and put them in increasing level
 // of optimization below. Please list the optimizations performed
