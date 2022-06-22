@@ -17,6 +17,9 @@ RUN_PERF_TESTERS ?= 0
 # Build with Intel's MKL
 INC_MKL ?= 0
 
+# Pull autotune variables from the environment
+AUTOTUNE_ENV ?= 0
+
 ######
 # Compilation flags
 ######
@@ -50,6 +53,18 @@ CXXFLAGS += -std=gnu++17
 # Libraries to link
 LDLIBS+=-lm
 
+ifeq ($(AUTOTUNE_ENV), 1)
+	AUTOTUNE_FLAGS = -DLU_BLOCK=${AT_LU_BLOCK}
+	# AUTOTUNE_FLAGS += -DM_BLOCK=${AT_M_BLOCK}
+	# AUTOTUNE_FLAGS += -DN_BLOCK=${AT_N_BLOCK}
+	# AUTOTUNE_FLAGS += -DK_BLOCK=${AT_K_BLOCK}
+else
+	# Default arguments
+	AUTOTUNE_FLAGS = -DLU_BLOCK=64
+	AUTOTUNE_FLAGS += -DM_BLOCK=192
+	AUTOTUNE_FLAGS += -DN_BLOCK=2048
+	AUTOTUNE_FLAGS += -DK_BLOCK=384
+endif
 
 
 ######
@@ -168,7 +183,7 @@ else
 endif
 
 CXXFLAGS+= $(ALL_FLAGS)
-CFLAGS+= $(ALL_FLAGS)
+CFLAGS+= $(ALL_FLAGS) $(AUTOTUNE_FLAGS)
 # LTO and sanitizers: the compilation flags are needed at link time
 LDFLAGS+= $(ALL_FLAGS)
 

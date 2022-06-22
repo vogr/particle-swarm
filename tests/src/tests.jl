@@ -1,6 +1,5 @@
 module tests
 
-# To add a new FFI test stub, include it here ----
 include("ffi_lu_solve.jl")
 include("ffi_gaussian_elimination.jl")
 include("ffi_mmm.jl")
@@ -10,36 +9,10 @@ include("ffi_tri_sys_solve.jl")
 const tu = TestUtils
 
 function register_perf_tested_functions()
-  ccall((:register_functions_TRI_SYS_SOLVE, :libpso), Cvoid, ()) 
-  ccall((:register_functions_GE_SOLVE, :libpso), Cvoid, ()) 
-  ccall((:register_functions_LU_SOLVE, :libpso), Cvoid, ()) 
-  ccall((:register_functions_MMM, :libpso), Cvoid, ()) 
-end
-
-function solve_tests()
-  # PSO_GE.solve_tests()
-  LU.solve_tests()
-end
-
-
-function solve_perf_tests_single(n)
-  local A
-  local b
-  while true
-      A = tu.sym_n(n)
-      b = rand(n)
-      (!LU.valid(n, A, b) ||
-          !PSO_GE.valid(n, A, b)) ||
-          break
-  end
-  PSO_GE.perf_tests(n, A, b)
-  LU.perf_tests(n, A, b)
-end
-
-function solve_perf_tests_range(iterable)
-    for i in iterable
-        solve_perf_tests_single(i)
-    end
+  ccall(tu.lookup(tu.libpso, :register_functions_TRI_SYS_SOLVE), Cvoid, ())
+  ccall(tu.lookup(tu.libpso, :register_functions_GE_SOLVE), Cvoid, ())
+  ccall(tu.lookup(tu.libpso, :register_functions_LU_SOLVE), Cvoid, ())
+  ccall(tu.lookup(tu.libpso, :register_functions_MMM), Cvoid, ())
 end
 
 function solve_perf_tests_block_tri_single(n)
@@ -76,14 +49,10 @@ function solve_all_perf_tests_single(n)
 
       A1, A2 = tu.build_matrices(c, d)
       b = rand(n)
-      (!LU.valid(n, A1, b) # ||
-          # !PSO_GE.valid(n, A1, b) ||
-          # !PSO_TRI_SYS.valid(n, d, A2, b) ||
-       )
-            break
+      LU.valid(n, A1, b) && break
   end
   PSO_GE.perf_tests(n, A1, b)
-  LU.perf_tests(n, A1, b)
+  LU.perf_tests(tu.libpso, n, A1, b)
   PSO_TRI_SYS.perf_tests(n, d, A2, b)
 end
 
@@ -93,43 +62,93 @@ function solve_all_perf_tests_range(iterable)
   end
 end
 
-# SETUP
-register_perf_tested_functions()
-LU.init(2^20) # Arbitrarily large N
+# ----------------------------
+# ONLY MODIFY CODE BELOW THIS LINE
 
+max_size = 2^20
+mmm_results = "mmm_log.log"
+solve_results = "solve_log.log"
+autotune_results = "autotune_log.log"
 
 # ------
-# For performance testing system solving
-start = round(Int, 100^(1/3))
+# Uniform testing range
+start = round(Int, 50^(1/3))
 step = 1
-stop = round(Int, 10000^(1/3))
+stop = round(Int, 4097^(1/3))
 range = [n^3 for n = start:step:stop]
-print(range, '\n')
-solve_all_perf_tests_range(range)
 
+function autotuning_lu_main(libs_to_perf)
+    for lib_symbol in libs_to_perf
+        tu.set_lib(lib_symbol)
+        ccall(tu.lookup(tu.libpso, :register_functions_LU_SOLVE), Cvoid, ())
+        LU.init(tu.libpso, max_size)
+    end
+    redirect_stdio(stdout=autotune_results) do
+        for n in range
+          A = tu.sym_n(n)
+          b = rand(n)
+          for lib_symbol in libs_to_perf
+              tu.set_lib(lib_symbol) # XXX set new dylib
+              LU.perf_tests(tu.libpso, n, A, b)
+          end
+        end
+    end
+    for lib_symbol in libs_to_perf
+        tu.set_lib(lib_symbol)
+        LU.teardown(lib_symbol)
+    end
+end
 
+function main()
 
-# ------
-# For performance testing MMM
-# for i in 5:11
-#     MMM.perf_tests(2^i, 2^i, 2^i)
-# end
+    # NOTE if you get a weird shared library
+    # or dlopen error Gavin knows how to fix it.
+    # He was too lazy to change it in all the
+    # modules.
+    tu.set_lib(:libpso)
 
-# IGORE BELOW THIS LINE
+    # ------
+    # SETUP
+    register_perf_tested_functions()
+    LU.init(tu.libpso, max_size)
 
-# solve_tests()
-# MMM.perf_tests(1024, 1024, 1024)
-# solve_perf_tests_range(2^10:2^10:(2^10)+1)
+    # ------
+    # For performance testing MMM
+    redirect_stdio(stdout=mmm_results) do
+        for n in range
+            MMM.perf_tests(tu.libpso, n, n, n)
+        end
+    end
 
-# solve_tests()
-# MMM.perf_tests(1024, 256, 256 * 2)
-# solve_perf_tests_single(2^9)
-# solve_perf_tests_range(100:500:1024)
-# PSO_GE.solve_tests()
+    # ------
+    # For performance testing system solving
+    redirect_stdio(stdout=solve_results) do
+        solve_all_perf_tests_range(range)
+    end
 
-# PSO_TRI_SYS.solve_tests()
+    LU.teardown()
 
+end
 
-# LU.teardown()
+# -----
+# ENTRY
+
+if "AUTO" in ARGS
+    autotuning_lu_main([
+        :(0libpso),
+        :(32libpso),
+        :(64libpso),
+        :(128libpso),
+        :(256libpso),
+        :(512libpso)
+    ])
+elseif "LUTEST" in ARGS
+    tu.set_lib(:libpso)
+    LU.init(tu.libpso, max_size)
+    LU.solve_tests(tu.libpso)
+    LU.teardown(tu.libpso)
+else
+    main()
+end
 
 end # module

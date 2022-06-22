@@ -47,7 +47,7 @@ static PerformanceTester<ge_solve_fun_t> perf_tester;
 extern "C" void add_function_GE_SOLVE(ge_solve_fun_t f, char *name, int flop)
 {
   std::string nm = std::string(name);
-  std::cout << "Register " << nm << "\n";
+  std::cerr << "Register " << nm << "\n";
   perf_tester.add_function(f, nm, flop);
 }
 

@@ -32,6 +32,7 @@ int lu_solve_2(int N, double *A, double *b);
 #ifdef TEST_MKL
 int lu_solve_3(int N, double *A, double *b);
 int lu_solve_4(int N, double *A, double *b);
+int lu_solve_7(int N, double *A, double *b);
 #endif
 int lu_solve_5(int N, double *A, double *b);
 int lu_solve_6(int N, double *A, double *b);
@@ -39,7 +40,7 @@ int lu_solve_6(int N, double *A, double *b);
 static int *scratch_ipiv;
 
 #ifndef LU_SOLVE_VERSION
-#define LU_SOLVE_VERSION lu_solve_6
+#define LU_SOLVE_VERSION lu_solve_7
 #endif
 
 /** @brief Entry function to solve system A * x = b
@@ -74,12 +75,30 @@ static void swapd(double *a, int i, int j)
   a[j] = t;
 }
 
+static unsigned usqrt4(unsigned val)
+{
+  unsigned a, b;
+  if (val < 2)
+    return val; /* avoid div/0 */
+  a = 1255;     /* starting point is relatively unimportant */
+  b = val / a;
+  a = (a + b) / 2;
+  b = val / a;
+  a = (a + b) / 2;
+  b = val / a;
+  a = (a + b) / 2;
+  b = val / a;
+  a = (a + b) / 2;
+  return a;
+}
+
 static __attribute__((always_inline)) int ideal_block(int M, int N)
 {
-#ifndef LU_BLOCK
-#define LU_BLOCK 64
-#endif
+#ifdef LU_BLOCK
   return LU_BLOCK;
+#else
+  return usqrt4(M);
+#endif
 }
 
 /** ------------------------------------------------------------------
@@ -258,7 +277,6 @@ int lu_solve_1(int N, double *A, double *b)
 
   // Solve the system with A
   retcode = dgetrs_1(N, A, ipiv, b);
-
   return retcode;
 }
 
@@ -345,7 +363,6 @@ int lu_solve_2(int N, double *A, double *b)
 
   // Solve the system with A
   retcode = dgetrs_2(N, A, ipiv, b);
-
   return retcode;
 }
 
@@ -437,7 +454,6 @@ int lu_solve_3(int N, double *A, double *b)
                            ipiv, //
                            b, 1  //
   );
-
   return retcode;
 }
 
@@ -538,26 +554,11 @@ int lu_solve_5(int N, double *A, double *b)
     }
   }
 
-#if DEBUG_LU_SOLVER
-  for (int i = 0; i < N; ++i)
-  {
-    for (int j = 0; j < N; ++j)
-      printf("%.4f  ", TIX(A, N, i, j));
-    printf("\n");
-  }
-  printf("\n");
-#endif
-
   // Solve the system with A
   retcode = dgetrs_5(N, A, ipiv, b);
-
   return retcode;
 }
 
-/**
- * Same al lu_solve_2 except it uses the new dgemm_6
- * and a transposed memory layout.
- */
 int lu_solve_6(int N, double *A, double *b)
 {
   int retcode, ib, IB, k;
@@ -640,7 +641,7 @@ int lu_solve_6(int N, double *A, double *b)
                   &TIX(A, LDA, ib, ib + IB), LDA);
 
         // Update trailing submatrix
-        dgemm_6(M - ib - IB, N - ib - IB, IB, -1.,  //
+        dgemm_5(M - ib - IB, N - ib - IB, IB, -1.,  //
                 &TIX(A, LDA, ib + IB, ib), LDA,     //
                 &TIX(A, LDA, ib, ib + IB), LDA,     //
                 1.,                                 //
@@ -650,19 +651,104 @@ int lu_solve_6(int N, double *A, double *b)
     }
   }
 
-#if DEBUG_LU_SOLVER
-  for (int i = 0; i < N; ++i)
-  {
-    for (int j = 0; j < N; ++j)
-      printf("%.4f  ", TIX(A, N, i, j));
-    printf("\n");
-  }
-  printf("\n");
-#endif
-
   // Solve the system with A
   retcode = dgetrs_6(N, A, ipiv, b);
+  return retcode;
+}
 
+int lu_solve_7(int N, double *A, double *b)
+{
+  int retcode, ib, IB, k;
+  int *ipiv = scratch_ipiv;
+
+  const int NB = ideal_block(N, N), //
+      M = N,                        //
+      LDA = N,                      //
+      MIN_MN = N                    //
+      ;
+
+  __m256i      //
+      ipiv_k0, //
+      ipiv_k4, //
+      pib;
+
+  // Use unblocked code
+  if (NB <= 1 || NB >= MIN_MN)
+  {
+    retcode = dgetf2_6(M, N, A, LDA, ipiv);
+    if (retcode != 0)
+      return retcode;
+  }
+
+  // BLocked factor A into [L \ U]
+  else
+  {
+    for (ib = 0; ib < MIN_MN; ib += NB)
+    {
+      IB = MIN(MIN_MN - ib, NB);
+
+      retcode = dgetf2_6(M - ib, IB, &TIX(A, LDA, ib, ib), LDA, ipiv + ib);
+
+      if (retcode != 0)
+        return retcode;
+
+      pib = _mm256_set1_epi32(ib); // XXX sequence of instructions
+
+      // ----
+
+      k = ib;
+
+      // Update the pivot indices
+      for (; k < MIN(M, ib + IB) - 15; k += 16)
+      {
+        ipiv_k0 = _mm256_loadu_si256((void *)(ipiv + k + 0));
+        _mm256_storeu_si256((void *)(ipiv + k + 0),
+                            _mm256_add_epi32(ipiv_k0, pib));
+
+        ipiv_k0 = _mm256_loadu_si256((void *)(ipiv + k + 8));
+        _mm256_storeu_si256((void *)(ipiv + k + 8),
+                            _mm256_add_epi32(ipiv_k0, pib));
+      }
+
+      for (; k < MIN(M, ib + IB) - 7; k += 8)
+      {
+        ipiv_k0 = _mm256_loadu_si256((void *)(ipiv + k + 0));
+        _mm256_storeu_si256((void *)(ipiv + k + 0),
+                            _mm256_add_epi32(ipiv_k0, pib));
+      }
+
+      for (; k < MIN(M, ib + IB); ++k)
+      {
+        ipiv[k + 0] += ib;
+      }
+
+      // ----
+
+      // Apply interchanges to columns 0 : ib
+      dlaswp_6(ib, A, LDA, ib, ib + IB, ipiv, 1);
+
+      if (ib + IB < N)
+      {
+        // Apply interchanges to columns ib + IB : N
+        dlaswp_6(N - ib - IB, &TIX(A, LDA, 0, ib + IB), LDA, ib, ib + IB, ipiv,
+                 1);
+
+        // Compute the block row of U
+        dtrsm_L_6(IB, N - ib - IB, &TIX(A, LDA, ib, ib), LDA,
+                  &TIX(A, LDA, ib, ib + IB), LDA);
+
+        // Update trailing submatrix
+        dgemm_intelT(M - ib - IB, N - ib - IB, IB, -1.,  //
+                     &TIX(A, LDA, ib + IB, ib), LDA,     //
+                     &TIX(A, LDA, ib, ib + IB), LDA,     //
+                     1.,                                 //
+                     &TIX(A, LDA, ib + IB, ib + IB), LDA //
+        );
+      }
+    }
+  }
+  // Solve the system with A
+  retcode = dgetrs_6(N, A, ipiv, b);
   return retcode;
 }
 
@@ -670,15 +756,23 @@ int lu_solve_6(int N, double *A, double *b)
 
 void register_functions_LU_SOLVE()
 {
+  char lu_6_msg[100];
+#ifndef LU_BLOCK
+  sprintf(lu_6_msg, "LU_Solve Transposed Vector (sqrt)");
+#else
+  sprintf(lu_6_msg, "LU_Solve Transposed Vector (%d)", LU_BLOCK);
+#endif
+
   add_function_LU_SOLVE(&lu_solve_0, "LU Solve Base", 1);
   add_function_LU_SOLVE(&lu_solve_1, "LU Solve Toledo Base", 1);
   add_function_LU_SOLVE(&lu_solve_2, "LU_Solve Basic C_Opts", 1);
 #ifdef TEST_MKL
   add_function_LU_SOLVE(&lu_solve_3, "LU_Solve Intel DGEMM", 1);
-  add_function_LU_SOLVE(&lu_solve_4, "LU_Solve Intel DGESV Row_Major", 1);
+  add_function_LU_SOLVE(&lu_solve_4, "LU_Solve Intel DGESV RowMjr", 1);
+  add_function_LU_SOLVE(&lu_solve_7, "LU Solve Intel DGEMM ColMjr", 1);
 #endif
   add_function_LU_SOLVE(&lu_solve_5, "LU_Solve Transposed", 1);
-  add_function_LU_SOLVE(&lu_solve_6, "LU_Solve Transposed Vector", 1);
+  add_function_LU_SOLVE(&lu_solve_6, lu_6_msg, 1);
 }
 
 #endif

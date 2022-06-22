@@ -8,10 +8,10 @@ include("TestUtils.jl")
 
 const tu = TestUtils
 
-function lu_solve(N, A, b)
+function lu_solve(lib, N, A, b)
     GC.@preserve A b begin
         retcode = ccall(
-            (:lu_solve, :libpso),
+            tu.lookup(lib, :lu_solve),
             Cint,
             (Cint, Ptr{Cdouble}, Ptr{Cdouble}),
             N, A, b
@@ -20,7 +20,7 @@ function lu_solve(N, A, b)
     return retcode
 end
 
-function LU_solve(M::Matrix{Cdouble}, b::Vector{Cdouble})::Vector{Cdouble}
+function LU_solve(lib, M::Matrix{Cdouble}, b::Vector{Cdouble})::Vector{Cdouble}
     @assert ndims(M) == 2
     @assert size(M, 1) == size(M, 2)
     N = size(M, 1) # M should be an NxN matrix
@@ -31,7 +31,7 @@ function LU_solve(M::Matrix{Cdouble}, b::Vector{Cdouble})::Vector{Cdouble}
     tu.fill_c_vec(M, Mp)
     tu.fill_c_vec(b, bp)
 
-    retcode = lu_solve(N, Mp, bp)
+    retcode = lu_solve(lib, N, Mp, bp)
     @assert retcode == 0
 
     return bp
@@ -39,14 +39,14 @@ end
 
 # --------------------------------------
 
-function solve_tests()
+function solve_tests(lib)
     @testset "LU Solve Tests" begin
 
         tu.starting_test("LU Solve")
 
         function test_lu_solve(A::Matrix, b::Vector)
             jx = A\b
-            x = LU_solve(A, b)
+            x = LU_solve(lib, A, b)
             @test A * x ≈ b
             @test jx ≈ x
         end
@@ -79,12 +79,12 @@ function setup(n, A, b)
     return (A_vec, b_vec)
 end
 
-function init(n)
-    ccall((:lu_initialize_memory, :libpso), Cvoid, (Cint,), n)
+function init(lb, n)
+    ccall(tu.lookup(lb, :lu_initialize_memory), Cvoid, (Cint,), n)
 end
 
-function teardown()
-    ccall((:lu_free_memory, :libpso), Cvoid, ())
+function teardown(lb)
+    ccall(tu.lookup(lb, :lu_free_memory), Cvoid, ())
 end
 
 function valid(n, A, b)
@@ -92,21 +92,20 @@ function valid(n, A, b)
     0 == lu_solve(n, A, b)
 end
 
-function perf_tests(n, A, b)
+function perf_tests(lib, n, A, b)
     (A_vec, b_vec) = setup(n, A, b)
     # tu.starting_test(@sprintf "LU perf comparison with A[%d, %d]x = b[%d]" n n n)
     # NOTE this preserve shouldn't be necessary because
     # a Ptr{Cdouble} Base.unsafe_convert already exists.
     GC.@preserve A_vec b_vec begin
         retcode = ccall(
-            (:perf_test_lu_solve, :libpso),
-            Cint,                                             # return type
-            (Csize_t, Ptr{Cdouble}, Ptr{Cdouble}), # parameter types
-            n, A_vec, b_vec                             # actual arguments
+            tu.lookup(lib, :perf_test_lu_solve),
+            Cint,
+            (Csize_t, Ptr{Cdouble}, Ptr{Cdouble}),
+            n, A_vec, b_vec
         )
+        @assert retcode == 0
     end
-    @assert retcode == 0
 end
-
 
 end # module

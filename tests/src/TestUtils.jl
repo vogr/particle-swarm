@@ -1,8 +1,13 @@
 module TestUtils
 
 using Logging
-using Printf: @printf, @sprintf
+using Printf: @sprintf, @info
 using ProgressBars
+
+const ldl = Base.Libc.Libdl
+
+global dlopen_flags = (ldl.RTLD_LAZY | ldl.RTLD_DEEPBIND | ldl.RTLD_LOCAL)
+global libpso
 
 export alloc_aligned_vec,
     fill_c_vec,
@@ -10,7 +15,23 @@ export alloc_aligned_vec,
     array_to_column_major,
     starting_test,
     sym_n,
+    set_lib,
+    lookup,
     @run_random
+
+function set_lib(sym)
+    sym = Symbol(sym)
+    global libpso = ldl.dlopen(
+        string(sym),
+        dlopen_flags;
+        throw_error=true
+    )
+    return
+end
+
+function lookup(library, sym::Symbol)
+    return ldl.dlsym(library, Symbol(sym))
+end
 
 # Changes the major order of the array memory layout.
 # Row -> Column and vice-versa

@@ -37,6 +37,8 @@ void dgemm_6(int M, int N, int K, double alpha, double *A, int LDA, double *B,
 
 void dgemm_intel(int M, int N, int K, double alpha, double *A, int LDA,
                  double *B, int LDB, double beta, double *C, int LDC);
+void dgemm_intelT(int M, int N, int K, double alpha, double *A, int LDA,
+                  double *B, int LDB, double beta, double *C, int LDC);
 
 #ifdef TEST_PERF
 
