@@ -40,7 +40,7 @@ int lu_solve_6(int N, double *A, double *b);
 static int *scratch_ipiv;
 
 #ifndef LU_SOLVE_VERSION
-#define LU_SOLVE_VERSION lu_solve_7
+#define LU_SOLVE_VERSION lu_solve_6
 #endif
 
 /** @brief Entry function to solve system A * x = b
@@ -656,6 +656,8 @@ int lu_solve_6(int N, double *A, double *b)
   return retcode;
 }
 
+#ifdef TEST_MKL
+
 int lu_solve_7(int N, double *A, double *b)
 {
   int retcode, ib, IB, k;
@@ -751,6 +753,8 @@ int lu_solve_7(int N, double *A, double *b)
   retcode = dgetrs_6(N, A, ipiv, b);
   return retcode;
 }
+
+#endif
 
 #ifdef TEST_PERF
 
