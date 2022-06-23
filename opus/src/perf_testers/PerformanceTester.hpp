@@ -180,7 +180,6 @@ public:
       /* add the selected counters */
       for (auto e : evset)
       {
-        std::cout << "Adding event " << e << "\n";
         if ((retval = PAPI_add_event(EventSet, e)) != PAPI_OK)
           handle_error(retval);
       }
