@@ -942,7 +942,7 @@ int fit_surrogate_6(struct pso_data_constant_inertia *pso)
 #if LINEAR_SYSTEM_SOLVER_USED == GE_SOLVER
   return fit_surrogate_6_GE(pso);
 #elif LINEAR_SYSTEM_SOLVER_USED == LU_SOLVER
-  return fit_surrogate_6_LU(pso);
+  return fit_surrogate_6_LU_blocked(pso);
 #elif LINEAR_SYSTEM_SOLVER_USED == BLOCK_TRI_SOLVER
   return fit_surrogate_6_BLOCK_TRI(pso);
 #endif
