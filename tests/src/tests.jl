@@ -1,5 +1,7 @@
 module tests
 
+import Printf: @info
+
 include("ffi_lu_solve.jl")
 include("ffi_gaussian_elimination.jl")
 include("ffi_mmm.jl")
@@ -81,6 +83,7 @@ function autotuning_lu_main(libs_to_perf)
     for lib_symbol in libs_to_perf
         tu.set_lib(lib_symbol)
         ccall(tu.lookup(tu.libpso, :register_functions_LU_SOLVE), Cvoid, ())
+        ccall(tu.lookup(tu.libpso, :register_functions_MMM), Cvoid, ())
         LU.init(tu.libpso, max_size)
     end
     redirect_stdio(stdout=autotune_results) do
@@ -89,7 +92,8 @@ function autotuning_lu_main(libs_to_perf)
           b = rand(n)
           for lib_symbol in libs_to_perf
               tu.set_lib(lib_symbol) # XXX set new dylib
-              LU.perf_tests(tu.libpso, n, A, b)
+              MMM.perf_tests(tu.libpso, n, n, n)
+              # LU.perf_tests(tu.libpso, n, A, b)
           end
         end
     end
@@ -130,24 +134,24 @@ function main()
 
 end
 
-# -----
-# ENTRY
-
-if "AUTO" in ARGS
-    autotuning_lu_main([
-        :(0libpso),
-        :(32libpso),
-        :(64libpso),
-        :(128libpso),
-        :(256libpso),
-        :(512libpso)
-    ])
-elseif "LUTEST" in ARGS
+function lu_test_main()
     tu.set_lib(:libpso)
     LU.init(tu.libpso, max_size)
     LU.solve_tests(tu.libpso)
     LU.teardown(tu.libpso)
+end
+
+# -----
+# ENTRY
+
+if ARGS[1] == "AUTO"
+    files = map(f -> split(f, ".")[1], cd(readdir, ARGS[2]))
+    @info "Autotuning with the following libs: $files"
+    autotuning_lu_main(map(Symbol, files))
+elseif ARGS[1] == "LUTEST"
+    lu_test_main()
 else
+    @info "Default running performance tests"
     main()
 end
 

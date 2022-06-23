@@ -14,7 +14,6 @@
 #include "blas/dlaswp.h"
 #include "blas/dswap.h"
 #include "blas/dtrsm.h"
-#include "blas/idamax.h"
 
 #include "helpers.h"
 
