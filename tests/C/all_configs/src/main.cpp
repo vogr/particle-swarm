@@ -188,12 +188,14 @@ int main(int argc, char **argv)
       std::stringstream descr;
       descr << fit_surrogate_name << "__" << n_A;
 
-      double cycles = perf_tester.perf_test(fit_surrogate, descr.str(),
-                                            std::move(arg_restorer), &pso);
-
-      std::cout << fit_surrogate_name << "," << n_A << "," << cycles
-                << std::endl;
-      outfile << fit_surrogate_name << "," << n_A << "," << cycles << std::endl;
+      struct perf_metrics metrics = perf_tester.perf_test(
+          fit_surrogate, descr.str(), std::move(arg_restorer), &pso);
+      std::stringstream ss;
+      ss << fit_surrogate_name << "," << n_A << "," << metrics.cycles << ","
+         << metrics.flops << "," << metrics.l3_misses << std::endl;
+      auto repr = ss.str();
+      std::cout << repr;
+      outfile << repr;
     }
 
     if (do_bench_surrogate_eval)
@@ -208,13 +210,15 @@ int main(int argc, char **argv)
       std::stringstream descr;
       descr << surrogate_eval_name << "__" << n_A;
 
-      double cycles = perf_tester.perf_test(&surrogate_eval, descr.str(),
-                                            std::move(arg_restorer), &pso, x);
+      struct perf_metrics metrics = perf_tester.perf_test(
+          &surrogate_eval, descr.str(), std::move(arg_restorer), &pso, x);
 
-      std::cout << surrogate_eval_name << "," << n_A << "," << cycles
-                << std::endl;
-      outfile << surrogate_eval_name << "," << n_A << "," << cycles
-              << std::endl;
+      std::stringstream ss;
+      ss << fit_surrogate_name << "," << n_A << "," << metrics.cycles << ","
+         << metrics.flops << "," << metrics.l3_misses << std::endl;
+      auto repr = ss.str();
+      std::cout << repr;
+      outfile << repr;
     }
   }
 

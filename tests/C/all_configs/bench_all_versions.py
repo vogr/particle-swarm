@@ -100,6 +100,7 @@ CONFIGURATIONS[55] = {
 }
 
 
+# baseline
 CONFIGURATIONS[100] = {
         "bench-flags": ["", ""],
         "CPPFLAGS": ("-DFIT_SURROGATE_VERSION=fit_surrogate_0 "
@@ -114,8 +115,9 @@ CONFIGURATIONS[100] = {
                  ),  
 }
 
+# most optimized
 CONFIGURATIONS[101] = {
-        "bench-flags": ["--bench-fit-surrogate", "fit_surrogate_0"],
+        "bench-flags": ["", ""],
         "CPPFLAGS": "",
 }
 

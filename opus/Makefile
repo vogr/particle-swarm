@@ -20,6 +20,9 @@ INC_MKL ?= 0
 # Pull autotune variables from the environment
 AUTOTUNE_ENV ?= 0
 
+# Papi in PerformanceTester ?
+WITH_PAPI ?= 0
+
 ######
 # Compilation flags
 ######
@@ -65,6 +68,13 @@ else
 	AUTOTUNE_FLAGS += -DN_BLOCK=2048
 	AUTOTUNE_FLAGS += -DK_BLOCK=384
 endif
+
+
+ifeq ($(WITH_PAPI), 1)
+	CPPFLAGS+="-DWITH_PAPI=1"
+	LDLIBS+="-lpapi"
+endif
+
 
 
 ######

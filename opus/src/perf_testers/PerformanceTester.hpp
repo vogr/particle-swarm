@@ -40,11 +40,26 @@
 extern "C"
 {
 #include "tsc_x86.h"
+}
 
 #ifdef WITH_PAPI
+extern "C"
+{
 #include "papi.h"
-#endif
 }
+static void handle_error(int retval)
+{
+  printf("PAPI error %d: %s\n", retval, PAPI_strerror(retval));
+  exit(1);
+}
+#endif
+
+struct perf_metrics
+{
+  double cycles = 0;
+  double flops = 0;
+  double l3_misses = 0;
+};
 
 // #define PERF_TESTER_OUTPUT
 //#define PERF_TESTER_NR 32
@@ -90,8 +105,9 @@ public:
    * If valid, then computes and reports and returns the number of cycles
    * required per iteration
    */
-  double perf_test(fun_T f, std::string const &desc,
-                   std::function<void()> arg_restorer, Args_T... args)
+  struct perf_metrics perf_test(fun_T f, std::string const &desc,
+                                std::function<void()> arg_restorer,
+                                Args_T... args)
   {
     double cycles = 0.;
     long num_runs = 2;
@@ -119,12 +135,90 @@ public:
 
     } while (multiplier > 2);
 
-    std::list<double> cyclesList;
+    struct perf_metrics metrics;
+#ifdef WITH_PAPI
+
+#ifdef PERF_TESTER_OUTPUT
+    std::cerr << "PAPI over " << PERF_TESTER_REP << " * " << num_runs
+              << " runs.\n";
+#endif
+
+    int retval, EventSet = PAPI_NULL;
+
+    retval = PAPI_library_init(PAPI_VER_CURRENT);
+    if (retval != PAPI_VER_CURRENT && retval > 0)
+    {
+      fprintf(stderr, "PAPI library version mismatch!\n");
+      exit(1);
+    }
+    else if (retval < 0)
+    {
+      handle_error(retval);
+    }
+
+    std::vector<int> events{PAPI_TOT_CYC, PAPI_DP_OPS, PAPI_L3_TCM};
+    size_t n_events = events.size();
+    std::vector<long long> values(n_events, 0);
+
+    for (size_t evt = 0; evt < events.size(); evt++)
+    {
+      int event = events[evt];
+      long long *dst = &(values[evt]);
+      /* Create the Event Set */
+      if ((retval = PAPI_create_eventset(&EventSet)) != PAPI_OK)
+        handle_error(retval);
+
+      /* Add Total Instructions Executed to our Event Set */
+      if ((retval = PAPI_add_event(EventSet, event)) != PAPI_OK)
+        handle_error(retval);
+
+      // Measure again, this time with PAPI
+
+      /* Start counting events in the Event Set */
+      if ((retval = PAPI_start(EventSet)) != PAPI_OK)
+        handle_error(retval);
+
+      for (size_t j = 0; j < PERF_TESTER_REP; j++)
+      {
+        for (size_t i = 0; i < num_runs; ++i)
+        {
+          /* Reset the counting events in the Event Set */
+          if ((retval = PAPI_reset(EventSet)) != PAPI_OK)
+            handle_error(retval);
+
+          f(args...);
+
+          if ((retval = PAPI_accum(EventSet, dst)) != PAPI_OK)
+            handle_error(retval);
+
+          arg_restorer();
+        }
+      }
+
+      long long null = 0;
+      if ((retval = PAPI_stop(EventSet, &null)) != PAPI_OK)
+        handle_error(retval);
+
+      if ((retval = PAPI_cleanup_eventset(EventSet)) != PAPI_OK)
+        handle_error(retval);
+
+      EventSet = PAPI_NULL;
+    }
+
+    double scale = 1. / (PERF_TESTER_REP * num_runs);
+
+    metrics.cycles = (double)(values[0]) * scale;
+    metrics.flops = (double)(values[1]) * scale;
+    metrics.l3_misses = (double)(values[2]) * scale;
+
+#else // WITH_PAPI
 
 #ifdef PERF_TESTER_OUTPUT
     std::cerr << "Benchmarking over " << PERF_TESTER_REP << " * " << num_runs
               << " runs.\n";
 #endif
+
+    std::list<double> cyclesList;
 
     // Actual performance measurements repeated REP times.
     // We simply store all results and compute medians during post-processing.
@@ -144,39 +238,15 @@ public:
       }
     }
     total_cycles /= (PERF_TESTER_REP * num_runs);
-    cycles = total_cycles;
+    metrics.cycles = total_cycles;
+#endif // WITH_PAPI
 
-#ifdef WITH_PAPI
-
-#ifdef PERF_TESTER_OUTPUT
-    std::cerr << "PAPI over " << PERF_TESTER_REP << " * " << num_runs
-              << " runs.\n";
-#endif
-
-    // Measure again, this time with PAPI
-    for (size_t j = 0; j < PERF_TESTER_REP; j++)
-    {
-      for (size_t i = 0; i < num_runs; ++i)
-      {
-        PAPI_hl_region_begin(desc.data());
-        f(args...);
-        PAPI_hl_region_end(desc.data());
-
-        arg_restorer();
-      }
-    }
-#endif
-
-    return cycles;
+    return metrics;
   }
 
   int perf_test_all_registered(std::function<void()> arg_restorer,
                                int input_size, Args_T... args)
   {
-    // std::cerr << "Starting performance tests.";
-    double perf;
-    int i;
-
     if (numFuncs == 0)
     {
       std::cerr << std::endl;
@@ -192,13 +262,15 @@ public:
     std::cerr << " " << numFuncs << " functions registered." << std::endl;
 #endif
 
-    for (i = 0; i < numFuncs; i++)
+    for (int i = 0; i < numFuncs; i++)
     {
       std::stringstream descr;
       descr << funcNames[i] << "__" << input_size;
-      perf = perf_test(userFuncs[i], descr.str(), arg_restorer, args...);
-      std::cout << funcNames[i] << "," << input_size << "," << perf
-                << std::endl;
+      struct perf_metrics metrics =
+          perf_test(userFuncs[i], descr.str(), arg_restorer, args...);
+      std::cout << funcNames[i] << "," << input_size << "," << metrics.cycles
+                << "," << metrics.flops << "," << metrics.l3_misses < < < <
+          std::endl;
     }
 
     return 0;
