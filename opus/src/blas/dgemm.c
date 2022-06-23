@@ -2347,31 +2347,31 @@ void register_functions_MMM()
 {
   char name[100];
 
-  /* add_function_MMM(&dgemm_1, "MMM Base", 1); */
-  /* sprintf(name, "%s (%d %d %d)", "MMM C opts Row Mjr", // */
-  /*         M_BLOCK, N_BLOCK, K_BLOCK); */
-  /* add_function_MMM(&dgemm_2, name, 1); */
+  add_function_MMM(&dgemm_1, "MMM Base", 1);
+  sprintf(name, "%s (%d %d %d)", "MMM C opts Row Mjr", //
+          M_BLOCK, N_BLOCK, K_BLOCK);
+  add_function_MMM(&dgemm_2, name, 1);
 
-  /* sprintf(name, "%s (%d %d %d)", "MMM C opts Col Mjr", // */
-  /*         M_BLOCK, N_BLOCK, K_BLOCK); */
-  /* add_function_MMM(&dgemm_3, name, 1); */
+  sprintf(name, "%s (%d %d %d)", "MMM C opts Col Mjr", //
+          M_BLOCK, N_BLOCK, K_BLOCK);
+  add_function_MMM(&dgemm_3, name, 1);
 
-  /* sprintf(name, "%s (%d %d %d)", "MMM C opts Col Mjr Pack", // */
-  /*         M_BLOCK, N_BLOCK, K_BLOCK); */
-  /* add_function_MMM(&dgemm_4, name, 1); */
+  sprintf(name, "%s (%d %d %d)", "MMM C opts Col Mjr Pack", //
+          M_BLOCK, N_BLOCK, K_BLOCK);
+  add_function_MMM(&dgemm_4, name, 1);
 
-  /* sprintf(name, "%s (%d %d %d)", "MMM C Vector Pack", // */
-  /*         M_BLOCK, N_BLOCK, K_BLOCK); */
-  /* add_function_MMM(&dgemm_5, name, 1); */
+  sprintf(name, "%s (%d %d %d)", "MMM C Vector Pack", //
+          M_BLOCK, N_BLOCK, K_BLOCK);
+  add_function_MMM(&dgemm_5, name, 1);
 
   sprintf(name, "%s (%d %d %d)", "MMM C Vector Virtual Pack", //
           M_BLOCK, N_BLOCK, K_BLOCK);
   add_function_MMM(&dgemm_6, name, 1);
 
-  /* #ifdef TEST_MKL */
-  /*   add_function_MMM(&dgemm_intel, "MMM_Intel RowMjr", 1); */
-  /*   add_function_MMM(&dgemm_intelT, "MMM_Intel ColMjr", 1); */
-  /* #endif */
+#ifdef TEST_MKL
+  add_function_MMM(&dgemm_intel, "MMM_Intel RowMjr", 1);
+  add_function_MMM(&dgemm_intelT, "MMM_Intel ColMjr", 1);
+#endif
 }
 
 #endif
