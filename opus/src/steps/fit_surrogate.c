@@ -143,7 +143,11 @@ int fit_surrogate_0(struct pso_data_constant_inertia *pso)
   print_rect_matrixd(Ab, n_A, n_A + 1, "Ab");
 #endif
 
-  if (gaussian_elimination_solve(n_A, Ab, pso->lambda_p) < 0)
+  PAPI_START("system_solver");
+  int ret = gaussian_elimination_solve(n_A, Ab, pso->lambda_p);
+  PAPI_STOP("system_solver");
+
+  if (ret < 0)
   {
     return -1;
   }
@@ -1666,7 +1670,11 @@ int fit_surrogate_6_LU_blocked(struct pso_data_constant_inertia *pso)
   print_vectord(b, n_A, "b");
 #endif
 
-  if (lu_solve(n_A, A, b) < 0)
+  PAPI_START("system_solver");
+  int ret = lu_solve(n_A, A, b);
+  PAPI_STOP("system_solver");
+
+  if (ret < 0)
   {
     return -1;
   }
