@@ -10,6 +10,8 @@
 #include "../pso.h"
 #include "linear_system_solver.h"
 
+#include "../my_papi.h"
+
 int fit_surrogate_6_GE(struct pso_data_constant_inertia *pso);
 int fit_surrogate_6_LU(struct pso_data_constant_inertia *pso);
 int fit_surrogate_6_BLOCK_TRI(struct pso_data_constant_inertia *pso);
@@ -20,7 +22,10 @@ int prealloc_fit_surrogate_6_BLOCK_TRI(size_t max_n_phi, size_t n_P);
 
 int fit_surrogate(struct pso_data_constant_inertia *pso)
 {
-  return FIT_SURROGATE_VERSION(pso);
+  PAPI_START("fit_surrogate");
+  int ret = FIT_SURROGATE_VERSION(pso);
+  PAPI_STOP("fit_surrogate");
+  return ret;
 }
 
 int prealloc_fit_surrogate(size_t max_n_phi, size_t n_P)

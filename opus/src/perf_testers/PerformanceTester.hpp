@@ -156,23 +156,34 @@ public:
       handle_error(retval);
     }
 
-    std::vector<int> events{PAPI_TOT_CYC, PAPI_DP_OPS, PAPI_L3_TCM};
-    size_t n_events = events.size();
-    std::vector<long long> values(n_events, 0);
-
-    for (size_t evt = 0; evt < events.size(); evt++)
+    std::vector<std::vector<int>> event_sets{
+        {PAPI_TOT_CYC, PAPI_L3_TCM},
+        {PAPI_DP_OPS},
+    };
+    size_t n_events = 0;
+    for (auto const &evset : event_sets)
     {
-      int event = events[evt];
-      long long *dst = &(values[evt]);
+      n_events += evset.size();
+    }
+
+    std::vector<long long> values(n_events, 0);
+    long long *dst = values.data();
+
+    for (size_t evset_id = 0; evset_id < event_sets.size(); evset_id++)
+    {
+      std::vector<int> const &evset = event_sets[evset_id];
+
       /* Create the Event Set */
       if ((retval = PAPI_create_eventset(&EventSet)) != PAPI_OK)
         handle_error(retval);
 
-      /* Add Total Instructions Executed to our Event Set */
-      if ((retval = PAPI_add_event(EventSet, event)) != PAPI_OK)
-        handle_error(retval);
-
-      // Measure again, this time with PAPI
+      /* add the selected counters */
+      for (auto e : evset)
+      {
+        std::cout << "Adding event " << e << "\n";
+        if ((retval = PAPI_add_event(EventSet, e)) != PAPI_OK)
+          handle_error(retval);
+      }
 
       /* Start counting events in the Event Set */
       if ((retval = PAPI_start(EventSet)) != PAPI_OK)
@@ -203,13 +214,15 @@ public:
         handle_error(retval);
 
       EventSet = PAPI_NULL;
+
+      dst += evset.size();
     }
 
     double scale = 1. / (PERF_TESTER_REP * num_runs);
 
     metrics.cycles = (double)(values[0]) * scale;
-    metrics.flops = (double)(values[1]) * scale;
-    metrics.l3_misses = (double)(values[2]) * scale;
+    metrics.l3_misses = (double)(values[1]) * scale;
+    metrics.flops = (double)(values[2]) * scale;
 
 #else // WITH_PAPI
 
@@ -269,8 +282,8 @@ public:
       struct perf_metrics metrics =
           perf_test(userFuncs[i], descr.str(), arg_restorer, args...);
       std::cout << funcNames[i] << "," << input_size << "," << metrics.cycles
-                << "," << metrics.flops << "," << metrics.l3_misses < < < <
-          std::endl;
+                << "," << metrics.flops << "," << metrics.l3_misses
+                << std::endl;
     }
 
     return 0;

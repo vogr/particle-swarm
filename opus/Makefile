@@ -11,6 +11,9 @@ DEBUG ?= 1
 # Build the pso solver as a library? Default=no
 PSO_SHARED ?= 0
 
+# Build the baseline instead of the optimized version
+BASELINE= ?= 0
+
 # Build the run_pso_testers main file? Default=no
 RUN_PERF_TESTERS ?= 0
 
@@ -22,6 +25,10 @@ AUTOTUNE_ENV ?= 0
 
 # Papi in PerformanceTester ?
 WITH_PAPI ?= 0
+
+
+# Papi in PerformanceTester ?
+PAPI_WHOLE_SYSTEM ?= 0
 
 ######
 # Compilation flags
@@ -56,6 +63,18 @@ CXXFLAGS += -std=gnu++17
 # Libraries to link
 LDLIBS+=-lm
 
+ifeq ($(BASELINE), 1)
+	CPPFLAGS+=-DFIT_SURROGATE_VERSION=fit_surrogate_0
+	CPPFLAGS+=-DFIT_SURROGATE_PREALLOC_VERSION=prealloc_fit_surrogate_0
+	CPPFLAGS+=-DCHECK_IF_DISTINCT_VERSION=check_if_distinct_0
+	CPPFLAGS+=-DSURROGATE_EVAL_VERSION=surrogate_eval_0
+	CPPFLAGS+=-DSTEP1_2_VERSION=step1_2_opt0
+	CPPFLAGS+=-DSTEP3_VERSION=step3_base
+	CPPFLAGS+=-DSTEP4_VERSION=step4_base
+	CPPFLAGS+=-DSTEP6_VERSION=step6_base
+	CPPFLAGS+=-DGE_SOLVE_VERSION=gaussian_elimination_solve_0
+endif
+
 ifeq ($(AUTOTUNE_ENV), 1)
 	AUTOTUNE_FLAGS = -DLU_BLOCK=${AT_LU_BLOCK}
 	# AUTOTUNE_FLAGS += -DM_BLOCK=${AT_M_BLOCK}
@@ -69,13 +88,21 @@ else
 	AUTOTUNE_FLAGS += -DK_BLOCK=384
 endif
 
-
+NEED_PAPI:=0
 ifeq ($(WITH_PAPI), 1)
 	CPPFLAGS+="-DWITH_PAPI=1"
-	LDLIBS+="-lpapi"
+	NEED_PAPI:=1
 endif
 
+ifeq ($(PAPI_WHOLE_SYSTEM), 1)
+	CPPFLAGS+="-DPAPI_WHOLE_SYSTEM=1"
+	NEED_PAPI:=1
+endif
 
+ifeq ($(NEED_PAPI), 1)
+	LDLIBS += $(shell pkg-config --libs papi)
+	COMMON_FLAGS += $(shell pkg-config --cflags papi)
+endif
 
 ######
 # C/C++ source files

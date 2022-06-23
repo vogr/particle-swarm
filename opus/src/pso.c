@@ -19,8 +19,10 @@
 #include "rounding_bloom.h"
 #endif
 
+#include "my_papi.h"
+
 #ifndef ENABLE_TIMER
-#define ENABLE_TIMER 1
+#define ENABLE_TIMER 0
 #endif
 
 #define DEBUG_TRIALS 0
@@ -185,17 +187,26 @@ void pso_constant_inertia_first_steps(struct pso_data_constant_inertia *pso,
   timer_start_fixed();
 #endif
 
+  PAPI_START("step1_2");
   step1_2(pso, sfd_size, space_filling_design);
+  PAPI_STOP("step1_2");
+
 #if ENABLE_TIMER == 1
   timer_step_fixed();
 #endif
 
+  PAPI_START("step3");
   step3(pso);
+  PAPI_STOP("step3");
+
 #if ENABLE_TIMER == 1
   timer_step_fixed();
 #endif
 
+  PAPI_START("step4");
   step4(pso);
+  PAPI_STOP("step4");
+
 #if ENABLE_TIMER == 1
   timer_step_fixed();
 #endif
@@ -207,37 +218,58 @@ bool pso_constant_inertia_loop(struct pso_data_constant_inertia *pso)
   timer_start_repeat();
 #endif
 
+  PAPI_START("step5");
   step5_optimized(pso);
+  PAPI_STOP("step5");
+
 #if ENABLE_TIMER == 1
   timer_step_repeat(pso->time);
 #endif
 
+  PAPI_START("step6");
   step6_optimized(pso);
+  PAPI_STOP("step6");
+
 #if ENABLE_TIMER == 1
   timer_step_repeat(pso->time);
 #endif
 
+  PAPI_START("step7");
   step7_optimized(pso);
+  PAPI_STOP("step7");
+
 #if ENABLE_TIMER == 1
   timer_step_repeat(pso->time);
 #endif
 
+  PAPI_START("step8");
   step8_optimized(pso);
+  PAPI_STOP("step8");
+
 #if ENABLE_TIMER == 1
   timer_step_repeat(pso->time);
 #endif
 
+  PAPI_START("step9");
   step9_optimized(pso);
+  PAPI_STOP("step9");
+
 #if ENABLE_TIMER == 1
   timer_step_repeat(pso->time);
 #endif
 
+  PAPI_START("step10");
   step10_optimized(pso);
+  PAPI_STOP("step10");
+
 #if ENABLE_TIMER == 1
   timer_step_repeat(pso->time);
 #endif
 
+  PAPI_START("step11");
   step11_optimized(pso);
+  PAPI_STOP("step11");
+
 #if ENABLE_TIMER == 1
   timer_step_repeat(pso->time);
 #endif

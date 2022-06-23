@@ -18,6 +18,8 @@
 
 #include "helpers.h"
 
+#include "my_papi.h"
+
 #ifdef TEST_MKL
 #include "mkl.h"
 #endif
@@ -51,7 +53,13 @@ static int *scratch_ipiv;
  * @param ipiv Buffer for internal usage when pivoting.
  * @param b Real valued Nx1 vector b.
  */
-int lu_solve(int N, double *A, double *b) { return LU_SOLVE_VERSION(N, A, b); }
+int lu_solve(int N, double *A, double *b)
+{
+  PAPI_START("lu_solve");
+  int ret = LU_SOLVE_VERSION(N, A, b);
+  PAPI_STOP("lu_solve");
+  return ret;
+}
 
 void lu_initialize_memory(int max_n)
 {
