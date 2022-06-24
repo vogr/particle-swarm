@@ -18,8 +18,11 @@
 #include "../helpers.h"
 
 // M N K block sizes for scratch buffers
+#if !defined(M_BLOCK) || !defined(N_BLOCK) || !defined(K_BLOCK)
+#error Missing definitions for M,N,K block sizes
+#endif
+
 #ifndef M_BLOCK
-#define M_BLOCK 192
 #endif
 #ifndef N_BLOCK
 #define N_BLOCK 2048

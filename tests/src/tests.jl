@@ -116,13 +116,13 @@ function main()
     register_perf_tested_functions()
     LU.init(tu.libpso, max_size)
 
-    # # ------
-    # # For performance testing MMM
-    # redirect_stdio(stdout=mmm_results) do
-    #     for n in range
-    #         MMM.perf_tests(tu.libpso, n, n, n)
-    #     end
-    # end
+    # ------
+    # For performance testing MMM
+    redirect_stdio(stdout=mmm_results) do
+        for n in range
+            MMM.perf_tests(tu.libpso, n, n, n)
+        end
+    end
 
     # ------
     # For performance testing system solving

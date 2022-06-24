@@ -101,10 +101,10 @@ static unsigned usqrt4(unsigned val)
 
 static __attribute__((always_inline)) int ideal_block(int M, int N)
 {
-#ifdef LU_BLOCK
-  return LU_BLOCK;
-#else
+#if LU_BLOCK == 0
   return usqrt4(M);
+#else
+  return LU_BLOCK;
 #endif
 }
 

@@ -70,7 +70,7 @@ cd opus
                #:final (<= (sqrt l1-size) nb))
            (build-lib n #:M nb #:N nb #:K nb))
          ;; Hand chosen values
-         (for ([mb (in-list (list model-nb 192))]
-               [nb (in-list (list model-nb 2048))]
-               [kb (in-list (list model-nb 384))])
+         (for ([mb (in-list (list model-nb 96 32 192))]
+               [nb (in-list (list model-nb 198 64 2048))]
+               [kb (in-list (list model-nb 512 256 384))])
            (build-lib n #:M mb #:N nb #:K kb))))
