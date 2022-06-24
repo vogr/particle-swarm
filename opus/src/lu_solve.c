@@ -396,7 +396,7 @@ int lu_solve_3(int N, double *A, double *b)
   if (NB <= 1 || NB >= MIN_MN)
   {
     // Use unblocked code
-    retcode = LAPACKE_dgetf2(LAPACK_ROW_MAJOR, M, N, A, LDA, ipiv);
+    retcode = dgetf2_2(M, N, A, LDA, ipiv);
     if (retcode != 0)
       return retcode;
   }
@@ -406,8 +406,7 @@ int lu_solve_3(int N, double *A, double *b)
     {
       IB = MIN(MIN_MN - ib, NB);
 
-      retcode = LAPACKE_dgetf2(LAPACK_ROW_MAJOR, M - ib, IB, &AIX(ib, ib), LDA,
-                               ipiv + ib);
+      retcode = dgetf2_2(M - ib, IB, &AIX(ib, ib), LDA, ipiv + ib);
 
       if (retcode != 0)
         return retcode;
@@ -454,13 +453,7 @@ int lu_solve_3(int N, double *A, double *b)
 
   // Solve the system with A
   // retcode = dgetrs_2(N, A, ipiv, b);
-  retcode = LAPACKE_dgetrs(LAPACK_ROW_MAJOR, 'N',
-                           N,    // Number of equations
-                           1,    // Number of rhs equations
-                           A, N, //
-                           ipiv, //
-                           b, 1  //
-  );
+  retcode = dgetrs_2(N, A, ipiv, b);
   return retcode;
 }
 
