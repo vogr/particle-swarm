@@ -51,7 +51,7 @@ function solve_all_perf_tests_single(n)
 
       A1, A2 = tu.build_matrices(c, d)
       b = rand(n)
-      LU.valid(n, A1, b) && break
+      LU.valid(tu.libpso, n, A1, b) && break
   end
   PSO_GE.perf_tests(n, A1, b)
   LU.perf_tests(tu.libpso, n, A1, b)
@@ -116,13 +116,13 @@ function main()
     register_perf_tested_functions()
     LU.init(tu.libpso, max_size)
 
-    # ------
-    # For performance testing MMM
-    redirect_stdio(stdout=mmm_results) do
-        for n in range
-            MMM.perf_tests(tu.libpso, n, n, n)
-        end
-    end
+    # # ------
+    # # For performance testing MMM
+    # redirect_stdio(stdout=mmm_results) do
+    #     for n in range
+    #         MMM.perf_tests(tu.libpso, n, n, n)
+    #     end
+    # end
 
     # ------
     # For performance testing system solving

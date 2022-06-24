@@ -87,9 +87,9 @@ function teardown(lb)
     ccall(tu.lookup(lb, :lu_free_memory), Cvoid, ())
 end
 
-function valid(n, A, b)
+function valid(lib, n, A, b)
     (A_vec, b_vec) = setup(n, A, b)
-    0 == lu_solve(n, A, b)
+    0 == lu_solve(lib, n, A, b)
 end
 
 function perf_tests(lib, n, A, b)
