@@ -59,13 +59,13 @@ function solve_tests(lib)
 
 
         @testset "Random LU Solve Small" begin
-            # tu.@run_random_N 100 2^5 2^8 "small lu solve" test_lambda
-            tu.@run_random_N 2 3^4 3^6 "small lu solve" test_lambda
+            tu.@run_random_N 100 2^5 2^8 "small lu solve" test_lambda
+            tu.@run_random_N 3 3^4 3^6 "small lu solve" test_lambda
         end
 
 
         @testset "Random LU Solve Large" begin
-            tu.@run_random_N 1 2^8 2^10 "large lu solve" test_lambda
+            tu.@run_random_N 2 2^8 2^11 "large lu solve" test_lambda
         end
 
     end

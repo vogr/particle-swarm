@@ -27,45 +27,22 @@ julia> ]
 julia> include("src/tests.jl") # this will run the enabled tests, Gavin plans on improving this interface later
 ```
 
-Occassionally you might see some strange behavior from the testing suite. This usually occurs if you make changes to the shared object and re-run the suite. If this is the case, leave the Julia REPL and reload things. This *reboot* tends to fix things. 
+Alternatively, a better approach is to run the tests directly through the command line with `julia src/tests.jl`, which accepts a combination of the following patterns.
 
+``` bash
+julia src/tests PERF
+julia src/tests AUTO <path to libs>
+julia src/tests TEST
+```
 
+> :warning: the current TEST option is out-of-date. It only tests the LU Solver currently for simplicity as no more GE and TS changes are being made.
 
-# Great ideas
+## Autotuning
 
-## fit surrogate: (VO)
-1. Cache distance calculations for phi
-2. Precompute P ?
-3. Blocking + scalar replacement in copy to Ab ; to lambda ; to p
-4. Vectorize dist calculations
+To run the autotuning script you must first install Racket and the DSL `rash`. Then run `cd scripts && ./autotune.rkt`.
+This will build shared libraries as needed and then you can test them with `julia src/tests AUTO ../lib`
 
+:beers:
 
-## pso_constant_inertia_loop (XS)
-  0. Move steps to individual functions
-  1. blocking, scalar repl, vectorize...
-  2. Move mallocs to preallocation phase
+Gavin Gray, Valentin Ogier, Xavier Servot, York Schlabrendorf
 
-## RNG
-
-1. precomputed random number generation!
-
-
-## Use x_distinct as the main place to store positions
-
-- currently all positions stored in x
-  + but really only accessed through x_distinct
-  + so non-contiguous accesses !
-- keep only current positions in x
-- keep f(x) only for x_distinct
-  + 
-
-## Q° for Tomaso:
-
-- can we have the dimension as a compile time contstant?
-  * rationale: the code is going to run for days, 
-
-
-# TODO to follow the paper
-
-- the space filling design
-- use the local refinements in fit_surrogate

@@ -148,7 +148,7 @@ if ARGS[1] == "AUTO"
     files = map(f -> split(f, ".")[1], cd(readdir, ARGS[2]))
     @info "Autotuning with the following libs: $files"
     autotuning_lu_main(map(Symbol, files))
-elseif ARGS[1] == "LUTEST"
+elseif ARGS[1] == "TEST"
     lu_test_main()
 else
     @info "Default running performance tests"
