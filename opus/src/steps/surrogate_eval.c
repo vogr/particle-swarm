@@ -218,7 +218,7 @@ double surrogate_eval_4(struct pso_data_constant_inertia const *pso,
 
   // iterate directly on x_distinct
   size_t k = 0;
-  for (; k < pso->x_distinct_s - 1; k += 2)
+  for (; k + 1 < pso->x_distinct_s ; k += 2)
   {
     double *u0_ptr = pso->x_distinct + k * dim;
     double *u1_ptr = pso->x_distinct + (k + 1) * dim;

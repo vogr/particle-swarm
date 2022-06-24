@@ -24,7 +24,7 @@ INC_MKL ?= 0
 AUTOTUNE_ENV ?= 0
 
 # Papi in PerformanceTester ?
-WITH_PAPI ?= 0
+WITH_PAPI ?= 1
 
 
 # Papi in PerformanceTester ?
