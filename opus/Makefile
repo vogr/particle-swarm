@@ -44,7 +44,7 @@ DEBUG_FLAGS:= \
 
 
 # Release flags: optimisations, NDEBUG (disable assertions), disable hardening, disable PIE (only for executable)
-RELEASE_FLAGS:=-DNDEBUG -O2 -flto -fcf-protection=none -fno-stack-protector -ffast-math
+RELEASE_FLAGS:=-DNDEBUG -O3 -flto -fcf-protection=none -fno-stack-protector -ffast-math
 
 # Flags common to debug and release
 COMMON_FLAGS := -DNO_AVX512=1
