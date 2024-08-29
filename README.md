@@ -1,6 +1,8 @@
 # Particle swarm fast implementation
 
-Article: [Particle swarm with radial basis function surrogates for expensive black-box optimization](https://acl.inf.ethz.ch/teaching/fastcode/2022/project/project-ideas/particle-swarm.pdf)
+See [report.pdf](./report.pdf) for the full description and analysis of our implementation.
+
+This project is based on the method described in the article [Particle swarm with radial basis function surrogates for expensive black-box optimization](https://acl.inf.ethz.ch/teaching/fastcode/2022/project/project-ideas/particle-swarm.pdf).
 
 ## Code Formatting 
 
